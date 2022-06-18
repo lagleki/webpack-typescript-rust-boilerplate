@@ -74,6 +74,7 @@
     "url": "git@github.com:lagleki/webpack-typescript-rust-boilerplate.git"
   },
   "scripts": {
+    "prepublish": "npm version patch",
     "ci": "yarn install --immutable  --immutable-cache --check-cache",
     "build": "webpack --config configuration/webpack.dev.config.js --mode=development",
     "watch": "webpack --config configuration/webpack.dev.config.js --mode=development --watch",
