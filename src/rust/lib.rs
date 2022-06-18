@@ -25,6 +25,7 @@ pub fn main_js() -> Result<(), JsValue> {
 
 
     let msg = json!({
+        "event": "WASM Rust response",
         "message": "Hello, world!"
     });
 
