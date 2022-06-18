@@ -2,15 +2,15 @@
 
 ![Maintenance](https://img.shields.io/maintenance/yes/2022?logo=github)
 ![webpack-current](https://img.shields.io/badge/webpack-v5.73.0-green?logo=webpack)
-![node-current (scoped)](https://img.shields.io/node/v/@lojban/webpack-typescript-rust-boilerplate)
+![node-current (scoped)](https://img.shields.io/node/v/webpack-typescript-rust-boilerplate)
 [![Build Status](https://app.travis-ci.com/lagleki/webpack-typescript-rust-boilerplate.svg?branch=master)](https://app.travis-ci.com/github/lagleki/webpack-typescript-rust-boilerplate)
-[![@lojban/webpack-typescript-rust-boilerplate](https://snyk.io/advisor/npm-package/@lojban/webpack-typescript-rust-boilerplate/badge.svg)](https://snyk.io/advisor/npm-package/@lojban/webpack-typescript-rust-boilerplate)
+[![webpack-typescript-rust-boilerplate](https://snyk.io/advisor/npm-package/webpack-typescript-rust-boilerplate/badge.svg)](https://snyk.io/advisor/npm-package/webpack-typescript-rust-boilerplate)
 [![GitHub Issues](https://img.shields.io/github/issues-raw/lagleki/webpack-typescript-rust-boilerplate)](https://github.com/lagleki/webpack-typescript-rust-boilerplate/issues)
 [![Known Vulnerabilities](https://snyk.io/test/github/lagleki/webpack-typescript-rust-boilerplate/badge.svg?targetFile=package.json)](https://snyk.io/test/github/lagleki/webpack-typescript-rust-boilerplate?targetFile=package.json)
-[![npm](https://img.shields.io/npm/dm/@lojban/webpack-typescript-rust-boilerplate)](https://www.npmjs.com/package/@lojban/webpack-typescript-rust-boilerplate)
+[![npm](https://img.shields.io/npm/dm/webpack-typescript-rust-boilerplate)](https://www.npmjs.com/package/webpack-typescript-rust-boilerplate)
 [![GitHub License](https://img.shields.io/github/license/lagleki/webpack-typescript-rust-boilerplate)](https://github.com/lagleki/webpack-typescript-rust-boilerplate/blob/master/LICENSE)
 
-Based on [https://github.com/WeAreAthlon/frontend-webpack-boilerplate] with additions of Rust and TypeScript.
+Based on [https://github.com/WeAreAthlon/frontend-webpack-boilerplate](WeAreAthlon/frontend-webpack-boilerplate) with additions of Rust and TypeScript.
 
 ## Demo
 
