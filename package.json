@@ -4,10 +4,6 @@
   "version": "1.0.5",
   "description": "Starter project template boilerplate based on Webpack with Rust, Typescript, SASS/PostCSS and babel ES6/7 support.",
   "homepage": "https://github.com/lagleki/webpack-typescript-rust-boilerplate#readme",
-  "browserslist": [
-    "last 2 versions",
-    "> 5%"
-  ],
   "bugs": {
     "url": "https://github.com/lagleki/webpack-typescript-rust-boilerplate/issues",
     "email": "gleki.is.my.name@gmail.com"
@@ -18,10 +14,23 @@
       "email": "gleki.is.my.name@gmail.com"
     }
   ],
+  "scripts": {
+    "prepublish": "npm version patch",
+    "ci": "yarn install --immutable  --immutable-cache --check-cache",
+    "build": "rimraf dist/*.html ; webpack --config configuration/webpack.dev.config.js --mode=development",
+    "watch": "webpack --config configuration/webpack.dev.config.js --mode=development --watch",
+    "bundle": "npm install && npm run watch",
+    "dev": "rimraf dist pkg && webpack serve --config configuration/webpack.dev.config.js --mode=development",
+    "production": "webpack --config configuration/webpack.prod.config.js --mode=production",
+    "lint:sass": "sass-lint -v -q",
+    "lint:js": "eslint --ext .js src/js/",
+    "stats": "webpack --config configuration/webpack.prod.config.js --mode=production --json > dist/stats.json && webpack-bundle-analyzer dist/stats.json"
+  },
   "devDependencies": {
     "@babel/core": "^7.18.5",
     "@babel/plugin-transform-react-jsx": "^7.17.12",
     "@babel/preset-env": "^7.18.2",
+    "@prerenderer/renderer-jsdom": "^0.2.0",
     "@wasm-tool/wasm-pack-plugin": "^1.6.0",
     "autoprefixer": "^10.4.7",
     "babel-loader": "^8.2.5",
@@ -43,7 +52,7 @@
     "postcss": "^8.4.14",
     "postcss-loader": "^7.0.0",
     "preact": "^10.8.1",
-    "prerender-spa-plugin-next": "^4.2.0",
+    "prerender-spa-plugin-next": "4.2.0",
     "rimraf": "^3.0.2",
     "sass": "^1.52.3",
     "sass-lint": "^1.13.1",
@@ -76,17 +85,9 @@
     "type": "git",
     "url": "git@github.com:lagleki/webpack-typescript-rust-boilerplate.git"
   },
-  "scripts": {
-    "prepublish": "npm version patch",
-    "ci": "yarn install --immutable  --immutable-cache --check-cache",
-    "build": "webpack --config configuration/webpack.dev.config.js --mode=development",
-    "watch": "webpack --config configuration/webpack.dev.config.js --mode=development --watch",
-    "bundle": "npm install && npm run watch",
-    "dev": "rimraf dist pkg && webpack serve --config configuration/webpack.dev.config.js --mode=development",
-    "production": "webpack --config configuration/webpack.prod.config.js --mode=production",
-    "lint:sass": "sass-lint -v -q",
-    "lint:js": "eslint --ext .js src/js/",
-    "stats": "webpack --config configuration/webpack.prod.config.js --mode=production --json > dist/stats.json && webpack-bundle-analyzer dist/stats.json"
-  },
-  "target": "web"
+  "target": "web",
+  "browserslist": [
+    "last 2 versions",
+    "> 5%"
+  ]
 }
