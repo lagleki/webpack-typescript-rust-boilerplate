@@ -19,8 +19,8 @@
     }
   ],
   "devDependencies": {
-    "webpack5-prerender-loader": "^1.0.0",
     "@babel/core": "^7.18.5",
+    "@babel/plugin-transform-react-jsx": "^7.17.12",
     "@babel/preset-env": "^7.18.2",
     "@wasm-tool/wasm-pack-plugin": "^1.6.0",
     "autoprefixer": "^10.4.7",
@@ -42,6 +42,8 @@
     "mini-css-extract-plugin": "^2.6.1",
     "postcss": "^8.4.14",
     "postcss-loader": "^7.0.0",
+    "preact": "^10.8.1",
+    "prerender-spa-plugin": "^3.4.0",
     "rimraf": "^3.0.2",
     "sass": "^1.52.3",
     "sass-lint": "^1.13.1",
