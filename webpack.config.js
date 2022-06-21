@@ -10,7 +10,7 @@ const ImageMinimizerPlugin = require("image-minimizer-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
-const PrerenderSPAPlugin = require('prerender-spa-plugin')
+const PrerenderSPAPlugin = require('prerender-spa-plugin-next')
 
 const environment = require("./configuration/environment");
 
@@ -137,7 +137,7 @@ module.exports = {
       // Required - The path to the webpack-outputted app to prerender.
       staticDir: path.join(__dirname, 'dist'),
       // Required - Routes to render.
-      routes: [ '/' ],
+      routes: [ 'index.html' ],
     }),
     new WasmPackPlugin({
       crateDirectory: __dirname,
