@@ -31,6 +31,7 @@
     "@babel/plugin-transform-react-jsx": "^7.17.12",
     "@babel/preset-env": "^7.18.2",
     "@prerenderer/renderer-jsdom": "^0.2.0",
+    "@prerenderer/renderer-puppeteer": "^0.2.0",
     "@wasm-tool/wasm-pack-plugin": "^1.6.0",
     "autoprefixer": "^10.4.7",
     "babel-loader": "^8.2.5",

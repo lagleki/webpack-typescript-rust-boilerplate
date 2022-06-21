@@ -1,7 +1,6 @@
 const importPromise = import("../../pkg/");
 import { Machine } from "../../pkg/";
 
-
 //simple console logging test
 const demo = () =>
   "Webpack Boilerplate v5.14.0 - SASS/PostCSS, ES6/7, browser sync, source code listing and more.";

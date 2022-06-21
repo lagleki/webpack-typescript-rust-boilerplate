@@ -11,7 +11,6 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 const PrerenderSPAPlugin = require("prerender-spa-plugin-next");
-const JSDOMRenderer = require("@prerenderer/renderer-jsdom");
 
 const environment = require("./configuration/environment");
 
@@ -135,11 +134,8 @@ module.exports = {
   },
   plugins: [
     new PrerenderSPAPlugin({
-      // Required - The path to the webpack-outputted app to prerender.
-      staticDir: path.join(__dirname, "dist"),
       // Required - Routes to render.
       routes: ["/"],
-      renderer: new JSDOMRenderer(),
     }),
     new WasmPackPlugin({
       crateDirectory: __dirname,
