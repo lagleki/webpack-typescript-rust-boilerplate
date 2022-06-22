@@ -30,3 +30,10 @@ console.log({
   textExpression,
   result: machine.add().toString(),
 });
+
+//SSR test for index.html
+const div = document.createElement("div");
+div.classList.add("rendered_elem")
+div.style.fontSize = "200%";
+div.innerText = `Hello world, I'm SSR rendered at ${new Date()}`;
+document.body.appendChild(div);
