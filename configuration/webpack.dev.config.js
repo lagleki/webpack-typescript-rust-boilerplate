@@ -3,7 +3,6 @@ const { merge } = require("webpack-merge");
 
 const webpackConfiguration = require("../webpack.config");
 const environment = require("./environment");
-const HtmlBeautifyPlugin = require('html-beautify-webpack-plugin');
 
 module.exports = (env, argv) =>
   merge(webpackConfiguration(env, argv), {
@@ -34,5 +33,5 @@ module.exports = (env, argv) =>
     },
 
     /* Additional plugins configuration */
-    plugins: [new HtmlBeautifyPlugin()],
+    plugins: [],
   });

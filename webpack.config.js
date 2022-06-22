@@ -11,6 +11,7 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 const PrerenderSPAPlugin = require("prerender-spa-plugin-next");
+const HtmlBeautifyPlugin = require('html-beautify-webpack-plugin');
 
 const environment = require("./configuration/environment");
 
@@ -200,7 +201,7 @@ module.exports = (env, argv) => {
           },
         ],
       }),
-    ].concat(htmlPluginEntries(env, argv)),
+    ].concat(htmlPluginEntries(env, argv)).concat(new HtmlBeautifyPlugin()),
     target: "web",
   };
 };
