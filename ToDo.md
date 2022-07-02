@@ -1,3 +1,5 @@
+* root directory for ssr rendering
+* beautify html files in dev mode
 * templating
     * handlebars for HTML files
     * for css files: use scss hardcoded variables

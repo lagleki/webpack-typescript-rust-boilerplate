@@ -1,5 +1,5 @@
-const importPromise = import("../../pkg/");
-import { Machine } from "../../pkg/";
+const importPromise = import("../../pkg");
+import { Machine } from "../../pkg";
 
 //simple console logging test
 const demo = () =>
@@ -36,4 +36,4 @@ const div = document.createElement("div");
 div.classList.add("rendered_elem")
 div.style.fontSize = "200%";
 div.innerText = `Hello world, I'm SSR rendered at ${new Date()}`;
-document.body.appendChild(div);
+document.getElementById("root")?.appendChild(div);

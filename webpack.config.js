@@ -11,7 +11,6 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 const PrerenderSPAPlugin = require("prerender-spa-plugin-next");
-const HtmlBeautifyPlugin = require('html-beautify-webpack-plugin');
 
 const environment = require("./configuration/environment");
 
@@ -25,6 +24,15 @@ const templateFiles = fs
     output: filename.replace(/\.ejs$/, ".html"),
   }));
 
+function htmlJson() {
+  try {
+    return JSON.parse(
+      fs.readFileSync(path.resolve(__dirname, "configuration", "html.json"))
+    );
+  } catch (error) {
+    return {};
+  }
+}
 const htmlPluginEntries = (env, argv) =>
   templateFiles.map(
     (template) =>
@@ -34,6 +42,7 @@ const htmlPluginEntries = (env, argv) =>
         hash: false,
         filename: template.output,
         template: path.resolve(environment.paths.source, template.input),
+        templateParameters: htmlJson(),
         favicon: path.resolve(
           environment.paths.source,
           "images",
@@ -201,7 +210,7 @@ module.exports = (env, argv) => {
           },
         ],
       }),
-    ].concat(htmlPluginEntries(env, argv)).concat(new HtmlBeautifyPlugin()),
+    ].concat(htmlPluginEntries(env, argv)),
     target: "web",
   };
 };
