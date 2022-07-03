@@ -11,7 +11,7 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 // const PrerenderSPAPlugin = require("prerender-spa-plugin-next");
-import { PuppeteerPrerenderPlugin } from "puppeteer-prerender-plugin";
+const PuppeteerPrerenderPlugin = require("puppeteer-prerender-plugin");
 
 const environment = require("./configuration/environment");
 
