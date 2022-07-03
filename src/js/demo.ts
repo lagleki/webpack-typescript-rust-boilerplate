@@ -8,7 +8,7 @@ const demo = () =>
 console.log(demo());
 
 //Workers' test
-const worker = new Worker(new URL("./deep-thought", import.meta.url));
+const worker = new Worker(new URL("./worker", import.meta.url));
 worker.postMessage({
   question:
     "The Answer to the Ultimate Question of Life, The Universe, and Everything.",

@@ -10,7 +10,8 @@ const ImageMinimizerPlugin = require("image-minimizer-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
-const PrerenderSPAPlugin = require("prerender-spa-plugin-next");
+// const PrerenderSPAPlugin = require("prerender-spa-plugin-next");
+import { PuppeteerPrerenderPlugin } from "puppeteer-prerender-plugin";
 
 const environment = require("./configuration/environment");
 
@@ -151,39 +152,59 @@ module.exports = (env, argv) => {
       ],
     },
     plugins: [
-      new PrerenderSPAPlugin({
-        // Required - Routes to render.
-        routes: ["/"],
-        rendererOptions: {
-          // Optional - The name of the property to add to the window object with the contents of `inject`.
-          // injectProperty: "__PRERENDER_INJECTED",
-          // Optional - Any values you'd like your app to have access to via `window.injectProperty`.
-          // inject: {
-          //   foo: "bar",
-          // },
+      // new PrerenderSPAPlugin({
+      //   // Required - Routes to render.
+      //   routes: ["/"],
+      //   renderer: require('@prerenderer/renderer-jsdom'),
+      //   rendererOptions: {
+      //     // Optional - The name of the property to add to the window object with the contents of `inject`.
+      //     // injectProperty: "__PRERENDER_INJECTED",
+      //     // Optional - Any values you'd like your app to have access to via `window.injectProperty`.
+      //     // inject: {
+      //     //   foo: "bar",
+      //     // },
 
-          // Optional - defaults to 0, no limit.
-          // Routes are rendered asynchronously.
-          // Use this to limit the number of routes rendered in parallel.
-          maxConcurrentRoutes: 4,
+      //     // Optional - defaults to 0, no limit.
+      //     // Routes are rendered asynchronously.
+      //     // Use this to limit the number of routes rendered in parallel.
+      //     maxConcurrentRoutes: 4,
 
-          // Optional - Wait to render until the specified event is dispatched on the document.
-          // eg, with `document.dispatchEvent(new Event('custom-render-trigger'))`
-          // renderAfterDocumentEvent: "custom-render-trigger",
+      //     // Optional - Wait to render until the specified event is dispatched on the document.
+      //     // eg, with `document.dispatchEvent(new Event('custom-render-trigger'))`
+      //     // renderAfterDocumentEvent: "custom-render-trigger",
 
-          // Optional - Wait to render until the specified element is detected using `document.querySelector`
-          renderAfterElementExists: ".rendered_elem",
+      //     // Optional - Wait to render until the specified element is detected using `document.querySelector`
+      //     renderAfterElementExists: ".rendered_elem",
 
-          // Optional - Wait to render until a certain amount of time has passed.
-          // NOT RECOMMENDED
-          // renderAfterTime: 1000, // Wait 5 seconds.
-          // Optional - Cancel render if it takes more than a certain amount of time
-          // useful in combination with renderAfterDocumentEvent as it will avoid waiting infinitely if the event doesn't fire
-          timeout: 20000, // Cancel render if it takes more than 20 seconds
+      //     // Optional - Wait to render until a certain amount of time has passed.
+      //     // NOT RECOMMENDED
+      //     // renderAfterTime: 1000, // Wait 5 seconds.
+      //     // Optional - Cancel render if it takes more than a certain amount of time
+      //     // useful in combination with renderAfterDocumentEvent as it will avoid waiting infinitely if the event doesn't fire
+      //     timeout: 5000, // Cancel render if it takes more than 20 seconds
 
-          // Other puppeteer options.
-          // (See here: https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#puppeteerlaunchoptions)
-          // headless: false, // Display the browser window when rendering. Useful for debugging.
+      //     // Other puppeteer options.
+      //     // (See here: https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#puppeteerlaunchoptions)
+      //     // headless: false, // Display the browser window when rendering. Useful for debugging.
+      //   },
+      // }),
+      new PuppeteerPrerenderPlugin({
+        enabled: process.env.NODE_ENV !== "development",
+        entryDir: "dist",
+        outputDir: "dist",
+        renderAfterEvent: "__RENDERED__",
+        postProcess: (result) => {
+          result.html = result.html
+            .replace(/<script (.*?)>/g, "<script $1 defer>")
+            .replace('id="app"', 'id="app" data-server-rendered="true"');
+        },
+        routes: [
+          "/", // Renders to dist/index.html
+        ],
+        puppeteerOptions: {
+          // Needed to run inside Docker
+          headless: true,
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
         },
       }),
       new WasmPackPlugin({
