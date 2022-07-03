@@ -174,11 +174,11 @@ module.exports = (env, argv) => {
           // renderAfterDocumentEvent: "custom-render-trigger",
 
           // Optional - Wait to render until the specified element is detected using `document.querySelector`
-          renderAfterElementExists: ".rendered_elem",
+          // renderAfterElementExists: ".rendered_elem",
 
           // Optional - Wait to render until a certain amount of time has passed.
           // NOT RECOMMENDED
-          // renderAfterTime: 1000, // Wait 5 seconds.
+          renderAfterTime: 1000, // Wait 5 seconds.
           // Optional - Cancel render if it takes more than a certain amount of time
           // useful in combination with renderAfterDocumentEvent as it will avoid waiting infinitely if the event doesn't fire
           timeout: 5000, // Cancel render if it takes more than 20 seconds
