@@ -10,8 +10,8 @@ const ImageMinimizerPlugin = require("image-minimizer-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
-// const PrerenderSPAPlugin = require("prerender-spa-plugin-next");
-const {PuppeteerPrerenderPlugin} = require("puppeteer-prerender-plugin");
+const PrerenderSPAPlugin = require("prerender-webpack5-plugin");
+// const {PuppeteerPrerenderPlugin} = require("puppeteer-prerender-plugin");
 
 const environment = require("./configuration/environment");
 
@@ -155,7 +155,7 @@ module.exports = (env, argv) => {
       new PrerenderSPAPlugin({
         // Required - Routes to render.
         routes: ["/"],
-        renderer: require('@prerenderer/renderer-jsdom'),
+        // renderer: require('@prerenderer/renderer-jsdom'),
         rendererOptions: {
           // Optional - The name of the property to add to the window object with the contents of `inject`.
           // injectProperty: "__PRERENDER_INJECTED",
