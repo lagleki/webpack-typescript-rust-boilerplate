@@ -131,27 +131,11 @@ module.exports = (env, argv) => {
     },
     module: {
       rules: [
-        // {
-        //   test: /\.tsx?$/,
-        //   use: "ts-loader",
-        //   exclude: /node_modules/,
-        // },
         {
           test: /\.tsx?$/,
-          loader: "esbuild-loader",
-          options: {
-            loader: "tsx", // Or 'ts' if you don't need tsx
-            target: "es2015",
-          },
+          use: "ts-loader",
+          exclude: /node_modules/,
         },
-        // {
-        //   test: /\.m?js$/,
-        //   exclude: /(node_modules)/,
-        //   use: {
-        //     // `.swcrc` can be used to configure swc
-        //     loader: "swc-loader"
-        //   }
-        // },
         {
           test: /\.((c|sa|sc)ss)$/i,
           use: [
@@ -166,14 +150,6 @@ module.exports = (env, argv) => {
           exclude: /node_modules/,
           use: ["babel-loader"],
         },
-        // {
-        //   test: /\.js$/,
-        //   loader: "esbuild-loader",
-        //   options: {
-        //     loader: "jsx", // Remove this if you're not using JSX
-        //     target: "es2015", // Syntax to compile to (see options below for possible values)
-        //   },
-        // },
         {
           test: /\.(png|gif|jpe?g|svg)$/i,
           type: "asset",
