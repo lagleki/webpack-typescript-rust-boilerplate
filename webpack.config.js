@@ -10,7 +10,6 @@ const ImageMinimizerPlugin = require("image-minimizer-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
-// const PrerenderSPAPlugin = require("prerender-webpack5-plugin");
 const { PuppeteerPrerenderPlugin } = require("puppeteer-prerender-plugin");
 
 const environment = require("./configuration/environment");
@@ -50,44 +49,8 @@ const htmlPluginEntries = (env, argv) =>
           "favicon.ico"
         ),
       }),
-      // new PrerenderSPAPlugin({
-      //   // Required - Routes to render.
-      //   routes: [template.output.replace(/^index\.html$/, "")],
-      //   // renderer: require('@prerenderer/renderer-jsdom'),
-      //   rendererOptions: {
-      //     // Optional - The name of the property to add to the window object with the contents of `inject`.
-      //     // injectProperty: "__PRERENDER_INJECTED",
-      //     // Optional - Any values you'd like your app to have access to via `window.injectProperty`.
-      //     // inject: {
-      //     //   foo: "bar",
-      //     // },
-
-      //     // Optional - defaults to 0, no limit.
-      //     // Routes are rendered asynchronously.
-      //     // Use this to limit the number of routes rendered in parallel.
-      //     maxConcurrentRoutes: 4,
-
-      //     // Optional - Wait to render until the specified event is dispatched on the document.
-      //     // eg, with `document.dispatchEvent(new Event('custom-render-trigger'))`
-      //     // renderAfterDocumentEvent: "custom-render-trigger",
-
-      //     // Optional - Wait to render until the specified element is detected using `document.querySelector`
-      //     renderAfterElementExists: ".rendered_elem",
-
-      //     // Optional - Wait to render until a certain amount of time has passed.
-      //     // NOT RECOMMENDED
-      //     // renderAfterTime: 5000, // Wait 5 seconds.
-      //     // Optional - Cancel render if it takes more than a certain amount of time
-      //     // useful in combination with renderAfterDocumentEvent as it will avoid waiting infinitely if the event doesn't fire
-      //     timeout: 5000, // Cancel render if it takes more than 20 seconds
-
-      //     // Other puppeteer options.
-      //     // (See here: https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#puppeteerlaunchoptions)
-      //     // headless: false, // Display the browser window when rendering. Useful for debugging.
-      //   },
-      // }),
       new PuppeteerPrerenderPlugin({
-        enabled: argv.mode !== "development",
+        enabled: true,
         entryDir: "dist",
         outputDir: "dist",
         renderAfterEvent: "__RENDERED__",

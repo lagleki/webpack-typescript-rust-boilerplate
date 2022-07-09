@@ -1,7 +1,6 @@
-/* eslint-disable import/no-extraneous-dependencies */
 const { merge } = require("webpack-merge");
 
-const webpackConfiguration = require("../webpack.config");
+const webpackConfiguration = require("../webpack.config.js");
 const environment = require("./environment");
 
 module.exports = (env, argv) =>
