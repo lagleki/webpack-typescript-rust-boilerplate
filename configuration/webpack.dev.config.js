@@ -1,4 +1,5 @@
 const { merge } = require("webpack-merge");
+const ESLintPlugin = require('eslint-webpack-plugin');
 
 const webpackConfiguration = require("../webpack.config.js");
 const environment = require("./environment");
@@ -32,5 +33,5 @@ module.exports = (env, argv) =>
     },
 
     /* Additional plugins configuration */
-    plugins: [],
+    plugins: [new ESLintPlugin({})],
   });
