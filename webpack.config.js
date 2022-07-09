@@ -11,6 +11,7 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 const { PuppeteerPrerenderPlugin } = require("puppeteer-prerender-plugin");
+const prettier = require("prettier");
 
 const environment = require("./configuration/environment");
 
@@ -55,9 +56,11 @@ const htmlPluginEntries = (env, argv) =>
         outputDir: "dist",
         renderAfterEvent: "__RENDERED__",
         postProcess: (result) => {
-          result.html = result.html
-            .replace(/<script (.*?)>/g, "<script $1 defer>")
-            .replace('id="app"', 'id="app" data-server-rendered="true"');
+          // result.html = result.html
+          //   .replace(/<script (.*?)>/g, "<script $1 defer>")
+          //   .replace('id="root"', 'id="root" data-server-rendered="true"');
+          if (argv.mode === "development")
+            result.html = prettier.format(result.html, { parser: "html" });
         },
         routes: [
           "/" + template.output.replace(/^index\.html$/, ""), // Renders to dist/index.html
