@@ -2,6 +2,7 @@
 const { merge } = require("webpack-merge");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
+const { ESBuildMinifyPlugin } = require("esbuild-loader");
 
 const webpackConfiguration = require("../webpack.config");
 
@@ -14,10 +15,14 @@ module.exports = (env, argv) =>
     optimization: {
       minimize: true,
       minimizer: [
-        new TerserPlugin({
-          parallel: true,
+        // new TerserPlugin({
+        //   parallel: true,
+        // }),
+        // new CssMinimizerPlugin(),
+        new ESBuildMinifyPlugin({
+          target: "es2015", // Syntax to compile to (see options below for possible values)
+          css: true
         }),
-        new CssMinimizerPlugin(),
       ],
     },
 

@@ -144,6 +144,14 @@ module.exports = (env, argv) => {
             target: "es2015",
           },
         },
+        // {
+        //   test: /\.m?js$/,
+        //   exclude: /(node_modules)/,
+        //   use: {
+        //     // `.swcrc` can be used to configure swc
+        //     loader: "swc-loader"
+        //   }
+        // },
         {
           test: /\.((c|sa|sc)ss)$/i,
           use: [
@@ -153,19 +161,19 @@ module.exports = (env, argv) => {
             "sass-loader",
           ],
         },
-        // {
-        //   test: /\.js$/,
-        //   exclude: /node_modules/,
-        //   use: ["babel-loader"],
-        // },
         {
           test: /\.js$/,
-          loader: "esbuild-loader",
-          options: {
-            loader: "jsx", // Remove this if you're not using JSX
-            target: "es2015", // Syntax to compile to (see options below for possible values)
-          },
+          exclude: /node_modules/,
+          use: ["babel-loader"],
         },
+        // {
+        //   test: /\.js$/,
+        //   loader: "esbuild-loader",
+        //   options: {
+        //     loader: "jsx", // Remove this if you're not using JSX
+        //     target: "es2015", // Syntax to compile to (see options below for possible values)
+        //   },
+        // },
         {
           test: /\.(png|gif|jpe?g|svg)$/i,
           type: "asset",
