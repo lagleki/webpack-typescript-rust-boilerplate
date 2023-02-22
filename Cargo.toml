@@ -38,6 +38,8 @@ serde_json="1.0.81"
 # compared to the default allocator's ~10K. However, it is slower than the default
 # allocator, so it's not enabled by default.
 wee_alloc = { version = "0.4.2", optional = true }
+regex = "1"
+unicode-xid = "0.2"
 
 # The `web-sys` crate allows you to interact with the various browser APIs,
 # like the DOM.
@@ -58,3 +60,6 @@ wasm-bindgen-test = "0.2.45"
 futures = "0.1.27"
 js-sys = "0.3.22"
 wasm-bindgen-futures = "0.3.22"
+
+[build-dependencies]
+lrpeg = "0.4"

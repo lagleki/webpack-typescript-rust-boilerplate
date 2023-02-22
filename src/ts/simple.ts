@@ -9,7 +9,7 @@ log({ event: "Logging into console", status: 'ok' });
 //HTML templating engine test
 const htmlElement = render("div", {
   className: "testFrom",
-  children: [render("h3", { textContent: "h3 title" })],
+  children: [render("h3", { textContent: "Hello world. This is a title" })],
 });
 
 document.body.appendChild(htmlElement);

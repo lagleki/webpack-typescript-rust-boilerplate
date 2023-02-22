@@ -5,5 +5,5 @@ worker.postMessage({
     "The Answer to the Ultimate Question of Life, The Universe, and Everything.",
 });
 worker.onmessage = ({ data: { problem } }) => {
-  console.log({ event: "Worker response", ...problem });
+  console.log({ event: "JS Worker response", ...problem });
 };

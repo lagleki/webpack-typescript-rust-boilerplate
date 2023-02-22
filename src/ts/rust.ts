@@ -10,7 +10,7 @@ const valueA = 1,
 const machine = Machine.new(valueA, valueB);
 const textExpression = `${valueA} + ${valueB}`;
 console.log({
-  event: "WASM Rust calc response",
+  event: "JS (from WASM Rust) response",
   textExpression,
   result: machine.add().toString(),
 });
