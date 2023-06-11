@@ -89,6 +89,6 @@
     "> 5%"
   ],
   "dependencies": {
-    "@sutysisku/renderer": "*"
+    "@sutysisku/renderer": "^1.0.4"
   }
 }
