@@ -1,15 +1,15 @@
-import { render } from "@sutysisku/renderer";
+import { render } from "@sutysisku/renderer/src";
 
 //simple console logging test
-const log = (arg: { [key: string]: string }) =>
-  console.log(arg);
+const log = (arg: { [key: string]: string }) => console.log(arg);
 
-log({ event: "Logging into console", status: 'ok' });
+log({ event: "Logging into console", status: "ok" });
 
 //HTML templating engine test
-const htmlElement = render("div", {
-  className: "testFrom",
-  children: [render("h3", { textContent: "Hello world. This is a title" })],
+const htmlElement = render("h3", {
+  style: { color: "red", fontSize: "200%" },
+  textContent:
+    "But this is a runtime-rendered text replacing the text rendered here in SSR mode",
 });
 
-document.body.appendChild(htmlElement);
+document.getElementById("subtitle")?.replaceChildren(htmlElement);
