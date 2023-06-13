@@ -50,29 +50,29 @@ const htmlPluginEntries = (env, argv) =>
           "favicon.svg"
         ),
       }),
-      argv.mode !== "production"
-        ? undefined
-        : new PuppeteerPrerenderPlugin({
-            enabled: true,
-            entryDir: path.join(__dirname, "dist"),
-            outputDir: path.join(__dirname, "dist"),
-            renderAfterEvent: "__RENDERED__",
-            postProcess: (result) => {
-              // result.html = result.html
-              //   .replace(/<script (.*?)>/g, "<script $1 defer>")
-              //   .replace('id="root"', 'id="root" data-server-rendered="true"');
-              if (argv.mode === "development")
-                result.html = prettier.format(result.html, { parser: "html" });
-            },
-            routes: [
-              "/" + template.output.replace(/^index\.html$/, ""), // Renders to dist/index.html
-            ],
-            puppeteerOptions: {
-              // Needed to run inside Docker
-              headless: true,
-              args: ["--no-sandbox", "--disable-setuid-sandbox"],
-            },
-          }),
+      // argv.mode !== "production"
+      //   ? undefined
+      //   : new PuppeteerPrerenderPlugin({
+      //       enabled: true,
+      //       entryDir: path.join(__dirname, "dist"),
+      //       outputDir: path.join(__dirname, "dist"),
+      //       renderAfterEvent: "__RENDERED__",
+      //       postProcess: (result) => {
+      //         // result.html = result.html
+      //         //   .replace(/<script (.*?)>/g, "<script $1 defer>")
+      //         //   .replace('id="root"', 'id="root" data-server-rendered="true"');
+      //         if (argv.mode === "development")
+      //           result.html = prettier.format(result.html, { parser: "html" });
+      //       },
+      //       routes: [
+      //         "/" + template.output.replace(/^index\.html$/, ""), // Renders to dist/index.html
+      //       ],
+      //       puppeteerOptions: {
+      //         // Needed to run inside Docker
+      //         headless: true,
+      //         args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      //       },
+      //     }),
     ].filter(Boolean))
     .flat();
 

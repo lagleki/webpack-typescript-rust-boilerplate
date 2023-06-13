@@ -1,6 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 const { merge } = require("webpack-merge");
-const { ESBuildMinifyPlugin } = require("esbuild-loader");
+const { EsbuildPlugin } = require("esbuild-loader");
 
 const webpackConfiguration = require("../webpack.config");
 
@@ -13,7 +13,7 @@ module.exports = (env, argv) =>
     optimization: {
       minimize: true,
       minimizer: [
-        new ESBuildMinifyPlugin({
+        new EsbuildPlugin({
           target: "es2015", // Syntax to compile to (see options below for possible values)
           css: true
         }),

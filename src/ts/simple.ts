@@ -1,4 +1,4 @@
-import { render } from "@sutysisku/renderer/src";
+import { render } from "@sutysisku/renderer";
 
 //simple console logging test
 const log = (arg: { [key: string]: string }) => console.log(arg);
@@ -9,7 +9,7 @@ log({ event: "Logging into console", status: "ok" });
 const htmlElement = render("h3", {
   style: { color: "red", fontSize: "200%" },
   textContent:
-    "But this is a runtime-rendered text replacing the text rendered here in SSR mode",
+    "This is a text",
 });
 
 document.getElementById("subtitle")?.replaceChildren(htmlElement);

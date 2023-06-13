@@ -89,6 +89,7 @@
     "> 5%"
   ],
   "dependencies": {
-    "@sutysisku/renderer": "^1.0.4"
+    "@sutysisku/renderer": "^1.0.4",
+    "jpegtran-bin": "^7.0.0"
   }
 }
