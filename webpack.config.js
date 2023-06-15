@@ -200,6 +200,10 @@ module.exports = (env, argv) => {
           },
         ],
       }),
+      new webpack.DefinePlugin({
+        'process.env.PRODUCTION': false,
+        'process.env.sql_buffer_mode': 'memory',
+      }),
     ].concat(htmlPluginEntries(env, argv)),
     target: "web",
   };
