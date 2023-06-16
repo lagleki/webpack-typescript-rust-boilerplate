@@ -9,7 +9,34 @@ import { parse } from "./template/cmaxes.js";
 import { WordEmbeddings, loadModel } from "./template/w2v/embeddings.js";
 import jsonTeJufra from "./template/tejufra.json";
 
-const decompress = require("brotli/decompress");
+import decompress from "brotli/decompress";
+
+type Dict = { [x: string]: any };
+
+type Def = {
+  semMaxDistance?: number;
+  n?: string;
+  s?: string[];
+  r?: string[];
+  t?: string;
+  bangu: string;
+  w: string;
+  z?: string;
+  rfs?: Def[];
+  g?: string;
+  d?: string;
+  ot?: string;
+  nasezvafahi?: true;
+};
+
+type Searching = {
+  query: string;
+  seskari?: string;
+  bangu: string;
+  versio?: string;
+  leijufra?: any;
+  loadingState?: boolean;
+};
 
 self.postMessage({ kind: "loading" });
 
@@ -32,7 +59,7 @@ self.onmessage = function (ev) {
     });
   } else if (ev.data.kind == "fancu" && ev.data.cmene) {
     aQueue.enqueue(() => {
-      fancu[ev.data.cmene as any](ev.data, function (results: any) {
+      (fancu as any)[ev.data.cmene](ev.data, function (results: any) {
         self.postMessage({
           kind: "fancu",
           cmene: ev.data.cmene,
@@ -114,11 +141,14 @@ async function initSQLDB() {
   const response = await fetch("/sutysisku/data/embeddings-en.json.bin");
   const blob = await response.arrayBuffer();
 
-  const decompressedData = Buffer.from(decompress(Buffer.from(blob)));
+  const decompressedData = Buffer.from(
+    decompress(Buffer.from(blob))
+  ).toString();
   wordEmbeddings = await loadModel(JSON.parse(decompressedData));
 }
 
-const log = (output, level) => console[level ?? "log"](output);
+const log = (output: string | Dict, level: "log" | "warn" | "error" = "log") =>
+  console[level ?? "log"](output);
 
 async function runMigrations() {
   await sql`CREATE TABLE IF NOT EXISTS valsi (d text,n text,w text,r text,bangu text,s text,t text,g text,cache text,b text,z text);`;
@@ -136,9 +166,9 @@ async function runMigrations() {
   } catch (error) {}
 }
 
-const convertToObject = (data) => {
-  return data.rows.map((row) => {
-    return row.reduce((acc, value, index) => {
+const convertToObject = (data: any) => {
+  return data.rows.map((row: any) => {
+    return row.reduce((acc: Dict, value: any, index: string | number) => {
       acc[data.columns[index]] = value;
       return acc;
     }, {});
@@ -184,18 +214,18 @@ function prettifySqlQuery(query: string) {
 }
 
 async function runQuery(sqlQuery: string, params = {}) {
-  const start = new Date();
+  const start = new Date().getTime();
   const rows = await sql(sqlQuery, params);
   if (process.env.PRODUCTION !== "production")
     log({
-      duration: new Date() - start,
+      duration: new Date().getTime() - start,
       sqlQuery: prettifySqlQuery(sqlQuery),
       params,
       rows,
     });
 
-  return rows.map((row) => {
-    if (self.production === "production") {
+  return rows.map((row: any) => {
+    if (process.env.PRODUCTION === "production") {
       delete row.cache;
       delete row.no;
     }
@@ -260,7 +290,7 @@ const sufficientLangs = (searching: any) =>
     "sutysisku",
   ].filter(Boolean);
 
-let sesisku_bangu: string;
+let sesisku_bangu: string | null;
 
 const fancu = {
   sanji_letejufra: async ({ bangu }: { bangu: string }, cb: any) => {
@@ -287,7 +317,7 @@ const fancu = {
       cb({ ...tef2, ...tef1 });
     });
   },
-  cnino_bangu: ({ bangu }: { bangu: string }, cb: any) => {
+  cnino_bangu: ({ bangu }: { bangu: string }) => {
     sesisku_bangu = bangu;
   },
   runQuery: (
@@ -299,10 +329,10 @@ const fancu = {
   getNeighbors: ({ query }: { query: string }, cb: any) => {
     getNeighbors(query).then((rows) => cb(rows));
   },
-  ningau_lerosorcu: async (searching: string, cb: any) => {
+  ningau_lerosorcu: async (searching: Dict, cb: any) => {
     fancu.ningau_lesorcu(searching, cb, true);
   },
-  ningau_lesorcu: async (searching: string, cb: any, forceAll: boolean) => {
+  ningau_lesorcu: async (searching: Dict, cb: any, forceAll: boolean) => {
     aQueue.enqueue(async () => {
       await jufra({ bapli: true });
 
@@ -322,7 +352,7 @@ const fancu = {
         return;
       }
 
-      let json = {};
+      let json: Dict = {};
       if (response?.ok) {
         json = await response.json();
 
@@ -364,9 +394,9 @@ const fancu = {
       });
     });
   },
-  ningau_lepasorcu: async (searching, cb) => {
+  ningau_lepasorcu: async (searching: Dict, cb: any) => {
     const lang = searching.bangu || "en";
-    let json = {};
+    let json: Dict = {};
     const response = await fetch(
       `/sutysisku/data/versio.json?sisku=${new Date().getTime()}`
     );
@@ -390,7 +420,7 @@ const fancu = {
   },
 };
 
-async function jufra({ bapli }) {
+async function jufra({ bapli }: { bapli: boolean }) {
   aQueue.enqueue(async () => {
     if (bapli) await sql`delete from tejufra`;
     //tejufra
@@ -402,14 +432,14 @@ async function jufra({ bapli }) {
       for (const key of Object.keys(jsonTeJufra)) {
         await sql(`insert into tejufra (bangu, jufra) values(?,?)`, [
           key,
-          JSON.stringify(jsonTeJufra[key]),
+          JSON.stringify((jsonTeJufra as any)[key]),
         ]);
       }
       log({ event: "Locales fully updated" });
     }
   });
 }
-function chunkArray(myArray, chunk_size, lang) {
+function chunkArray(myArray: any[], chunk_size: number, lang: string) {
   let index = 0;
   const arrayLength = myArray.length;
   let tempArray = [];
@@ -422,7 +452,7 @@ function chunkArray(myArray, chunk_size, lang) {
   return tempArray;
 }
 
-function addCache(def, tegerna) {
+function addCache(def: Dict, tegerna: string) {
   const cacheSeparator = RegExp(
     /[ \u2000-\u206F\u2E00-\u2E7F\\!"#$%&()*+,\-.\/:<=>?@\[\]^`{|}~：？。，《》「」『』；_－／（）々仝ヽヾゝゞ〃〱〲〳〵〴〵「」『』（）〔〕［］｛｝｟｠〈〉《》【】〖〗〘〙〚〛ッー゛゜。、・゠＝〆〜…‥ヶ•◦﹅﹆※＊〽〓♪♫♬♩〇〒〶〠〄再⃝ⓍⓁⓎ]/,
     "g"
@@ -430,7 +460,9 @@ function addCache(def, tegerna) {
   if (def.g) {
     if (!Array.isArray(def.g)) def.g = [def.g];
     def.g = def.g
-      .map((i) => i.replace(cacheSeparator, " ").trim().replace(/ {2,}/g, " "))
+      .map((i: string) =>
+        i.replace(cacheSeparator, " ").trim().replace(/ {2,}/g, " ")
+      )
       .join(";");
   }
 
@@ -460,10 +492,15 @@ function addCache(def, tegerna) {
 }
 
 const blobChunkLength = 5;
-async function cnino_sorcu(cb, langsToUpdate, searching, json) {
+async function cnino_sorcu(
+  cb: any,
+  langsToUpdate: string[],
+  searching: Dict,
+  json: Dict
+) {
   langsToUpdate = [...new Set(langsToUpdate)];
   await jufra({ bapli: true });
-  fancu.sanji_letejufra(searching, (results) => {
+  fancu.sanji_letejufra({ bangu: searching.bangu }, (results: any) => {
     self.postMessage({
       kind: "fancu",
       cmene: "sanji_letejufra",
@@ -513,7 +550,9 @@ async function cnino_sorcu(cb, langsToUpdate, searching, json) {
       if (response.ok) {
         const blob = await response.arrayBuffer();
 
-        const decompressedData = Buffer.from(decompress(Buffer.from(blob)));
+        const decompressedData = Buffer.from(
+          decompress(Buffer.from(blob))
+        ).toString();
         json = JSON.parse(decompressedData);
 
         let rows = json.data.data[0].rows;
@@ -523,7 +562,7 @@ async function cnino_sorcu(cb, langsToUpdate, searching, json) {
         const all_rows = rows.length;
 
         rows = chunkArray(rows, chunkSize, lang);
-        const time = new Date();
+        const time = new Date().getTime();
         if (i === 0) {
           await sql(`delete from valsi where bangu=$bangu`, { $bangu: lang });
           await sql(`delete from langs_ready where bangu=$bangu`, {
@@ -565,7 +604,7 @@ async function cnino_sorcu(cb, langsToUpdate, searching, json) {
           language: lang,
           "speed, records/sec": (
             (all_rows * 1000) /
-            (new Date() - time)
+            (new Date().getTime() - time)
           ).toFixed(2),
         });
       } else {
@@ -602,16 +641,25 @@ async function cnino_sorcu(cb, langsToUpdate, searching, json) {
 
 //sisku
 
-let leijufra = {
+let leijufra: Dict = {
   xuzganalojudri: "",
   bangudecomp: "",
+  bangu: null,
 };
 
-async function getCachedDefinitions({ query, bangu, mapti_vreji }) {
+async function getCachedDefinitions({
+  query,
+  bangu,
+  mapti_vreji,
+}: {
+  query: string;
+  bangu: string;
+  mapti_vreji: any[];
+}) {
   let result = [];
   if (mapti_vreji)
     result = mapti_vreji.filter(
-      (i) =>
+      (i: Dict) =>
         i.bangu === bangu &&
         [i.w, i.d].map((_) => _.toLowerCase()).includes(query.toLowerCase())
     );
@@ -623,10 +671,10 @@ async function getCachedDefinitions({ query, bangu, mapti_vreji }) {
   return result;
 }
 
-const getMergedArray = (array) =>
+const getMergedArray = (array: string[]) =>
   `(${array.map((i) => `'${i.replace(/'/g, "''")}'`).join(",")})`;
 
-async function getNeighbors(query) {
+async function getNeighbors(query: string) {
   let results = await wordEmbeddings.getNearestNeighbors(query, 100);
   results = [
     ...new Set(
@@ -653,13 +701,13 @@ async function cnano_sisku({
   seskari,
   secupra_vreji,
   queryDecomposition,
-}) {
-  const splitQuery_apos = query_apos.split(" ").filter((_) => _ !== "");
+}: any) {
+  const splitQuery_apos = query_apos.split(" ").filter(Boolean);
   const arrayQuery = [
     ...new Set([...queryDecomposition, query_apos, ...splitQuery_apos]),
   ];
 
-  let embeddings = {};
+  let embeddings: Dict = {};
   const embeddingsMode = bangu === "en" && seskari === "cnano"; // semantic search
   if (embeddingsMode) {
     embeddings = await getNeighbors(query);
@@ -718,7 +766,7 @@ async function cnano_sisku({
           }
         )
       ).filter(
-        (valsi) =>
+        (valsi: { s: string }) =>
           typeof valsi.s === "string" &&
           new RegExp(`^${query}[0-9]*[a-z]*$`).test(valsi.s)
       );
@@ -728,7 +776,7 @@ async function cnano_sisku({
       await runQuery(`SELECT * FROM valsi where w= $valsi`, {
         $valsi: query_apos,
       })
-    ).sort((a, b) => {
+    ).sort((a: { bangu: string }, b: { bangu: string }) => {
       if (a.bangu === bangu) return -1;
       return (
         supportedLangs?.[b.bangu]?.searchPriority -
@@ -755,7 +803,7 @@ async function cnano_sisku({
       $bangu: bangu,
       $likebangu: `${bangu}-%`,
     });
-  } else if (self.production !== "production") {
+  } else if (process.env.PRODUCTION !== "production") {
     //normal search:debug
     rows = await runQuery(
       `select 
@@ -795,12 +843,12 @@ async function cnano_sisku({
   }
 
   rows = rows
-    .map((el) => {
+    .map((el: Dict) => {
       const { cache, ...rest } = el;
       return rest;
     })
     .sort(
-      (a, b) =>
+      (a: { bangu: string }, b: { bangu: string }) =>
         supportedLangs?.[b.bangu]?.searchPriority -
         supportedLangs?.[a.bangu]?.searchPriority
     );
@@ -843,7 +891,9 @@ async function cnano_sisku({
       );
     }
     if (bangu === "muplis" || !leijufra.xuzganalojudri) {
-      vlazahumei = vlazahumei.filter(({ d }) => !d || !d.nasezvafahi);
+      vlazahumei = vlazahumei.filter(
+        ({ d, nasezvafahi }: Def) => !d || !nasezvafahi
+      );
     }
     if (vlazahumei.length <= 1)
       return {
@@ -883,46 +933,48 @@ async function cnano_sisku({
   return { result: allMatches[0], decomposed, embeddings: embeddings.words };
 }
 
-function sortMultiDimensional(a, b) {
+function sortMultiDimensional(a: Def, b: Def) {
   if (!a.d) a.d = "";
   if (!b.d) b.d = "";
   return a.d.length < b.d.length ? -1 : a.d.length > b.d.length ? 1 : 0;
 }
 
-function cmaxesParse({ tegerna, queryLanguage }, callback) {
+function cmaxesParse({ tegerna, queryLanguage }: any, callback: any) {
   if (queryLanguage === "loglan")
-    return callback(tegerna.split(" ").map((i) => ["", i]));
+    return callback(tegerna.split(" ").map((i: string) => ["", i]));
   try {
     let parsed = parse(tegerna.toLowerCase());
-    parsed = parsed.filter((el) => el[0] !== "drata");
+    parsed = parsed.filter((el: string[]) => el[0] !== "drata");
     return callback(parsed);
   } catch (error) {}
   return callback([]);
 }
 
-function reconcatenate(selsku) {
+function reconcatenate(selsku: string) {
   try {
     let parsed = parse(selsku.toLowerCase());
-    parsed = parsed.filter((el) => el[0] !== "drata");
-    const reconcatenated = parsed.map((el) => el[1]).join(" ");
+    parsed = parsed.filter((el: string[]) => el[0] !== "drata");
+    const reconcatenated = parsed.map((el: string[]) => el[1]).join(" ");
     return { parsed, reconcatenated };
   } catch (error) {}
   return { parsed: [], reconcatenated: selsku };
 }
 
-function maklesi_levalsi(selsku) {
+function maklesi_levalsi(selsku: string) {
   let reconcatenated = selsku;
   if (!leijufra.xuzganalojudri || selsku.search(/[^aeiouyAEIOY]'/) > -1)
     return ["", selsku];
   try {
     const { parsed: parsedString, reconcatenated } = reconcatenate(selsku);
-    const oddEls = parsedString.filter((_, index) => index % 2 == 1);
-    if (oddEls.length > 0 && oddEls.every((el) => el[0] == "zei"))
+    const oddEls = parsedString.filter(
+      (_: any, index: number) => index % 2 == 1
+    );
+    if (oddEls.length > 0 && oddEls.every((el: string[]) => el[0] == "zei"))
       return ["zei-lujvo", reconcatenated];
     if (parsedString.length == 1) return parsedString[0];
     if (
       parsedString.length > 0 &&
-      parsedString.every((el) => el[0] === "cmavo")
+      parsedString.every((el: string[]) => el[0] === "cmavo")
     )
       return ["cmavo-compound", reconcatenated];
     if (parsedString.length > 1) return ["phrase", reconcatenated];
@@ -930,8 +982,8 @@ function maklesi_levalsi(selsku) {
   return ["", reconcatenated];
 }
 
-function ma_veljvo(tegerna) {
-  if (!leijufra.xuzganalojudri) return;
+function ma_veljvo(tegerna: string): any[] {
+  if (!leijufra.xuzganalojudri) return [];
   if (tegerna.includes(" zei "))
     return tegerna
       .split(" ")
@@ -942,13 +994,13 @@ function ma_veljvo(tegerna) {
   try {
     text = parse(tegerna).toString().split(",");
   } catch (err) {
-    return;
+    return [];
   }
-  if (!["lujvo"].includes(text[0]) || text.length !== 2) return;
+  if (!["lujvo"].includes(text[0]) || text.length !== 2) return [];
   return text[1].split("-").filter(Boolean);
 }
 
-function setca_lotcila(seskicu_be_le_valsi) {
+function setca_lotcila(seskicu_be_le_valsi: Def) {
   if ([undefined, ""].includes(seskicu_be_le_valsi.t))
     seskicu_be_le_valsi.t =
       seskicu_be_le_valsi.bangu !== "muplis" && leijufra.xuzganalojudri
@@ -957,16 +1009,16 @@ function setca_lotcila(seskicu_be_le_valsi) {
   return seskicu_be_le_valsi;
 }
 
-function decompose(selsku) {
+function decompose(selsku: string) {
   return leijufra.xuzganalojudri
     ? reconcatenate(selsku)
         .reconcatenated.replace(/ zei /g, "_zei_")
         .split(" ")
-        .map((b) => b.replace(/_zei_/g, " zei ").replace(/-/g, ""))
+        .map((b: string) => b.replace(/_zei_/g, " zei ").replace(/-/g, ""))
     : selsku.split(" ");
 }
 
-function julne_setca_lotcila(porsi_fi_le_seskicu_be_le_valsi) {
+function julne_setca_lotcila(porsi_fi_le_seskicu_be_le_valsi: any[]) {
   return porsi_fi_le_seskicu_be_le_valsi.reduce(
     (cnino_porsi, seskicu_be_le_valsi) => {
       if (seskicu_be_le_valsi)
@@ -977,7 +1029,7 @@ function julne_setca_lotcila(porsi_fi_le_seskicu_be_le_valsi) {
   );
 }
 
-async function sohivalsi({ decomposed, bangu, mapti_vreji }) {
+async function sohivalsi({ decomposed, bangu, mapti_vreji }: any) {
   let secupra = [];
   for (let valsi_index = 0; valsi_index < decomposed.length; valsi_index++) {
     for (
@@ -997,7 +1049,7 @@ async function sohivalsi({ decomposed, bangu, mapti_vreji }) {
   return secupra;
 }
 
-async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu }) {
+async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu }: any) {
   let porsi_fi_le_seskicu_be_le_veljvocmi = [];
   if (def?.v?.length > 1) {
     for (const veljvocmi of def.v) {
@@ -1014,7 +1066,7 @@ async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu }) {
     }
   } else {
     let porsi_le_veljvocmi = ma_veljvo(query);
-    if (!porsi_le_veljvocmi) return def ? [def] : [];
+    if (porsi_le_veljvocmi.length === 0) return def ? [def] : [];
     for (const veljvocmi of porsi_le_veljvocmi) {
       const se_skicu_le_veljvocmi = (
         await runQuery(
@@ -1028,7 +1080,7 @@ async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu }) {
   }
   porsi_fi_le_seskicu_be_le_veljvocmi = julne_setca_lotcila(
     porsi_fi_le_seskicu_be_le_veljvocmi
-  ); // .filter(function(i){return !i.d.nasezvafahi});
+  ); // .filter(function(i){return !i.nasezvafahi});
   return [
     {
       t:
@@ -1036,7 +1088,7 @@ async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu }) {
           ? "lujvo"
           : maklesi_levalsi(query)[0],
       w: query,
-      d: { nasezvafahi: true },
+      nasezvafahi: true,
       rfs: porsi_fi_le_seskicu_be_le_veljvocmi,
     },
   ];
@@ -1048,7 +1100,7 @@ async function shortget({
   nasisku_filohipagbu,
   bangu,
   cachedDefinitions,
-}) {
+}: any) {
   const definitions = cachedDefinitions;
   if (definitions.length > 0) return secupra.concat(definitions);
   if (!nasisku_filohipagbu) {
@@ -1070,7 +1122,7 @@ async function shortget({
         }
       } else if (valsi_giheklesi[0] !== "") {
         for (const word of valsi_giheklesi.filter(
-          (_, index) => index % 2 !== 0
+          (_: any, index: number) => index % 2 !== 0
         )) {
           secupra = await shortget({
             valsi: word.replace(/-/g, ""),
@@ -1084,7 +1136,7 @@ async function shortget({
     } else {
       //several words
       let vuhilevelujvo = ma_veljvo(valsi);
-      if ((vuhilevelujvo || [])[0] === "@") {
+      if (vuhilevelujvo[0] === "@") {
         vuhilevelujvo = vuhilevelujvo.slice(1);
 
         for (let j = 0; j < vuhilevelujvo.length; j++) {
@@ -1118,14 +1170,14 @@ async function shortget({
     let ff = await jmina_ro_cmima_be_lehivalsi({ query: valsi, bangu });
     ff = ff[0] && ff[0].rfs ? ff[0].rfs : undefined;
     secupra = secupra.concat([
-      { t: "", d: { nasezvafahi: true }, w: valsi, rfs: ff },
+      { t: "", nasezvafahi: true, w: valsi, rfs: ff },
     ]);
   }
   return secupra;
 }
 
-function isCoreWord(def) {
-  return ["gismu", "cmavo"].includes(def.t);
+function isCoreWord(def: Def) {
+  return ["gismu", "cmavo"].includes(def.t ?? "");
 }
 
 function defaultPriorityGroups() {
@@ -1147,17 +1199,17 @@ function defaultPriorityGroups() {
     defInsideMatch: [],
     notesInsideMatch: [],
     otherMatch: [],
-  };
+  } as { [key: string]: Def[] };
 }
 
-function includes(arrOuter, inner, fn) {
+function includes(arrOuter: any[], inner: string | any[], fn?: any) {
   arrOuter = [arrOuter].flat();
   if (fn) return arrOuter.some((elemOuter) => fn(elemOuter, inner));
   inner = [inner].flat();
   return arrOuter.some((i) => inner.includes(i));
 }
 
-function semFilter(arrEmbeddingsObject, arrGloss) {
+function semFilter(arrEmbeddingsObject: any[], arrGloss: string | any[]) {
   return arrEmbeddingsObject.filter((i) => arrGloss.includes(i.word));
 }
 
@@ -1172,7 +1224,7 @@ async function sortThem({
   seskari,
   secupra_vreji,
   embeddings,
-}) {
+}: any) {
   let decomposed = false;
   let searchPriorityGroups = defaultPriorityGroups();
   const arrCombinedQuery = [...new Set([query, query_apos])];
@@ -1194,9 +1246,9 @@ async function sortThem({
               })
             )
           )
-        ).filter(({ w }) => w !== def.w);
+        ).filter(({ w }: { w: string }) => w !== def.w);
         decomposed = true;
-        if (def.rfs.length === 0) {
+        if (def.rfs?.length === 0) {
           def.rfs = (
             await jmina_ro_cmima_be_lehivalsi({
               query: def.w,
@@ -1238,7 +1290,8 @@ async function sortThem({
       includes(
         arrCombinedQuery,
         def.w,
-        (q_word, def_w) => def_w.search(`(^| )(${q_word})( |$)`) >= 0
+        (q_word: string, def_w: string) =>
+          def_w.search(`(^| )(${q_word})( |$)`) >= 0
       )
     ) {
       searchPriorityGroups.wordSemiMatch.push(def);
@@ -1246,23 +1299,30 @@ async function sortThem({
       searchPriorityGroups.selmahoFullMatch.push(def);
     } else if (
       typeof def.s === "string" &&
-      includes(query, def.s, (q_el, def_s) => def_s.indexOf(q_el) === 0)
+      includes(
+        query,
+        def.s,
+        (q_el: any, def_s: string | any[]) => def_s.indexOf(q_el) === 0
+      )
     ) {
       searchPriorityGroups.selmahoSemiMatch.push(def);
     } else if (Array.isArray(def.s) && includes(def.s, query)) {
       searchPriorityGroups.oneOfSelmahosFullMatch.push(def);
     } else if (
       Array.isArray(def.s) &&
-      includes(query, def.s, (q_el, defs_s) =>
+      includes(query, def.s, (q_el: any, defs_s: any[]) =>
         defs_s.some((i) => i.indexOf(q_el) === 0)
       )
     ) {
       searchPriorityGroups.oneOfSelmahosSemiMatch.push(def);
     } else if (
-      includes(arrCombinedQuery, [def.g, def.w].flat(), (q_el, defs) =>
-        defs.some(
-          (i) => i.search(RegExp(`(${nonLetter}(${q_el})${nonLetter})`)) >= 0
-        )
+      includes(
+        arrCombinedQuery,
+        [def.g, def.w].flat(),
+        (q_el: any, defs: any[]) =>
+          defs.some(
+            (i) => i.search(RegExp(`(${nonLetter}(${q_el})${nonLetter})`)) >= 0
+          )
       )
     ) {
       searchPriorityGroups.querySemiMatch.push(def);
@@ -1272,7 +1332,7 @@ async function sortThem({
       includes(
         query,
         def.d,
-        (q_el, def_d) =>
+        (q_el: any, def_d: string) =>
           def_d.toLowerCase().search(RegExp(`^${q_el}${nonLetter}`)) >= 0
       )
     ) {
@@ -1282,7 +1342,7 @@ async function sortThem({
       includes(
         query,
         def.d,
-        (q_el, def_d) =>
+        (q_el: any, def_d: string) =>
           def_d
             .toLowerCase()
             .search(RegExp(`${nonLetter}${q_el}${nonLetter}`)) >= 0
@@ -1294,7 +1354,7 @@ async function sortThem({
       includes(
         query,
         def.n,
-        (q_el, def_n) =>
+        (q_el: any, def_n: string) =>
           def_n
             .toLowerCase()
             .search(RegExp(`${nonLetter}${q_el}${nonLetter}`)) >= 0
@@ -1309,14 +1369,14 @@ async function sortThem({
 	  now sort by semantic props distance
 	  */
   searchPriorityGroups.zSemMatch.sort(
-    (left, right) => right.semMaxDistance - left.semMaxDistance
+    (left, right) => (right.semMaxDistance || 0) - (left.semMaxDistance || 0)
   );
   searchPriorityGroups.glossSemMatch.sort(
-    (left, right) => right.semMaxDistance - left.semMaxDistance
+    (left, right) => (right.semMaxDistance || 0) - (left.semMaxDistance || 0)
   );
 
   let firstMatches;
-  let secondMatches;
+  let secondMatches: Def[];
   if (seskari === "catni") {
     const searchPriorityGroups_unofficial_words = defaultPriorityGroups();
     const searchPriorityGroups_official_words = defaultPriorityGroups();
@@ -1331,7 +1391,7 @@ async function sortThem({
       searchPriorityGroups.wordFullMatch,
       searchPriorityGroups.wordFullMatchAdditional
     );
-    secondMatches = [].concat(
+    secondMatches = ([] as Def[]).concat(
       searchPriorityGroups_official_words.zMatch,
       searchPriorityGroups_official_words.glossMatch,
       searchPriorityGroups_official_words.selmahoFullMatch,
@@ -1364,7 +1424,7 @@ async function sortThem({
       searchPriorityGroups.glossMatch,
       searchPriorityGroups.wordFullMatchAdditional
     );
-    secondMatches = [].concat(
+    secondMatches = ([] as Def[]).concat(
       searchPriorityGroups.selmahoFullMatch,
       searchPriorityGroups.oneOfSelmahosFullMatch,
       searchPriorityGroups.rafsiMatch,
@@ -1384,7 +1444,7 @@ async function sortThem({
       searchPriorityGroups.glossMatch,
       searchPriorityGroups.wordFullMatchAdditional
     );
-    secondMatches = [].concat(
+    secondMatches = ([] as Def[]).concat(
       searchPriorityGroups.selmahoFullMatch,
       searchPriorityGroups.oneOfSelmahosFullMatch,
       searchPriorityGroups.rafsiMatch,
@@ -1402,21 +1462,20 @@ async function sortThem({
   };
 }
 
-async function sisku(searching) {
+async function sisku(searching: Searching) {
   let {
     query,
     seskari,
     bangu,
     versio,
     leijufra: leijufra_incoming,
-    loadingState,
   } = searching;
   query = query.trim();
   //connect and do selects
   let lei_jufra_absent = false;
   if (!leijufra_incoming.bangu || !leijufra.bangu) {
     lei_jufra_absent = true;
-    let tef1 = {};
+    let tef1: Dict = {};
     if (bangu) {
       try {
         const res = await sql(`SELECT jufra FROM tejufra where bangu=?`, [
@@ -1440,7 +1499,7 @@ async function sisku(searching) {
   }
 
   if (query.length === 0) return;
-  let secupra_vreji = { results: [], embeddings: [] };
+  let secupra_vreji: {results: Def[]; embeddings: any[];} = { results: [], embeddings: [] };
   const query_apos =
     bangu === "loglan"
       ? query.replace(/[‘]/g, "'").toLowerCase()
@@ -1485,6 +1544,7 @@ async function sisku(searching) {
       secupra_vreji.results.unshift({
         t: "bangudecomp",
         ot: "vlaza'umei",
+        bangu,
         w: query,
         rfs: julne_setca_lotcila(
           await sohivalsi({ decomposed: queryDecomposition, bangu })
@@ -1517,7 +1577,7 @@ async function sisku(searching) {
   });
 }
 
-function krulermorna(t) {
+function krulermorna(t: string) {
   return `.${t
     .replace(/\./g, "")
     .replace(/^/, ".")
@@ -1532,13 +1592,13 @@ function krulermorna(t) {
     .replace(/\./g, "")}`;
 }
 
-async function ma_rimni({ query, bangu }) {
-  if (query.length === 0) return;
-  const rimni = [[], [], [], [], [], [], [], [], []];
-  let query_apos;
-  let queryF;
-  let queryR;
-  function cupra_lo_porsi(a) {
+async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
+  if (query.length === 0) return [];
+  const rimni = [[], [], [], [], [], [], [], [], []] as Def[][];
+  let query_apos: string;
+  let queryF: string[];
+  let queryR: string[];
+  function cupra_lo_porsi(a: any[]) {
     for (let i = 0; i < a.length; i++) {
       const def = setca_lotcila(a[i]); // TODO: optimize for phrases
       if (!def) continue;
@@ -1611,7 +1671,7 @@ async function ma_rimni({ query, bangu }) {
         rimni[8].push(def);
       }
     }
-    const sortArray = ({ ar }) => {
+    const sortArray = ({ ar }: { ar: Def[] }) => {
       if (ar.length === 0) return [];
       const gism = [];
       const expgism = [];
@@ -1644,7 +1704,7 @@ async function ma_rimni({ query, bangu }) {
     return rimni.reduce((list, x) => list.concat(sortArray({ ar: x })), []);
   }
 
-  function regexify(t) {
+  function regexify(t: string) {
     return t
       .replace(/[lmnr]/g, "[lmnr]")
       .replace(/[ɩw]/g, "[ɩw]")
@@ -1673,7 +1733,7 @@ async function ma_rimni({ query, bangu }) {
       await runQuery(`SELECT * FROM valsi where bangu=$bangu`, {
         $bangu: bangu,
       })
-    ).filter((valsi) => {
+    ).filter((valsi: Def) => {
       const queryRn = krulermorna(valsi.w)
         .replace(/([aeiouḁąęǫy])/g, "$1-")
         .split("-")
@@ -1693,12 +1753,12 @@ async function ma_rimni({ query, bangu }) {
       await runQuery(`SELECT * FROM valsi where bangu = $bangu`, {
         $bangu: bangu,
       })
-    ).filter(({ w }) => {
+    ).filter(({ w }: Def) => {
       if (krulermorna(w).match(`${query_apos.toLowerCase()}$`)) return true;
       return false;
     });
   }
-  return cupra_lo_porsi(r);
+  return cupra_lo_porsi(r ?? []);
 }
 aQueue.enqueue(initSQLDB);
 
