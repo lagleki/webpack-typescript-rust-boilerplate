@@ -6,9 +6,7 @@ const log = (arg: { [key: string]: string }) => console.log(arg);
 
 log({ event: "Logging into console", status: "ok" });
 
-log({ state: JSON.stringify(state) });
-
-component("#root", function () {
+component("#root", () => {
   const div = document.createElement("div");
   div.textContent = `Hello, ${state.x} !`;
   return div;
