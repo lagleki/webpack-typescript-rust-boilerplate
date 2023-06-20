@@ -92,6 +92,9 @@ module.exports = (env, argv) => ({
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js', '.json'],
+    fallback: {
+      buffer: require.resolve('buffer'),
+    },
   },
   output: {
     filename: 'js/[name].js',
@@ -198,12 +201,26 @@ module.exports = (env, argv) => ({
             ignore: ['*.DS_Store', 'Thumbs.db'],
           },
         },
+        {
+          from: path.resolve(environment.paths.source, 'ts', 'worker', 'data'),
+          to: path.resolve(environment.paths.output, 'data'),
+          toType: 'dir',
+          globOptions: {
+            ignore: ['*.DS_Store', 'Thumbs.db'],
+          },
+        },
       ],
     }),
     new webpack.DefinePlugin({
-      'process.env.PRODUCTION': false,
-      'process.env.sql_buffer_mode': 'memory',
+      production: false,
+      sql_buffer_mode: 'memory',
     }),
+    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
+    }),
+    // new webpack.ProvidePlugin({
+    //   process: 'process/browser',
+    // }),
   ].concat(htmlPluginEntries(env, argv)),
   target: 'web',
 });

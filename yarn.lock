@@ -1250,7 +1250,7 @@
 
 "@sutysisku/renderer@^1.0.4":
   version "1.0.4"
-  resolved "https://registry.npmjs.org/@sutysisku/renderer/-/renderer-1.0.4.tgz"
+  resolved "https://registry.yarnpkg.com/@sutysisku/renderer/-/renderer-1.0.4.tgz#db0e72c5c17d84a1d9553b85191024741d1d9c48"
   integrity sha512-DroKOsbg9z/xEsGa75d/XxZGmrvTphf3igX+JKUNTVU3vNc4xs3TXLwPKMswiRwjm/e0VxGlPhH9cNTSrvRmrg==
 
 "@tensorflow/tfjs-backend-cpu@3.21.0":

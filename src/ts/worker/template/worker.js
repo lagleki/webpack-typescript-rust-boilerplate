@@ -1,10 +1,10 @@
-import SQLiteAsyncESMFactory from './libs/wa-sqlite/dist/wa-sqlite-async.mjs'
+import SQLiteAsyncESMFactory from '../../libs/wa-sqlite/dist/wa-sqlite-async.mjs'
 
-import * as SQLite from './libs/wa-sqlite/src/sqlite-api.js'
+import * as SQLite from '../../libs/wa-sqlite/src/sqlite-api.js'
 
-import { IDBBatchAtomicVFS } from './libs/wa-sqlite/src/examples/IDBBatchAtomicVFS.js'
+import { IDBBatchAtomicVFS } from '../../libs/wa-sqlite/src/examples/IDBBatchAtomicVFS.js'
 
-import { AutoQueue } from './libs/queue.js'
+import { AutoQueue } from '../../libs/queue.js'
 import { parse } from './cmaxes.js'
 import { loadModel } from './w2v/embeddings.js'
 import jsonTeJufra from './tejufra.json'

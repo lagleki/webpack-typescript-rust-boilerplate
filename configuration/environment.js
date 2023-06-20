@@ -7,6 +7,7 @@ module.exports = {
 
     /* Path to built files directory */
     output: path.resolve(__dirname, '../dist/'),
+    // output: path.resolve(__dirname, '../src/ts/worker/data/'),
   },
   server: {
     host: 'localhost',

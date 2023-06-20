@@ -1,7 +1,7 @@
 //imports:
 import io from 'socket.io-client'
 import patchDOM from 'morphdom'
-import { component, render, store, setter } from './libs/reef/src/reef.js'
+import { component, render, store, setter } from '../../libs/state/index.js'
 import arrowCreate, { HEAD } from 'arrows-svg'
 import {
   listFamymaho,

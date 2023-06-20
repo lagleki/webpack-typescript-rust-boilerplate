@@ -1,10 +1,10 @@
-import SQLiteAsyncESMFactory from "./template/libs/wa-sqlite/dist/wa-sqlite-async.mjs";
+import SQLiteAsyncESMFactory from "../libs/wa-sqlite/dist/wa-sqlite-async.mjs";
 
-import * as SQLite from "./template/libs/wa-sqlite/src/sqlite-api.js";
+import * as SQLite from "../libs/wa-sqlite/src/sqlite-api.js";
 
-import { IDBBatchAtomicVFS } from "./template/libs/wa-sqlite/src/examples/IDBBatchAtomicVFS.js";
+import { IDBBatchAtomicVFS } from "../libs/wa-sqlite/src/examples/IDBBatchAtomicVFS.js";
 
-import { AutoQueue } from "./template/libs/queue.js";
+import { AutoQueue } from "../libs/queue";
 import { parse } from "./template/cmaxes.js";
 import { WordEmbeddings, loadModel } from "./template/w2v/embeddings.js";
 import jsonTeJufra from "./template/tejufra.json";
@@ -40,33 +40,42 @@ type Searching = {
 
 self.postMessage({ kind: "loading" });
 
+let sql_buffer_mode: string, production: string;
+
 const aQueue = new AutoQueue();
 
 self.onmessage = function (ev) {
   if (ev.data.kind == "newSearch") {
-    aQueue.enqueue(async () => {
-      await sisku(ev.data);
-    }, "vlaste");
+    aQueue.enqueue({
+      action: async () => {
+        await sisku(ev.data);
+      },
+      name: "vlaste",
+    });
   } else if (ev.data.kind == "parse") {
-    aQueue.enqueue(() => {
-      cmaxesParse({ ...ev.data }, function (res: any) {
-        self.postMessage({
-          kind: "parse",
-          results: res,
-          req: ev.data,
+    aQueue.enqueue({
+      action: () => {
+        cmaxesParse({ ...ev.data }, function (res: any) {
+          self.postMessage({
+            kind: "parse",
+            results: res,
+            req: ev.data,
+          });
         });
-      });
+      },
     });
   } else if (ev.data.kind == "fancu" && ev.data.cmene) {
-    aQueue.enqueue(() => {
-      (fancu as any)[ev.data.cmene](ev.data, function (results: any) {
-        self.postMessage({
-          kind: "fancu",
-          cmene: ev.data.cmene,
-          datni: ev.data,
-          results: results,
+    aQueue.enqueue({
+      action: () => {
+        (fancu as any)[ev.data.cmene](ev.data, function (results: any) {
+          self.postMessage({
+            kind: "fancu",
+            cmene: ev.data.cmene,
+            datni: ev.data,
+            results: results,
+          });
         });
-      });
+      },
     });
   }
 };
@@ -124,7 +133,7 @@ async function initSQLDB() {
 
   await runMigrations();
 
-  if (process.env.sql_buffer_mode === "memory") {
+  if (sql_buffer_mode === "memory") {
     self.postMessage({
       kind: "loader",
       cmene: "booting",
@@ -138,7 +147,7 @@ async function initSQLDB() {
   }
 
   //embeddings
-  const response = await fetch("/sutysisku/data/embeddings-en.json.bin");
+  const response = await fetch("../data/embeddings-en.json.bin");
   const blob = await response.arrayBuffer();
 
   const decompressedData = Buffer.from(
@@ -216,7 +225,7 @@ function prettifySqlQuery(query: string) {
 async function runQuery(sqlQuery: string, params = {}) {
   const start = new Date().getTime();
   const rows = await sql(sqlQuery, params);
-  if (process.env.PRODUCTION !== "production")
+  if (production !== "production")
     log({
       duration: new Date().getTime() - start,
       sqlQuery: prettifySqlQuery(sqlQuery),
@@ -225,7 +234,7 @@ async function runQuery(sqlQuery: string, params = {}) {
     });
 
   return rows.map((row: any) => {
-    if (process.env.PRODUCTION === "production") {
+    if (production === "production") {
       delete row.cache;
       delete row.no;
     }
@@ -294,27 +303,29 @@ let sesisku_bangu: string | null;
 
 const fancu = {
   sanji_letejufra: async ({ bangu }: { bangu: string }, cb: any) => {
-    aQueue.enqueue(async () => {
-      let tef1 = {},
-        tef2 = {};
-      if (bangu && bangu !== "en") {
+    aQueue.enqueue({
+      action: async () => {
+        let tef1 = {},
+          tef2 = {};
+        if (bangu && bangu !== "en") {
+          const result = await runQuery(
+            `SELECT jufra FROM tejufra where bangu=$bangu`,
+            {
+              $bangu: bangu,
+            }
+          );
+          try {
+            tef1 = JSON.parse(result[0].jufra);
+          } catch (error) {}
+        }
         const result = await runQuery(
-          `SELECT jufra FROM tejufra where bangu=$bangu`,
-          {
-            $bangu: bangu,
-          }
+          `SELECT jufra FROM tejufra where bangu='en'`
         );
         try {
-          tef1 = JSON.parse(result[0].jufra);
+          tef2 = JSON.parse(result[0].jufra);
         } catch (error) {}
-      }
-      const result = await runQuery(
-        `SELECT jufra FROM tejufra where bangu='en'`
-      );
-      try {
-        tef2 = JSON.parse(result[0].jufra);
-      } catch (error) {}
-      cb({ ...tef2, ...tef1 });
+        cb({ ...tef2, ...tef1 });
+      },
     });
   },
   cnino_bangu: ({ bangu }: { bangu: string }) => {
@@ -333,65 +344,67 @@ const fancu = {
     fancu.ningau_lesorcu(searching, cb, true);
   },
   ningau_lesorcu: async (searching: Dict, cb: any, forceAll: boolean) => {
-    aQueue.enqueue(async () => {
-      await jufra({ bapli: true });
+    aQueue.enqueue({
+      action: async () => {
+        await jufra({ bapli: true });
 
-      let langsToUpdate = [];
-      let response;
-      try {
-        response = await fetch(
-          `/sutysisku/data/versio.json?sisku=${new Date().getTime()}`
-        );
-      } catch (error) {
-        log(
-          {
-            event: "can't fetch new version, skipping database updates",
-          },
-          "error"
-        );
-        return;
-      }
-
-      let json: Dict = {};
-      if (response?.ok) {
-        json = await response.json();
-
-        for (const lang of sufficientLangs(searching)) {
-          let count = 0;
-          if (!forceAll) {
-            count =
-              (
-                await sql(
-                  `SELECT count(*) as klani FROM langs_ready where bangu=? and timestamp=?`,
-                  [lang, json[lang]]
-                )
-              )?.[0]?.klani ?? 0;
-          }
-          if (count === 0) langsToUpdate.push(lang);
-        }
-
-        if (langsToUpdate.length > 0) {
-          for (const lang of arrSupportedLangs())
-            if (langsToUpdate.includes(supportedLangs[lang].bangu))
-              langsToUpdate.push(lang);
-
-          const langsUpdated = await cnino_sorcu(
-            cb,
-            langsToUpdate,
-            searching,
-            json
+        let langsToUpdate = [];
+        let response;
+        try {
+          response = await fetch(
+            `/sutysisku/data/versio.json?sisku=${new Date().getTime()}`
           );
-          log({
-            event: "Database updated",
-            "No. of languages updated": langsUpdated.length,
-          });
+        } catch (error) {
+          log(
+            {
+              event: "can't fetch new version, skipping database updates",
+            },
+            "error"
+          );
+          return;
         }
-      }
 
-      self.postMessage({
-        kind: "loader",
-        cmene: "loaded",
-      });
+        let json: Dict = {};
+        if (response?.ok) {
+          json = await response.json();
+
+          for (const lang of sufficientLangs(searching)) {
+            let count = 0;
+            if (!forceAll) {
+              count =
+                (
+                  await sql(
+                    `SELECT count(*) as klani FROM langs_ready where bangu=? and timestamp=?`,
+                    [lang, json[lang]]
+                  )
+                )?.[0]?.klani ?? 0;
+            }
+            if (count === 0) langsToUpdate.push(lang);
+          }
+
+          if (langsToUpdate.length > 0) {
+            for (const lang of arrSupportedLangs())
+              if (langsToUpdate.includes(supportedLangs[lang].bangu))
+                langsToUpdate.push(lang);
+
+            const langsUpdated = await cnino_sorcu(
+              cb,
+              langsToUpdate,
+              searching,
+              json
+            );
+            log({
+              event: "Database updated",
+              "No. of languages updated": langsUpdated.length,
+            });
+          }
+        }
+
+        self.postMessage({
+          kind: "loader",
+          cmene: "loaded",
+        });
+      },
     });
   },
   ningau_lepasorcu: async (searching: Dict, cb: any) => {
@@ -421,22 +434,24 @@ const fancu = {
 };
 
 async function jufra({ bapli }: { bapli: boolean }) {
-  aQueue.enqueue(async () => {
-    if (bapli) await sql`delete from tejufra`;
-    //tejufra
-    const nitejufra = (
-      await sql(`SELECT count(jufra) as klani FROM tejufra`)
-    )?.[0]?.klani;
-    if (nitejufra === 0 || bapli) {
-      //todo: transaction
-      for (const key of Object.keys(jsonTeJufra)) {
-        await sql(`insert into tejufra (bangu, jufra) values(?,?)`, [
-          key,
-          JSON.stringify((jsonTeJufra as any)[key]),
-        ]);
+  aQueue.enqueue({
+    action: async () => {
+      if (bapli) await sql`delete from tejufra`;
+      //tejufra
+      const nitejufra = (
+        await sql(`SELECT count(jufra) as klani FROM tejufra`)
+      )?.[0]?.klani;
+      if (nitejufra === 0 || bapli) {
+        //todo: transaction
+        for (const key of Object.keys(jsonTeJufra)) {
+          await sql(`insert into tejufra (bangu, jufra) values(?,?)`, [
+            key,
+            JSON.stringify((jsonTeJufra as any)[key]),
+          ]);
+        }
+        log({ event: "Locales fully updated" });
       }
-      log({ event: "Locales fully updated" });
-    }
+    },
   });
 }
 function chunkArray(myArray: any[], chunk_size: number, lang: string) {
@@ -803,7 +818,7 @@ async function cnano_sisku({
       $bangu: bangu,
       $likebangu: `${bangu}-%`,
     });
-  } else if (process.env.PRODUCTION !== "production") {
+  } else if (production !== "production") {
     //normal search:debug
     rows = await runQuery(
       `select 
@@ -1169,9 +1184,7 @@ async function shortget({
   } else {
     let ff = await jmina_ro_cmima_be_lehivalsi({ query: valsi, bangu });
     ff = ff[0] && ff[0].rfs ? ff[0].rfs : undefined;
-    secupra = secupra.concat([
-      { t: "", nasezvafahi: true, w: valsi, rfs: ff },
-    ]);
+    secupra = secupra.concat([{ t: "", nasezvafahi: true, w: valsi, rfs: ff }]);
   }
   return secupra;
 }
@@ -1499,7 +1512,10 @@ async function sisku(searching: Searching) {
   }
 
   if (query.length === 0) return;
-  let secupra_vreji: {results: Def[]; embeddings: any[];} = { results: [], embeddings: [] };
+  let secupra_vreji: { results: Def[]; embeddings: any[] } = {
+    results: [],
+    embeddings: [],
+  };
   const query_apos =
     bangu === "loglan"
       ? query.replace(/[‘]/g, "'").toLowerCase()
@@ -1760,6 +1776,6 @@ async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
   }
   return cupra_lo_porsi(r ?? []);
 }
-aQueue.enqueue(initSQLDB);
+aQueue.enqueue({ action: initSQLDB });
 
 self.postMessage({ kind: "ready" });
