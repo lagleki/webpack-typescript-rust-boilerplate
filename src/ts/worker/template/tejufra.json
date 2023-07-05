@@ -1,7 +1,7 @@
 {
   "loglan": {
     "bangudesc": "<h1><b>la kukduvri</b> is a fast dictionary for the Loglan language.</h1><div style=\"text-align:justify,\">- Can I use it if I lose internet access?<br/>- Yes, if this happens try opening this very address from this browser.<br/>It should still open. A latest version of Chrome, Safari or Firefox is required.<ul class='liste'><li>'search' prefers official words and shows them first, 'search+' sets equal priority to both official and experimental words.</li><li>Press <code>/</code> to focus the search field.</li><li>For advanced users: to enable regular expressions search in titles, definitions and notes either start the string with <code>^</code> or end with <code>$</code>: <a href='#seskari=cnano&sisku=%5Eui&bangu=en&versio=masno' class='judri'><code>^ui</code></a>, <a href='#seskari=cnano&sisku=sku%24&bangu=en&versio=masno' class='judri'><code>cue$</code></a> are examples.</li></ul>Transliterations to <a href='#seskari=cnano&sisku=zbalermorna&bangu=en&versio=masno'>zbalermorna</a> orthography are provided for your searches.</div><h1>Got feedback on la kukduvri? Please, report to the live chat via any of the following channels:</h1><ul><li><a target='_blank' href='https://discord.gg/xQNT8YSJQv'>Discord messenger chat</a></li><li><a target='_blank' href='https://t.me/joinchat/BLVsYz3hCF8mCAb6fzW1Rw'>Telegram messenger chat</a></li><li><a target='_blank' href='https://join.slack.com/t/lojban/shared_invite/zt-k3s96tvq-4mtkvG0ZlW2rFIwTPb4rIg'>Slack messenger chat</a></li><li>IRC chat: #loglan at irc.libera.chat</a></li></ul>",
-    "titlelogo": "<a id='title' onclick='window.EmptyState()' href='javascript:;' aria-label='la kukduvri'><span id='site-title' class='desktop-mode-title-color'><img id='logo' src='../pixra/snime.svg' height='16' width='16' alt='logo'><span style='color:#fff;' data-jufra='titlelogo-inner'>la kukduvri</span></span></a>",
+    "titlelogo": "<a id='title' aria-label='la kukduvri'><span id='site-title' class='desktop-mode-title-color'><img id='logo' src='/assets/pixra/snime.svg' height='16' width='16' alt='logo'><span style='color:#fff;' data-jufra='titlelogo-inner'>la kukduvri</span></span></a>",
     "bangusisku": "English-Loglan",
     "bangulo": "Loading dictionary ...",
     "title": "Loglan dictionary la kukduvri",
@@ -22,28 +22,28 @@
         "uncll": {
           "title": "Reference Grammar",
           "url": "http://www.loglan.org/Loglan1/",
-          "picture": "../pixra/loglan-refgram.png"
+          "picture": "/assets/pixra/loglan-refgram.png"
         }
       },
       {
         "chat": {
           "url": "#seskari=cnano&sisku=lepo_takna&bangu=loglan&versio=masno",
           "title": "Live chat for your questions",
-          "picture": "../pixra/nunsku.svg"
+          "picture": "/assets/pixra/nunsku.svg"
         }
       },
       {
         "introbook": {
           "url": "http://www.loglan.org/Articles/easy-loglan-introduction.html",
           "title": "Easy Loglan",
-          "picture": "../pixra/murse.jpg"
+          "picture": "/assets/pixra/murse.jpg"
         }
       },
       {
         "parser": {
           "url": "https://tli-loglan.github.io/loglan-parser/parse.html",
           "title": "Grammar checker",
-          "picture": "../pixra/shuffle.svg"
+          "picture": "/assets/pixra/shuffle.svg"
         }
       }
     ],
@@ -74,7 +74,7 @@
   },
   "en": {
     "bangudesc": "<h1><b>la sutysisku</b> is a fast dictionary for the Lojban language.</h1><div style=\"text-align:justify,\">- Can I use it if I lose internet access?<br/>- Yes, if this happens try opening this very address from this browser.<br/>It should still open. A latest version of Chrome, Safari or Firefox is required.<ul class='liste'><li>'search' prefers official words and shows them first, 'search+' sets equal priority to both official and experimental words.</li><li>Press <code>/</code> to focus the search field.</li><li>For advanced users: to enable regular expressions search in titles, definitions and notes either start the string with <code>^</code> or end with <code>$</code>: <a href='#seskari=cnano&sisku=%5Eui&bangu=en&versio=masno' class='judri'><code>^ui</code></a>, <a href='#seskari=cnano&sisku=sku%24&bangu=en&versio=masno' class='judri'><code>sku$</code></a> are examples.</li></ul>Transliterations to <a href='#seskari=cnano&sisku=zbalermorna&bangu=en&versio=masno'>zbalermorna</a> orthography are provided for your searches.</div><h1>Got feedback on la sutysisku? Please, report to the live chat via any of the following channels:</h1><ul><li><a target='_blank' href='https://discord.gg/BVm4EYR'>Discord messenger chat</a></li><li><a target='_blank' href='https://t.me/joinchat/BLVsYz3hCF8mCAb6fzW1Rw'>Telegram messenger chat</a></li><li><a target='_blank' href='https://join.slack.com/t/lojban/shared_invite/zt-k3s96tvq-4mtkvG0ZlW2rFIwTPb4rIg'>Slack messenger chat</a></li><li>IRC chat: #lojban at irc.libera.chat</a></li></ul>",
-    "titlelogo": "<a id='title' onclick='window.EmptyState()' href='javascript:;' aria-label='la sutysisku'><span id='site-title' class='desktop-mode-title-color'><img id='logo' src='../pixra/snime.svg' height='16' width='16' alt='logo'><span style='color:#fff;' data-jufra='titlelogo-inner'>la sutysisku</span></span></a>",
+    "titlelogo": "<div id='title' aria-label='la sutysisku'><span id='site-title' class='desktop-mode-title-color'><img id='logo' src='/assets/pixra/snime.svg' height='16' width='16' alt='logo'><span style='color:#fff;' data-jufra='titlelogo-inner'>la sutysisku</span></span></div>",
     "bangusisku": "English-Lojban",
     "bangulo": "Loading dictionary ...",
     "title": "Lojban dictionary la sutysisku",
@@ -94,35 +94,35 @@
         "uncll": {
           "title": "Reference Grammar",
           "url": "https://la-lojban.github.io/uncll/uncll-1.2.14/xhtml_section_chunks/",
-          "picture": "../pixra/cll.png"
+          "picture": "/assets/pixra/cll.png"
         }
       },
       {
         "introbook": {
           "url": "https://lojban.pw/books/learn-lojban/#",
           "title": "Learn Lojban",
-          "picture": "../pixra/cogwheel-5.svg"
+          "picture": "/assets/pixra/cogwheel-5.svg"
         }
       },
       {
         "chat": {
           "url": "#seskari=cnano&sisku=lai jbosnu&bangu=en&versio=masno",
           "title": "Live chat for your questions",
-          "picture": "../pixra/nunsku.svg"
+          "picture": "/assets/pixra/nunsku.svg"
         }
       },
       {
         "valsr": {
           "url": "https://la-lojban.github.io/valsr/",
           "title": "«Guess the word» game",
-          "picture": "../pixra/valsr.png"
+          "picture": "/assets/pixra/valsr.png"
         }
       },
       {
         "muplis": {
           "url": "#seskari=cnano&sisku={lastQuery}&bangu=muplis&versio=masno",
           "title": "Phrases",
-          "picture": "../pixra/taplamuplis.svg",
+          "picture": "/assets/pixra/taplamuplis.svg",
           "width": 2.1
         }
       },
@@ -215,14 +215,14 @@
         "chat": {
           "url": "#seskari=cnano&sisku=lai jbosnu&bangu=en&versio=masno",
           "title": "Chat en direct pour vos questions",
-          "picture": "../pixra/nunsku.svg"
+          "picture": "/assets/pixra/nunsku.svg"
         }
       },
       {
         "valsr": {
           "url": "https://la-lojban.github.io/valsr/",
           "title": "Jeu « Devinez le mot »",
-          "picture": "../pixra/valsr.png"
+          "picture": "/assets/pixra/valsr.png"
         }
       },
       {
@@ -340,7 +340,7 @@
     "title": "Search for Lojban phrases - la muplis",
     "siskudescr": "Search the dictionary of Lojban sentences la muplis.",
     "opdescr": "A dictionary of sentences for Lojban, English and other languages that can work offline.",
-    "titlelogo": "<a id='title'  onclick='window.EmptyState()' href='javascript:;' aria-label='la muplis'><span id='site-title' class='desktop-mode-title-color'><img id='logo' src='../pixra/plise.svg' class='plise' alt='lo staile poi sampu'><img src='../pixra/pelxuplise.svg' class='plise' alt='lo staile poi na mutce cinri'><img src='../pixra/crinoplise.svg' class='plise' alt='lo jufra poi ka&#39;e xamgu lo di&#39;i fanva'><img src='../pixra/blabiplise.svg' class='plise' alt='lo staile poi ka&#39;e pluja'><img src='../pixra/cicnaplise.svg' class='plise' alt='na&#39;e catni se ciska staile'></span></a>",
+    "titlelogo": "<a id='title'  aria-label='la muplis'><span id='site-title' class='desktop-mode-title-color'><img id='logo' src='/assets/pixra/plise.svg' class='plise' alt='lo staile poi sampu'><img src='/assets/pixra/pelxuplise.svg' class='plise' alt='lo staile poi na mutce cinri'><img src='/assets/pixra/crinoplise.svg' class='plise' alt='lo jufra poi ka&#39;e xamgu lo di&#39;i fanva'><img src='/assets/pixra/blabiplise.svg' class='plise' alt='lo staile poi ka&#39;e pluja'><img src='/assets/pixra/cicnaplise.svg' class='plise' alt='na&#39;e catni se ciska staile'></span></a>",
     "mupliskari1": "109,179,242",
     "mupliskari2": "84,163,238",
     "mupliskari3": "54,144,240",
@@ -351,9 +351,9 @@
     "gradpos4": "100%",
     "lojbo": true,
     "catni": "sisku",
-    "favicon": "../pixra/plise.svg",
-    "icon16": "../pixra/plise.svg",
-    "icon32": "../pixra/plise.svg",
+    "favicon": "/assets/pixra/plise.svg",
+    "icon16": "/assets/pixra/plise.svg",
+    "icon32": "/assets/pixra/plise.svg",
     "ogtitle": "Muplis",
     "uncll_url": "https://la-lojban.github.io/uncll/uncll-1.2.14/xhtml_section_chunks/",
     "nasezvafahi": "na se zvafa'i",

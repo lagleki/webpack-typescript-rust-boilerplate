@@ -1,3 +1,6 @@
+* sw.js, files to cache
+* autoupdate url
+
 * grpc
 * move ssr-prerenderer to a npm package
 * use renderer

@@ -21,24 +21,24 @@ export class WordEmbeddings {
   }
 
   // _getVector returns the vector representation of a word as a tensor
-  getVector(word) {
+  _getVector(word) {
     const index = this.vocabulary.indexOf(word);
     if (index === -1) {
       return tf.zeros([this.codes.shape[1] * this.centroids.shape[2]]);
     }
-    const codes = this.getSearchVector(index);
+    const codes = this._getSearchVector(index);
     const indices = tf.range(0, this.codes.shape[1], 1, 'int32');
     const search = tf.stack([indices, codes], -1);
     const vector = tf.gatherND(this.centroids, search).flatten();
     return vector;
   }
 
-  getSearchVector(index) {
+  _getSearchVector(index) {
     return this.codes.gather([index]).as1D();
   }
 
   transformSequence(words, sequenceLength) {
-    const vectors = words.map((word) => this.getVector(word));
+    const vectors = words.map((word) => this._getVector(word));
     let sequence = tf.stack(vectors);
     sequence = sequence.pad([
       [sequenceLength - words.length, 0],
@@ -48,14 +48,14 @@ export class WordEmbeddings {
   }
 
   // _getVector returns a Promise the vector representation of a word as a float array
-  exp_getVector(word) {
-    return this.getVector(word).dataSync();
+  getVector(word) {
+    return this._getVector(word).dataSync();
   }
 
   // getCosineDistance returns the cosine distance between two word vectors
   getCosineDistance(word1, word2) {
-    const vec1 = this.getVector(word1);
-    const vec2 = this.getVector(word2);
+    const vec1 = this._getVector(word1);
+    const vec2 = this._getVector(word2);
     var dotProduct = vec1.dot(vec2).asScalar();
     const abs1 = vec1.norm(2);
     const abs2 = vec2.norm(2);
@@ -64,16 +64,16 @@ export class WordEmbeddings {
   }
 
   // getNearestNeighbors returns the closest k words from a given word
-  async exp_getNearestNeighbors(word, k = 5) {
-    const vector = this.getVector(word);
-    return this.getNearestNeighbors(vector, k);
+  async getNearestNeighbors(word, k = 5) {
+    const vector = this._getVector(word);
+    return this._getNearestNeighbors(vector, k);
   }
 
-  async getNearestNeighbors(vector, k) {
+  async _getNearestNeighbors(vector, k) {
     var neighbors = tf.tensor1d([]);
     var abs = vector.norm(2).asScalar();
     // Precompute distances
-    var lookupTable = this.computeDistances(vector);
+    var lookupTable = this._computeDistances(vector);
     await tf.nextFrame();
 
     // Calculate distance for each word vector
@@ -110,24 +110,24 @@ export class WordEmbeddings {
   }
 
   async wordAnalogy(word1, word2, word3, k = 5) {
-    var vector1 = this.getVector(word1);
-    var vector2 = this.getVector(word2);
-    var vector3 = this.getVector(word3);
+    var vector1 = this._getVector(word1);
+    var vector2 = this._getVector(word2);
+    var vector3 = this._getVector(word3);
     vector1 = vector1.div(vector1.norm());
     vector2 = vector2.div(vector2.norm());
     vector3 = vector3.div(vector3.norm());
     const vector = vector1.add(vector2).sub(vector3);
-    return this.getNearestNeighbors(vector, k);
+    return this._getNearestNeighbors(vector, k);
   }
 
   // _computeDistances computes the partial dot products and l2 distances of an embedding
   // from all the centres
-  computeDistances(vector) {
+  _computeDistances(vector) {
     const subdims = this.centroids.shape[0];
     const reshapedVector = vector.reshape([subdims, -1]);
     const squareSums = this.centroids.norm(2, 2).square();
     let dotProducts = [];
-    for (const i in subdims) {
+    for (let i = 0; i < subdims; i++) {
       const codeword = reshapedVector.gather([i]).squeeze();
       const centers = this.centroids.gather([i]).squeeze();
       const dotProduct = codeword.dot(centers.transpose());

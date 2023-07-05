@@ -10,33 +10,7 @@ import { WordEmbeddings, loadModel } from "./template/w2v/embeddings.js";
 import jsonTeJufra from "./template/tejufra.json";
 
 import decompress from "brotli/decompress";
-
-type Dict = { [x: string]: any };
-
-type Def = {
-  semMaxDistance?: number;
-  n?: string;
-  s?: string[];
-  r?: string[];
-  t?: string;
-  bangu: string;
-  w: string;
-  z?: string;
-  rfs?: Def[];
-  g?: string;
-  d?: string;
-  ot?: string;
-  nasezvafahi?: true;
-};
-
-type Searching = {
-  query: string;
-  seskari?: string;
-  bangu: string;
-  versio?: string;
-  leijufra?: any;
-  loadingState?: boolean;
-};
+import { Def, Dict, Searching } from "../types/index.js";
 
 self.postMessage({ kind: "loading" });
 
@@ -1481,36 +1455,9 @@ async function sisku(searching: Searching) {
     seskari,
     bangu,
     versio,
-    leijufra: leijufra_incoming,
   } = searching;
   query = query.trim();
   //connect and do selects
-  let lei_jufra_absent = false;
-  if (!leijufra_incoming.bangu || !leijufra.bangu) {
-    lei_jufra_absent = true;
-    let tef1: Dict = {};
-    if (bangu) {
-      try {
-        const res = await sql(`SELECT jufra FROM tejufra where bangu=?`, [
-          bangu.toString(),
-        ]);
-        tef1 = JSON.parse(res?.[0]?.jufra);
-      } catch (error) {}
-      try {
-        const res = await sql(`SELECT jufra FROM tejufra where bangu=?`, [
-          "en",
-        ]);
-        tef1 = JSON.parse(res?.[0]?.jufra);
-      } catch (error) {}
-    }
-
-    if (tef1) {
-      Object.keys(tef1 || {}).forEach((key) => {
-        leijufra[key] = tef1[key];
-      });
-    }
-  }
-
   if (query.length === 0) return;
   let secupra_vreji: { results: Def[]; embeddings: any[] } = {
     results: [],
@@ -1583,7 +1530,7 @@ async function sisku(searching: Searching) {
   }
   self.postMessage({
     kind: "searchResults",
-    ...{ ...secupra_vreji, lei_jufra_absent, leijufra },
+    ...secupra_vreji,
     req: {
       bangu,
       seskari,

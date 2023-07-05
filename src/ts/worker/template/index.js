@@ -11,7 +11,7 @@ import {
   initStateLoading,
 } from './utils/consts.js'
 import { pollyParams } from './utils/polly.js'
-import { rows } from './utils/pronunciation.js'
+// import { rows } from './utils/pronunciation.js'
 import { UNICODE_START, lerfu_index } from './utils/zlm.js'
 
 //DOM element vars:
