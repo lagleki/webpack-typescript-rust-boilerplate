@@ -528,10 +528,48 @@ function getVeljvoString({
   };
 }
 
+function krulermorna(text: string) {
+  return text
+    .replace(/\./g, '')
+    .replace(/^/, '.')
+    .toLowerCase()
+    .replace(/([aeiou\.])u([aeiou])/g, '$1w$2')
+    .replace(/([aeiou\.])i([aeiou])/g, '$1ɩ$2')
+    .replace(/au/g, 'ḁ')
+    .replace(/ai/g, 'ą')
+    .replace(/ei/g, 'ę')
+    .replace(/oi/g, 'ǫ')
+    .replace(/\./g, '')
+
+    function cohukrulermorna(text: string) {
+      return text
+        .replace(/w/g, 'u')
+        .replace(/ɩ/g, 'i')
+        .replace(/ḁ/g, 'au')
+        .replace(/ą/g, 'ai')
+        .replace(/ę/g, 'ei')
+        .replace(/ǫ/g, 'oi')
+    }
+
+function zbalermornaize({ w, ot, rfs }: Def) {
+  let word = krulermorna(w)
+  word = word
+    .split(/(?=[ɩw])/)
+    .map((spisa) =>
+      cohukrulermorna(spisa)
+        .split('')
+        .map((lerfu) => latinToZbalermorna(lerfu))
+        .join('')
+    )
+    .join('')
+  return word.replace(/,/g, '')
+}
+
 function melbi_uenzi({
   def,
   fullDef,
   type,
+  query,
   index,
   stringifiedPlaceTags,
 }: {
@@ -662,7 +700,7 @@ function melbi_uenzi({
       return span.outerHTML;
     })
     //add spans to intralinks
-    .replace(/\{.*?\}/g, (intralink) => {
+    .replace(/\{.*?\}/g, (intralink: string) => {
       intralink = intralink.substring(1, intralink.length - 1);
       return h("a", {
         class: `a-${curSeskari}`,
@@ -671,14 +709,14 @@ function melbi_uenzi({
         )}&bangu=${bangu}&versio=masno`,
         innerHTML: basna({
           def: escHtml(intralink, true),
-          query,
+          query: query,
         }),
       }).outerHTML;
     })
     //add hyperlinks
     .replace(
       /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/g,
-      (url) => {
+      (url: string) => {
         url = url.replace(/^http:/, "https:");
         return h("a", {
           href: url,
@@ -696,7 +734,7 @@ function melbi_uenzi({
 
   //add hiliting where still absent
   Array.from(jalge.childNodes)
-    .filter((node) => node.nodeType === 3 && node.textContent.trim().length > 1)
+    .filter((node) => node.nodeType === 3 && (node?.textContent ?? '').trim().length > 1)
     .forEach((node) => {
       const newText = basna({
         def: node.textContent,
@@ -896,12 +934,12 @@ async function skicu_paledovalsi({
   let zbalermorna;
   if (
     stateLeijufra.lojbo &&
-    !(def.t && def.t.k === 0) &&
+    !( typeof def.t==='object' && def.t.k === 0) &&
     (seskari !== "fanva" || index === 0)
   ) {
     zbalermorna = h("h4");
     const textContent = zbalermornaize(def);
-    if (supportedLangs[bangu].zbalermorna_defined) {
+    if (supportedLangs[bangu  as keyof typeof supportedLangs].zbalermorna_defined) {
       const aTag = h("a", {
         attributes: {
           href: buildURLParams({
