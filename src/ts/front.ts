@@ -1,7 +1,32 @@
-import { data } from "@tensorflow/tfjs";
 import { component, store, h } from "../../../renderer/src";
 import { rows } from "./utils/pronunciation";
 import tejufra from "./worker/template/tejufra.json";
+
+import { mathjax } from 'mathjax-full/js/mathjax'
+import { MathML} from 'mathjax-full/js/input/mathml'
+import { SVG } from 'mathjax-full/js/output/svg'
+import { liteAdaptor } from 'mathjax-full/js/adaptors/liteAdaptor'
+import { RegisterHTMLHandler } from 'mathjax-full/js/handlers/html'
+
+const adaptor = liteAdaptor()
+RegisterHTMLHandler(adaptor)
+
+const mathjax_document = mathjax.document('', {
+  InputJax: new MathML(),
+  OutputJax: new SVG({ fontCache: 'local' })
+})
+
+const mathjax_options = {
+  em: 16,
+  ex: 8,
+  containerWidth: 1280
+}
+
+function renderAsMathJax(math: string): string {
+  const node = mathjax_document.convert(math, mathjax_options)
+  return adaptor.innerHTML(node)
+}
+
 // import io from "socket.io-client";
 // import arrowCreate, { HEAD } from "arrows-svg";
 import {
@@ -464,12 +489,6 @@ function placeTagHasExpansion(v: string) {
   return v.length > 1 || (jalge[0] && jalge[0] !== "x");
 }
 
-function renderAsMathJax(string: string) {
-  return MathJax.tex2chtml(string.replace(/^\$/, '').replace(/\$$/, ''), {
-    display: false,
-  })
-}
-
 const number2ColorHue = (number: number) => Math.floor(((number * 360) / 7.618) % 360)
 
 const bgString2Int = (number: number, { s = '90%', l = '80%' }) =>
@@ -526,6 +545,25 @@ function getVeljvoString({
     dataArr: !dataArrAdded.includes(clearedPlaceTag),
     replacement: `$${replacingPlaceTag}$`,
   };
+}
+
+import { UNICODE_START, lerfu_index } from './utils/zlm'
+
+function latinToZbalermorna(c: string) {
+  if (c.codePointAt(0)??0 >= 0xed80) {
+    return c
+  }
+  if (c == ' ') return ' '
+  if (c == 'h' || c == 'H') c = "'"
+  if (lerfu_index.includes(c))
+    return String.fromCodePoint(UNICODE_START + lerfu_index.indexOf(c))
+  else if (lerfu_index.includes(c.toLowerCase()))
+    return String.fromCodePoint(
+      UNICODE_START + lerfu_index.indexOf(c.toLowerCase())
+    )
+  if (c == '\n') return '\n'
+  if (c == '\t') return '\t'
+  return c
 }
 
 function krulermorna(text: string) {
@@ -695,7 +733,7 @@ function melbi_uenzi({
               : null,
           "data-color": !isHead ? number2ColorHue(number) : null,
         },
-        children: renderAsMathJax(replacementTag),
+        children: h('div', {innerHTML: renderAsMathJax(replacementTag)}),
       });
       return span.outerHTML;
     })
@@ -936,11 +974,9 @@ async function skicu_paledovalsi({
     stateLeijufra.lojbo &&
     !( typeof def.t==='object' && def.t.k === 0) &&
     (seskari !== "fanva" || index === 0)
-  ) {
-    zbalermorna = h("h4");
+    ) {
     const textContent = zbalermornaize(def);
-    if (supportedLangs[bangu  as keyof typeof supportedLangs].zbalermorna_defined) {
-      const aTag = h("a", {
+    zbalermorna = h("h4", (supportedLangs[bangu as keyof typeof supportedLangs] as any).zbalermorna_defined ? h("a", {
         attributes: {
           href: buildURLParams({
             seskari,
@@ -951,14 +987,11 @@ async function skicu_paledovalsi({
         },
         innerText: textContent,
         class: ["valsi", "zbalermorna", "segerna", "sampu"],
-      });
-      zbalermorna.appendChild(aTag);
-    } else {
-      h(zbalermorna, {
-        class: ["valsi", "zbalermorna", "segerna", "sampu"],
+      }) : 
+        {class: ["valsi", "zbalermorna", "segerna", "sampu"],
         textContent,
       });
-    }
+
   }
   //</xuzganalojudri|lojbo>
 
