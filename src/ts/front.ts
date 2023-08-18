@@ -2,12 +2,10 @@ import { component, store, h } from "../../../renderer/src";
 import { rows } from "./utils/pronunciation";
 import tejufra from "./worker/template/tejufra.json";
 
-import temml from "./libs/Temml/temml";
+import katex from "katex";
 
 export function get_mathjax_svg(math: string): string {
-  const tex = "c = \\pm\\sqrt{a^2 + b^2}";
-  const temmlOptions = {};
-  return temml.renderToString(tex, temmlOptions);
+  return katex.renderToString(math.replace(/^\$/, "").replace(/\$$/, ""));
 }
 
 // import io from "socket.io-client";
@@ -615,6 +613,7 @@ function zbalermornaize({ w, ot, rfs }: Def) {
         .join("")
     )
     .join("");
+  console.log(w, word);
   return word.replace(/,/g, "");
 }
 
@@ -1151,7 +1150,7 @@ async function skicu_paledovalsi({
   const copy = h("input", {
     type: "button",
     class: ["tutci", "tutci-pixra", "xp-btn"],
-    style: { "background-image": "url(../pixra/fukpi.svg)" },
+    style: { "background-image": "url(../assets/pixra/fukpi.svg)" },
   });
   copy.addEventListener("click", function () {
     copyToClipboard([def.w, def.d, def.n].filter(Boolean).join("\r\n"));
