@@ -2235,7 +2235,7 @@ async function skicu_paledovalsi({
   const copy = h('input', {
     type: 'button',
     class: ['tutci', 'tutci-pixra', 'xp-btn'],
-    style: { 'background-image': 'url(../pixra/fukpi.svg)' },
+    style: { 'background-image': 'url(../assets/pixra/fukpi.svg)' },
   })
   copy.addEventListener('click', function () {
     copyToClipboard([def.w, def.d, def.n].filter(Boolean).join('\r\n'))

@@ -99,6 +99,7 @@
     "mathjax": "^3.2.2",
     "mathjax-full": "^3.2.2",
     "socket.io-client": "^4.6.2",
+    "temml": "^0.10.14",
     "webpack-merge": "^5.9.0"
   }
 }

@@ -75,9 +75,15 @@ export const initState = {
   results: [],
   embeddings: [],
   memoizedValues: {} as RecursiveObject,
+  jimte: 100,
+  resultCount: 30,
 }
 export const initStateLoading = {
   loading: true,
+  completedRows: 0,
+  totalRows: 0,
+  innerText: '',
+  hideProgress: false,
   firstRun: true,
   mathRendered: false,
   localesLoaded: false,

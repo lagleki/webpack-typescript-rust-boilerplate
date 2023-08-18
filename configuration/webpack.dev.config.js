@@ -24,11 +24,11 @@ module.exports = (env, argv) => merge(webpackConfiguration(env, argv), {
   },
 
   /* File watcher options */
-  watchOptions: {
-    aggregateTimeout: 300,
-    poll: 300,
-    ignored: /node_modules/,
-  },
+  // watchOptions: {
+  //   aggregateTimeout: 300,
+  //   poll: 300,
+  //   ignored: /node_modules|dist/,
+  // },
 
   /* Additional plugins configuration */
   plugins: [],

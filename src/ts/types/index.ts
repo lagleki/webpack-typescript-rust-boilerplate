@@ -8,6 +8,7 @@ export type Def = {
   t?: string | Dict;
   date?: string;
   q?: string;
+  b?: string[];
   bangu: string;
   w: string;
   z?: string;

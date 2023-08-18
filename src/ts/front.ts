@@ -3,8 +3,9 @@ import { rows } from "./utils/pronunciation";
 import tejufra from "./worker/template/tejufra.json";
 
 import { mathjax } from 'mathjax-full/js/mathjax'
-import { MathML} from 'mathjax-full/js/input/mathml'
+import { TeX } from 'mathjax-full/js/input/tex'
 import { SVG } from 'mathjax-full/js/output/svg'
+import { AllPackages } from 'mathjax-full/js/input/tex/AllPackages'
 import { liteAdaptor } from 'mathjax-full/js/adaptors/liteAdaptor'
 import { RegisterHTMLHandler } from 'mathjax-full/js/handlers/html'
 
@@ -12,7 +13,7 @@ const adaptor = liteAdaptor()
 RegisterHTMLHandler(adaptor)
 
 const mathjax_document = mathjax.document('', {
-  InputJax: new MathML(),
+  InputJax: new TeX({ packages: AllPackages }),
   OutputJax: new SVG({ fontCache: 'local' })
 })
 
@@ -22,7 +23,7 @@ const mathjax_options = {
   containerWidth: 1280
 }
 
-function renderAsMathJax(math: string): string {
+export function get_mathjax_svg(math: string): string {
   const node = mathjax_document.convert(math, mathjax_options)
   return adaptor.innerHTML(node)
 }
@@ -35,7 +36,8 @@ import {
   supportedLangs,
   initState,
   positionScrollTopToggleBtn,
-  // initStateLoading,
+  listFamymaho,
+  initStateLoading,
 } from "./worker/template/utils/consts";
 import { RecursiveObject } from "../../../renderer/src/common/types";
 import { Def, Dict } from "./types";
@@ -68,7 +70,7 @@ const stateRAM = store(
 );
 
 let state = store(initState, storeOptions);
-// const loadingState = store(initStateLoading, { eventKey: "loading" });
+const stateLoading = store(initStateLoading, storeOptions);
 // const jvoPlumbsOn = store(
 //   { on: false },
 //   { localCacheKey: "plumbsOn", eventKey: "plumbsOn" }
@@ -135,8 +137,8 @@ function setStateFromInput(event: Event): void {
 //always show dasri thats all
 component(
   "#root",
-  () =>
-    h(
+  async () => {
+    return h(
       "div",
       {
         class:
@@ -226,12 +228,33 @@ component(
       ),
       h(
         "div#loading.noselect",
-        h("div#bangu_loading.loading_elems"),
-        h("div#cpacu.loading_elems", h("span#kernelo_lo_cpacu"))
+        { class: stateLoading.loading ? ["d-inline-flex"] : ["d-none"] },
+        h("div#bangu_loading.loading_elems", {
+          innerText: stateLoading.innerText,
+          class: stateLoading.hideProgress ? ["simple"] : [],
+        }),
+        h(
+          "div#cpacu.loading_elems",
+          { class: stateLoading.hideProgress ? ["d-none"] : ["d-block"] },
+          h("span#kernelo_lo_cpacu", {
+            style: {
+              width: `${Math.min(
+                100,
+                Math.max(
+                  10,
+                  (stateLoading.completedRows * 100) / stateLoading.totalRows
+                )
+              )}%`,
+            },
+          })
+        )
       ),
       h(
         "div#contentWrapper",
         {
+          style: {
+            paddingBottom: stateLoading.loading ? "28px" : 0,
+          },
           scroll: (event: Event) => {
             const content = event.target as HTMLElement;
             const btnScrollToTop = document.getElementById(
@@ -366,7 +389,7 @@ component(
                   h("audio#audio")
                 )
               ),
-              outpBlock
+              await outpBlock()
             )
           )
         )
@@ -384,7 +407,8 @@ component(
           })
         )
       )
-    ),
+    );
+  },
   {
     eventKeys: ["sutysisku-event"],
     afterRender: () => {
@@ -393,24 +417,31 @@ component(
   }
 );
 
-const outpBlock = h(
-  "div#outp",
-  state.displaying.seskari === "cnano" &&
-    (supportedLangs as any)[state.displaying.bangu as any]
-      .semanticSearchPossible &&
-    h("div.term.noselect.nasezvafahi", {
-      innerText: stateLeijufra.alerts.semanticSearchAlert,
-    }),
-  state.displaying.seskari === "rimni" &&
-    stateLeijufra.alerts?.rhymesSearchAlert &&
-    h("div.term.noselect.nasezvafahi", {
-      innerText: stateLeijufra.alerts.rhymesSearchAlert,
-    }),
-  h("div", { textContent: JSON.stringify(state.results) })
-);
+const outpBlock = async () => {
+  const d = new Date().toISOString();
+  let reses = await skicu_roledovalsi({ appendToSearch: false });
+
+  return h(
+    "div#outp",
+    state.displaying.seskari === "cnano" &&
+      (supportedLangs as any)[state.displaying.bangu as any]
+        .semanticSearchPossible &&
+      h("div.term.noselect.nasezvafahi", {
+        innerText: stateLeijufra.alerts.semanticSearchAlert,
+      }),
+    state.displaying.seskari === "rimni" &&
+      stateLeijufra.alerts?.rhymesSearchAlert &&
+      h("div.term.noselect.nasezvafahi", {
+        innerText: stateLeijufra.alerts.rhymesSearchAlert,
+      }),
+    h("div", { innerText: d }),
+    h("div", ...reses)
+  );
+};
 
 function rectuResults() {
   const results = state.results.slice(0, 100);
+  console.log(results);
   return [];
 }
 
@@ -489,10 +520,11 @@ function placeTagHasExpansion(v: string) {
   return v.length > 1 || (jalge[0] && jalge[0] !== "x");
 }
 
-const number2ColorHue = (number: number) => Math.floor(((number * 360) / 7.618) % 360)
+const number2ColorHue = (number: number) =>
+  Math.floor(((number * 360) / 7.618) % 360);
 
-const bgString2Int = (number: number, { s = '90%', l = '80%' }) =>
-  `hsl(${number2ColorHue(number)},${s},${l})`
+const bgString2Int = (number: number, { s = "90%", l = "80%" }) =>
+  `hsl(${number2ColorHue(number)},${s},${l})`;
 
 function getVeljvoString({
   placeTag,
@@ -547,60 +579,61 @@ function getVeljvoString({
   };
 }
 
-import { UNICODE_START, lerfu_index } from './utils/zlm'
+import { UNICODE_START, lerfu_index } from "./utils/zlm";
+import { string } from "@tensorflow/tfjs";
 
 function latinToZbalermorna(c: string) {
-  if (c.codePointAt(0)??0 >= 0xed80) {
-    return c
+  if (c.codePointAt(0) ?? 0 >= 0xed80) {
+    return c;
   }
-  if (c == ' ') return ' '
-  if (c == 'h' || c == 'H') c = "'"
+  if (c == " ") return " ";
+  if (c == "h" || c == "H") c = "'";
   if (lerfu_index.includes(c))
-    return String.fromCodePoint(UNICODE_START + lerfu_index.indexOf(c))
+    return String.fromCodePoint(UNICODE_START + lerfu_index.indexOf(c));
   else if (lerfu_index.includes(c.toLowerCase()))
     return String.fromCodePoint(
       UNICODE_START + lerfu_index.indexOf(c.toLowerCase())
-    )
-  if (c == '\n') return '\n'
-  if (c == '\t') return '\t'
-  return c
+    );
+  if (c == "\n") return "\n";
+  if (c == "\t") return "\t";
+  return c;
 }
 
 function krulermorna(text: string) {
   return text
-    .replace(/\./g, '')
-    .replace(/^/, '.')
+    .replace(/\./g, "")
+    .replace(/^/, ".")
     .toLowerCase()
-    .replace(/([aeiou\.])u([aeiou])/g, '$1w$2')
-    .replace(/([aeiou\.])i([aeiou])/g, '$1ɩ$2')
-    .replace(/au/g, 'ḁ')
-    .replace(/ai/g, 'ą')
-    .replace(/ei/g, 'ę')
-    .replace(/oi/g, 'ǫ')
-    .replace(/\./g, '')
-
-    function cohukrulermorna(text: string) {
-      return text
-        .replace(/w/g, 'u')
-        .replace(/ɩ/g, 'i')
-        .replace(/ḁ/g, 'au')
-        .replace(/ą/g, 'ai')
-        .replace(/ę/g, 'ei')
-        .replace(/ǫ/g, 'oi')
-    }
+    .replace(/([aeiou\.])u([aeiou])/g, "$1w$2")
+    .replace(/([aeiou\.])i([aeiou])/g, "$1ɩ$2")
+    .replace(/au/g, "ḁ")
+    .replace(/ai/g, "ą")
+    .replace(/ei/g, "ę")
+    .replace(/oi/g, "ǫ")
+    .replace(/\./g, "");
+}
+function cohukrulermorna(text: string) {
+  return text
+    .replace(/w/g, "u")
+    .replace(/ɩ/g, "i")
+    .replace(/ḁ/g, "au")
+    .replace(/ą/g, "ai")
+    .replace(/ę/g, "ei")
+    .replace(/ǫ/g, "oi");
+}
 
 function zbalermornaize({ w, ot, rfs }: Def) {
-  let word = krulermorna(w)
+  let word = krulermorna(w);
   word = word
     .split(/(?=[ɩw])/)
     .map((spisa) =>
       cohukrulermorna(spisa)
-        .split('')
+        .split("")
         .map((lerfu) => latinToZbalermorna(lerfu))
-        .join('')
+        .join("")
     )
-    .join('')
-  return word.replace(/,/g, '')
+    .join("");
+  return word.replace(/,/g, "");
 }
 
 function melbi_uenzi({
@@ -615,7 +648,7 @@ function melbi_uenzi({
   fullDef: Def;
   query: string[];
   type: string;
-  index: number;
+  index: string;
   stringifiedPlaceTags: any[];
 }) {
   const { bangu, seskari } = state.displaying;
@@ -626,42 +659,50 @@ function melbi_uenzi({
       const url =
         stateLeijufra.custom_links?.filter((i) => !!i.uncll)?.[0]?.uncll?.url ||
         "/";
-      ul = h("ul", {
-        class: "uoldeliste",
-        style: {
-          "list-style-image": "url(../pixra/cukta.svg)",
+      ul = h(
+        "ul",
+        {
+          class: "uoldeliste",
+          style: {
+            "list-style-image": "url(../pixra/cukta.svg)",
+          },
         },
-        children: Object.keys(def).map((address) =>
-          h("li", {
-            children: h("a", {
+        ...Object.keys(def).map((address) =>
+          h(
+            "li",
+            h("a", {
               rel: "noreferrer",
               target: "_blank",
               href: `${url}${address}`,
               innerText: def[address],
-            }),
-          })
-        ),
-      });
+            })
+          )
+        )
+      );
     } else if (fullDef.bangu.indexOf("-ll") >= 0 && typeof def === "object") {
       const url =
         stateLeijufra.custom_links?.filter((i) => !!i.introbook)?.[0]?.introbook
           ?.url || "/";
-      ul = h("ul", {
-        class: "uoldeliste",
-        style: {
-          "list-style-image": "url(../pixra/certu.svg)",
+      ul = h(
+        "ul",
+        {
+          class: "uoldeliste",
+          style: {
+            "list-style-image": "url(../pixra/certu.svg)",
+          },
         },
-        children: Object.keys(def).map((address) =>
-          h("li", {
-            children: h("a", {
+        ...Object.keys(def).map((address) =>
+          h(
+            "li",
+            h("a", {
               rel: "noreferrer",
               target: "_blank",
               href: `${url}${address}`,
               innerText: def[address],
-            }),
-          })
-        ),
-      });
+            })
+          )
+        )
+      );
     }
     if (ul)
       return {
@@ -733,8 +774,10 @@ function melbi_uenzi({
               : null,
           "data-color": !isHead ? number2ColorHue(number) : null,
         },
-        children: h('div', {innerHTML: renderAsMathJax(replacementTag)}),
+        innerHTML: get_mathjax_svg(replacementTag),
       });
+      // console.log((replacementTag));
+      // console.log(renderAsMathJax(replacementTag));
       return span.outerHTML;
     })
     //add spans to intralinks
@@ -772,7 +815,10 @@ function melbi_uenzi({
 
   //add hiliting where still absent
   Array.from(jalge.childNodes)
-    .filter((node) => node.nodeType === 3 && (node?.textContent ?? '').trim().length > 1)
+    .filter(
+      (node) =>
+        node.nodeType === 3 && (node?.textContent ?? "").trim().length > 1
+    )
     .forEach((node) => {
       const newText = basna({
         def: node.textContent,
@@ -809,7 +855,7 @@ async function skicu_paledovalsi({
 }: {
   def: Def;
   inner: boolean;
-  index: number;
+  index: string;
   stringifiedPlaceTags: any[];
 }) {
   if (
@@ -972,26 +1018,28 @@ async function skicu_paledovalsi({
   let zbalermorna;
   if (
     stateLeijufra.lojbo &&
-    !( typeof def.t==='object' && def.t.k === 0) &&
-    (seskari !== "fanva" || index === 0)
-    ) {
+    !(typeof def.t === "object" && def.t.k === 0) &&
+    (seskari !== "fanva" || index === "0")
+  ) {
     const textContent = zbalermornaize(def);
-    zbalermorna = h("h4", (supportedLangs[bangu as keyof typeof supportedLangs] as any).zbalermorna_defined ? h("a", {
-        attributes: {
-          href: buildURLParams({
-            seskari,
-            sisku: "zbalermorna",
-            bangu,
-            versio,
-          }),
-        },
-        innerText: textContent,
-        class: ["valsi", "zbalermorna", "segerna", "sampu"],
-      }) : 
-        {class: ["valsi", "zbalermorna", "segerna", "sampu"],
-        textContent,
-      });
-
+    zbalermorna = h(
+      "h4",
+      (supportedLangs[bangu as keyof typeof supportedLangs] as any)
+        .zbalermorna_defined
+        ? h("a", {
+            attributes: {
+              href: buildURLParams({
+                seskari,
+                sisku: "zbalermorna",
+                bangu,
+                versio,
+              }),
+            },
+            innerText: textContent,
+            class: ["valsi", "zbalermorna", "segerna", "sampu"],
+          })
+        : { class: ["valsi", "zbalermorna", "segerna", "sampu"], textContent }
+    );
   }
   //</xuzganalojudri|lojbo>
 
@@ -1000,7 +1048,11 @@ async function skicu_paledovalsi({
   if (stateLeijufra.lojbo) {
     let arrRenderedFamymaho = [];
     for (const key in listFamymaho) {
-      if (listFamymaho[key].split(" ").includes(def.w))
+      if (
+        listFamymaho[key as keyof typeof listFamymaho]
+          .split(" ")
+          .includes(def.w)
+      )
         arrRenderedFamymaho.push(
           `<a href="#seskari=${seskari}&versio=selmaho&sisku=${encodeUrl(
             key
@@ -1009,7 +1061,7 @@ async function skicu_paledovalsi({
     }
     if (arrRenderedFamymaho.length !== 0) {
       const inDefElement = h("div", {
-        class: ["valsi", def.l ? "nalojbo" : null],
+        class: ["valsi"],
         innerHTML: `<i><sup>[${arrRenderedFamymaho.join(
           ", "
         )}&nbsp;&nbsp;&nbsp;...&nbsp;]</sup></i>&nbsp;&nbsp;`,
@@ -1024,33 +1076,25 @@ async function skicu_paledovalsi({
   if (hasTranslateButton) {
     translateButton = h("button", {
       class: ["xp-btn", "tutci", "tutci-pixra"],
-      onclick: function () {
-        setState({
-          searching: {
-            ...state.searching,
-            seskari: "fanva",
-            query: plukaquery(def.w),
-          },
-        });
-        // DispatchState({
-        //   replace: false,
-        // })
+      style: { "background-image": "url(/assets/pixra/terdi.svg)" },
+      click: function () {
+        state.displaying.seskari = "fanva";
       },
-      style: { "background-image": "url(../pixra/terdi.svg)" },
     });
   }
 
   const banguEl = h("div", {
     class: "segerna sampu noselect",
     innerText:
-      def.bangu && supportedLangs[def.bangu].n
-        ? supportedLangs[def.bangu].n
+      def.bangu && supportedLangs[def.bangu as keyof typeof supportedLangs].n
+        ? supportedLangs[def.bangu as keyof typeof supportedLangs].n
         : def.bangu || "",
   });
 
   const famymahos =
-    typeof def.s === "string" && listFamymaho[def.s]
-      ? listFamymaho[def.s].split(" ")
+    typeof def.s === "string" &&
+    listFamymaho[def.s as keyof typeof listFamymaho]
+      ? listFamymaho[def.s as keyof typeof listFamymaho].split(" ")
       : undefined;
   if (typeof famymahos !== "undefined") {
     let innerHTML = "";
@@ -1071,23 +1115,25 @@ async function skicu_paledovalsi({
 
   //<xuzganalojudri|lojbo>
   let jvo;
-  if (
-    def.t === "lujvo" &&
-    (def.rfs || []).length > 0 &&
-    prettifiedDefinition.hasExpansion
-  ) {
-    jvo = h("button", {
-      style: { "background-image": "url(../pixra/shuffle.svg)" },
-      class: [
-        "tutci",
-        "tutci-pixra",
-        "xp-btn",
-        "jvo_plumber",
-        state.jvoPlumbsOn ? "tutci-hover" : null,
-      ],
-      onclick: addJvoPlumbs,
-    });
-  }
+
+  //todo: restore
+  // if (
+  //   def.t === "lujvo" &&
+  //   (def.rfs || []).length > 0 &&
+  //   prettifiedDefinition.hasExpansion
+  // ) {
+  //   jvo = h("button", {
+  //     style: { "background-image": "url(../pixra/shuffle.svg)" },
+  //     class: [
+  //       "tutci",
+  //       "tutci-pixra",
+  //       "xp-btn",
+  //       "jvo_plumber",
+  //       state.jvoPlumbsOn ? "tutci-hover" : null,
+  //     ],
+  //     click: addJvoPlumbs,
+  //   });
+  // }
 
   //</xuzganalojudri|lojbo>
 
@@ -1109,7 +1155,7 @@ async function skicu_paledovalsi({
     }
   }
 
-  if (hasTranslateButton && def.w.length < 20) {
+  if (translateButton && def.w.length < 20) {
     heading.appendChild(translateButton);
     whoIsFirstLine.push("translateButton");
   }
@@ -1130,21 +1176,22 @@ async function skicu_paledovalsi({
   });
   heading.appendChild(copy);
 
-  if (def.semMaxDistance <= 1) {
+  if (def.semMaxDistance ?? Infinity <= 1) {
     const distance = h("div", {
-      innerText: `${Math.round(def.semMaxDistance.toPrecision(2) * 100)}%`,
+      innerText: `${Math.round(
+        parseFloat((def.semMaxDistance ?? Infinity).toPrecision(2)) * 100
+      )}%`,
       class: ["tutci", "tutci-sampu", "xp-btn", "klesi", "noselect"],
     });
     distance.addEventListener("click", function () {
-      showLoading({
-        innerText: (stateLeijufra.distance || "").interpolate({
-          distance: distance.innerText,
-        }),
-        hideProgress: true,
+      stateLoading.innerText = interpolate(stateLeijufra.distance || "", {
+        distance: distance.innerText,
       });
-      setTimeout(() => {
-        showLoaded();
-      }, 4000);
+      stateLoading.hideProgress = true;
+      stateLoading.loading = true;
+      //   setTimeout(() => {
+      //     stateLoading.loading = true;
+      // }, 4000);
     });
     heading.appendChild(distance);
   }
@@ -1166,92 +1213,94 @@ async function skicu_paledovalsi({
   if (bangu.indexOf("muplis") === 0) {
     const row = h("button", {
       class: "xp-btn tutci tutci-sampu klesi align-right",
-      onclick: () => window.send_muplis_feedback(def),
+      //todo: add feedback button
+      // onclick: () => window.send_muplis_feedback(def),
       innerText: stateLeijufra.report_feedback,
     });
     out.appendChild(row);
   }
 
   if (seskari !== "arxivo" && def.d) {
-    const inDefElement = h("div", { class: "definition valsi" });
     if (def?.nasezvafahi) {
-      if (!def.t && (def.rfs || []).length === 0) return;
-      h(inDefElement, {
-        "update!": true,
-        innerText: stateLeijufra.nasezvafahi,
-        addClass: "nasezvafahi noselect",
-      });
+      if (!(!def.t && (def.rfs || []).length === 0)) {
+        out.appendChild(
+          h("div", {
+            innerText: stateLeijufra.nasezvafahi,
+            class: ["nasezvafahi", "noselect", "definition", "valsi"],
+          })
+        );
+      } else {
+        out.appendChild(h("div", { class: "definition valsi" }));
+      }
     } else {
-      // if (seskari !== 'velcusku') prettifiedDefinition.tergeha = `${prettifiedDefinition.tergeha.replace(/\n/g, '<br/>')} `
-      inDefElement.innerHTML = prettifiedDefinition.tergeha;
+      out.appendChild(
+        h("div", {
+          class: "definition valsi",
+          innerHTML: prettifiedDefinition.tergeha,
+        })
+      );
     }
-    out.appendChild(inDefElement);
   }
-  if (seskari === "arxivo") {
+  if (seskari === "arxivo" && typeof def?.d === "string") {
     const inDefElement1 = h("div", {
       class: "definition valsi pointer",
       innerHTML: ConstructArxivoValsiExtract(def.d, query, 50),
     });
-    inDefElement1.addEventListener("click", () => {
-      h(inDefElement1, {
-        "update!": true,
-        style: { display: "none" },
-      });
-      h(inDefElement1.nextElementSibling, {
-        "update!": true,
-        style: { display: "block" },
-      });
-    });
+    // inDefElement1.addEventListener("click", () => {
+    //   h(inDefElement1, {
+    //     "update!": true,
+    //     style: { display: "none" },
+    //   });
+    //   h(inDefElement1.nextElementSibling, {
+    //     "update!": true,
+    //     style: { display: "block" },
+    //   });
+    // });
     out.appendChild(inDefElement1);
 
     const inDefElement = h("div", {
-      class: "definition valsi",
+      class: (def?.nasezvafahi ? ["nasezvafahi", "noselect"] : []).concat([
+        "definition",
+        "valsi",
+      ]),
+      innerHTML: def?.nasezvafahi
+        ? stateLeijufra.nasezvafahi
+        : `${basna({
+            def: def.d.replace(/([a-z0-9])\/([a-z0-9])/gi, "$1 / $2"),
+            query: [query],
+          })} `,
       style: { display: "none" },
+      click: () => {
+        // h(inDefElement, {
+        //   "update!": true,
+        //   style: { display: "none" },
+        // });
+        // h(inDefElement.previousElementSibling, {
+        //   "update!": true,
+        //   style: { display: "block" },
+        // });
+        // inDefElement.parentElement.scrollIntoView();
+      },
     });
-    if (def?.nasezvafahi) {
-      h(inDefElement, {
-        "update!": true,
-        addClass: "nasezvafahi noselect",
-        innerText: stateLeijufra.nasezvafahi,
-      });
-    } else {
-      inDefElement.innerHTML = `${basna({
-        def: def.d.replace(/([a-z0-9])\/([a-z0-9])/gi, "$1 / $2"),
-        query: [query],
-      })} `;
-      inDefElement.addEventListener("click", () => {
-        h(inDefElement, {
-          "update!": true,
-          style: { display: "none" },
-        });
-        h(inDefElement.previousElementSibling, {
-          "update!": true,
-          style: { display: "block" },
-        });
-        inDefElement.parentElement.scrollIntoView();
-      });
-    }
     out.appendChild(inDefElement);
     //add two divs. first is hidden. on click hide and display the other
   }
   if (def.n) {
-    const inDefElement = h("div", {
-      class: "notes valsi",
-      innerHTML: melbi_uenzi({
-        def: def.n,
-        fullDef: def,
-        query: state.embeddings.length > 0 ? state.embeddings : [query],
-        seskari,
-        versio,
-        type: "n",
-        index,
-        bangu,
-        stringifiedPlaceTags,
-      }).tergeha,
-    });
-    out.appendChild(inDefElement);
+    out.appendChild(
+      h("div", {
+        class: ["notes", "valsi"],
+        innerHTML: melbi_uenzi({
+          def: def.n,
+          fullDef: def,
+          query: state.embeddings.length > 0 ? state.embeddings : [query],
+          type: "n",
+          index,
+          stringifiedPlaceTags,
+        }).tergeha,
+      })
+    );
   }
-  if ((def.r || []).length > 0 && !def.l) {
+  if ((def.r || []).length > 0) {
     const tanxe_leirafsi = h("div", { class: "rafsi noselect" });
 
     const rafcme = h("div", {
@@ -1261,7 +1310,7 @@ async function skicu_paledovalsi({
     tanxe_leirafsi.appendChild(rafcme);
 
     const rafsi = h("div", { class: "tanxe pritu_tanxe" });
-    for (const el of def.r) {
+    for (const el of def.r ?? []) {
       const rafElem = h("span", {
         class: "pamei",
         innerHTML: basna({
@@ -1274,7 +1323,7 @@ async function skicu_paledovalsi({
     tanxe_leirafsi.appendChild(rafsi);
     out.appendChild(tanxe_leirafsi);
   }
-  if ((def.b || []).length > 0 && !def.l && stateLeijufra.xuzganalojudri) {
+  if (def.b) {
     const tanxe_leirafsi = h("div", { class: "rafsi noselect hue_rotate" });
 
     const rafcme = h("div", {
@@ -1308,10 +1357,6 @@ async function skicu_paledovalsi({
       def: subdef,
       inner: true,
       index: `${index}_${i}`,
-      query,
-      seskari,
-      versio,
-      bangu,
       stringifiedPlaceTags,
     });
     if (html) subDefs.appendChild(html);
@@ -1320,4 +1365,119 @@ async function skicu_paledovalsi({
 
   out.addEventListener("click", clicked);
   return out;
+}
+
+function copyToClipboard(value: string) {
+  const myTemporaryInputElement = h("textarea", { value });
+  document.body.appendChild(myTemporaryInputElement);
+
+  myTemporaryInputElement.select();
+  document.execCommand("Copy");
+
+  document.body.removeChild(myTemporaryInputElement);
+  stateLoading.innerText = stateLeijufra.copied;
+  stateLoading.hideProgress = true;
+}
+
+function interpolate(str: string, params: Dict) {
+  const names = Object.keys(params);
+  const vals = Object.values(params);
+  return new Function(...names, `return \`${str}\`;`)(...vals);
+}
+
+function getMatchIndices(query: string, d: string) {
+  const regex = new RegExp(query, "g");
+  const result = [];
+  let match;
+  while ((match = regex.exec(d))) result.push(match.index);
+  return result;
+}
+
+function onlyUnique(value: any, index: number, self: any[]) {
+  return self.indexOf(value) === index;
+}
+
+function ConstructArxivoValsiExtract(d: string, query: string, range: number) {
+  let locs: any[];
+  locs = getMatchIndices(query, d);
+  locs = locs.map((i_) => {
+    const i = [i_ - range, i_ + range];
+    if (i[0] < 0) i[0] = 0;
+    if (i[0] >= d.length) i[0] = d.length - 1;
+    return i;
+  });
+  for (let i = 0; i < locs.length - 1; i++) {
+    if (locs[i][1] > locs[i + 1][0]) {
+      locs[i][1] = locs[i + 1][1];
+      locs[i + 1][0] = locs[i][0];
+    }
+  }
+  locs = locs.map((i) => JSON.stringify(i));
+  if (locs.length > 0) {
+    locs = locs.filter(onlyUnique).map((i) => {
+      i = JSON.parse(i);
+      let n = d.substr(i[0], i[1] - i[0]);
+      n = basna({
+        def: n,
+        query: [query],
+      });
+      if (i[0] > 3) n = `...${n}`;
+      if (i[1] < d.length - 4) n = `${n}...`;
+      return n;
+    });
+    return locs.join("<br/>");
+  } else {
+    let n = d.substr(0, Math.min(100, d.length));
+    if (n.length < d.length) n = `${n}...`;
+    n = basna({
+      def: n,
+      query: [query],
+    });
+    return n;
+  }
+}
+
+function clicked({ target }: any) {
+  if (target?.nodeName === "A") {
+    const el = target;
+    if (el.ctrlKey || el.metaKey) return;
+    let href = el.getAttribute("href");
+    href = href.substring(href.indexOf("#") + 1);
+    state.displaying.query = decodeURIComponent(href);
+  }
+  return;
+}
+
+async function skicu_roledovalsi({
+  appendToSearch,
+}: {
+  appendToSearch: boolean;
+}) {
+  let newResultsDiv: HTMLDivElement[] = [];
+  if (!appendToSearch) {
+    // removePlumbs();
+    // state.jimte = state.displaying.seskari === "velcusku" ? 201 : 30;
+    // state.resultCount = 0;
+  } else {
+    // newResultsDiv = document.getElementById("outp").cloneNode(true);
+    // state.jimte += 10;
+  }
+
+  const displayUpTo = Math.min(state.jimte, state.results.length);
+  let resultCount = 0;
+  console.log(state.resultCount, state.results.length);
+  for (; resultCount < displayUpTo; resultCount++) {
+    if (state.results[resultCount]) {
+      const htmlTermBlock = await skicu_paledovalsi({
+        def: JSON.parse(JSON.stringify(state.results[resultCount] as Def)),
+        // length: state.results.length,
+        inner: false,
+        stringifiedPlaceTags: [],
+        index: resultCount.toString(),
+      });
+      // state.resultCount = resultCount;
+      if (htmlTermBlock) newResultsDiv.push(htmlTermBlock);
+    }
+  }
+  return newResultsDiv;
 }

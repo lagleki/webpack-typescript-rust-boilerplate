@@ -7608,6 +7608,11 @@ tar-stream@^2.1.4:
     inherits "^2.0.3"
     readable-stream "^3.1.1"
 
+temml@^0.10.14:
+  version "0.10.14"
+  resolved "https://registry.yarnpkg.com/temml/-/temml-0.10.14.tgz#698634f7688d4f690fe3ae397cb671385a1f25bf"
+  integrity sha512-hhfPZ7wnIzKmDX3AiiFH5gFuaeZexotPntxHpTUllA4MyXP4G0nHyeIm7ylf8Zz/BzG5XIvcy2AX2Tqlf78TXw==
+
 temp-dir@^1.0.0:
   version "1.0.0"
   resolved "https://registry.npmjs.org/temp-dir/-/temp-dir-1.0.0.tgz"

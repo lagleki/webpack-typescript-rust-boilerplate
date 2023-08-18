@@ -990,7 +990,10 @@ function ma_veljvo(tegerna: string): any[] {
 }
 
 function setca_lotcila(seskicu_be_le_valsi: Def) {
-  if ([undefined, ""].includes(seskicu_be_le_valsi.t))
+  if (
+    typeof seskicu_be_le_valsi.t === "string" &&
+    [undefined, ""].includes(seskicu_be_le_valsi.t)
+  )
     seskicu_be_le_valsi.t =
       seskicu_be_le_valsi.bangu !== "muplis" && leijufra.xuzganalojudri
         ? maklesi_levalsi(seskicu_be_le_valsi.w)[0]
@@ -1164,7 +1167,7 @@ async function shortget({
 }
 
 function isCoreWord(def: Def) {
-  return ["gismu", "cmavo"].includes(def.t ?? "");
+  return typeof def.t === "string" && ["gismu", "cmavo"].includes(def.t ?? "");
 }
 
 function defaultPriorityGroups() {
@@ -1282,7 +1285,7 @@ async function sortThem({
       )
     ) {
       searchPriorityGroups.wordSemiMatch.push(def);
-    } else if (typeof def.s === "string" && includes(def.s, query)) {
+    } else if (typeof def.s === "string" && includes(def.s.split(" "), query)) {
       searchPriorityGroups.selmahoFullMatch.push(def);
     } else if (
       typeof def.s === "string" &&
@@ -1450,12 +1453,7 @@ async function sortThem({
 }
 
 async function sisku(searching: Searching) {
-  let {
-    query,
-    seskari,
-    bangu,
-    versio,
-  } = searching;
+  let { query, seskari, bangu, versio } = searching;
   query = query.trim();
   //connect and do selects
   if (query.length === 0) return;
