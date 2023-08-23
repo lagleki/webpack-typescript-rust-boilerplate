@@ -201,6 +201,7 @@ async function runQuery(sqlQuery: string, params = {}) {
   const rows = await sql(sqlQuery, params);
   if (production !== "production")
     log({
+      startedAt: new Date().getTime(),
       duration: new Date().getTime() - start,
       sqlQuery: prettifySqlQuery(sqlQuery),
       params,
@@ -698,6 +699,7 @@ async function cnano_sisku({
 
   let embeddings: Dict = {};
   const embeddingsMode = bangu === "en" && seskari === "cnano"; // semantic search
+  console.log(';preembed',new Date().getTime());
   if (embeddingsMode) {
     embeddings = await getNeighbors(query);
   }
@@ -705,6 +707,7 @@ async function cnano_sisku({
   let rows;
   if (embeddingsMode) {
     const merged = getMergedArray(embeddings.words);
+    console.log(';prerun',new Date().getTime());
     rows = await runQuery(
       `
 		select distinct
@@ -713,7 +716,7 @@ async function cnano_sisku({
 		where 
 		${
       queryDecomposition.length > 1
-        ? `(json_each.value in ${getMergedArray(arrayQuery)} and bangu=$bangu)
+        ? `(bangu=$bangu and json_each.value in ${getMergedArray(arrayQuery)})
 		or `
         : ``
     }
@@ -1453,6 +1456,7 @@ async function sortThem({
 }
 
 async function sisku(searching: Searching) {
+  console.log("sisku", new Date().getTime());
   let { query, seskari, bangu, versio } = searching;
   query = query.trim();
   //connect and do selects

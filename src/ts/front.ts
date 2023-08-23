@@ -4,8 +4,8 @@ import tejufra from "./worker/template/tejufra.json";
 
 import katex from "katex";
 
-export function get_mathjax_svg(math: string): string {
-  return katex.renderToString(math.replace(/^\$/, "").replace(/\$$/, ""));
+export function get_mathjax_svg(math: string, span: HTMLElement): void {
+  katex.render(math.replace(/^\$/, "").replace(/\$$/, ""), span);
 }
 
 // import io from "socket.io-client";
@@ -18,9 +18,19 @@ import {
   positionScrollTopToggleBtn,
   listFamymaho,
   initStateLoading,
-} from "./worker/template/utils/consts";
-import { RecursiveObject } from "../../../renderer/src/common/types";
-import { Def, Dict } from "./types";
+  initStateRAM,
+  regexTeX,
+  regexIntraLink,
+  regexImageLink,
+  regexHyperLink,
+} from "./consts";
+import {
+  BasnaMemoized,
+  Def,
+  DefRenderedElement,
+  Dict,
+  RegexFlavours,
+} from "./types";
 // import { UNICODE_START, lerfu_index } from "./worker/template/utils/zlm.js";
 
 // //global vars:
@@ -36,21 +46,23 @@ import { Def, Dict } from "./types";
 // let socket, socket1Chat, socket1Chat_connected;
 
 // //stores
-const storeOptions = { eventKey: "sutysisku-event", localCacheKey: "store" };
-const stateLeijufra = store(tejufra.en, { eventKey: storeOptions.eventKey });
-const stateRAM = store(
-  {
-    focused: 1,
-    scrollTop: 0,
-    jimte: 10,
-    typing: 0,
-    showDesktop: true as boolean,
-  },
-  { eventKey: "RAM" }
-);
+const stateRAM = store(initStateRAM, { eventKey: "RAM" });
 
-let state = store(initState, storeOptions);
+const storeOptions = { eventKey: "sutysisku-event", localCacheKey: "store" };
+console.log("sss", {
+  ...initState,
+  displaying: { ...initState.displaying, ...generateStateFromUrl() },
+});
+let state = store(
+  {
+    ...initState,
+    displaying: { ...initState.displaying, ...generateStateFromUrl() },
+  },
+  storeOptions
+);
 const stateLoading = store(initStateLoading, storeOptions);
+const stateLeijufra = store(tejufra.en, { eventKey: storeOptions.eventKey });
+
 // const jvoPlumbsOn = store(
 //   { on: false },
 //   { localCacheKey: "plumbsOn", eventKey: "plumbsOn" }
@@ -58,6 +70,7 @@ const stateLoading = store(initStateLoading, storeOptions);
 
 // //worker
 const worker = new Worker(new URL("./worker/worker", import.meta.url));
+postQuery();
 // worker.postMessage({
 //   kind: "parse",
 //   operation: "audioLink",
@@ -65,26 +78,62 @@ const worker = new Worker(new URL("./worker/worker", import.meta.url));
 //   queryLanguage: "en",
 // });
 
+function postQuery() {
+  console.log(
+    "ppp",
+    state.displaying.query,
+    twoJsonsAreEqual(state.displaying, stateRAM.fetched),
+    state.displaying,
+    stateRAM.fetched
+  );
+  if (
+    state.displaying.query &&
+    !twoJsonsAreEqual(state.displaying, stateRAM.fetched)
+  ) {
+    console.log(
+      "posty",
+      new Date().getTime(),
+      state.displaying.query,
+      stateRAM.fetched.query
+    );
+    worker.postMessage({
+      kind: "newSearch",
+      ...state.displaying,
+    });
+  }
+}
+
+function twoJsonsAreEqual(obj1 = {}, obj2 = {}) {
+  if (Object.keys(obj1).length != Object.keys(obj2).length) return false;
+
+  for (const key in obj1)
+    if (obj1[key as keyof typeof obj1] != obj2[key as keyof typeof obj1])
+      return false;
+
+  return true;
+}
+
 worker.onmessage = (ev) => {
+  console.log("res", new Date().getTime());
+
   const { data } = ev;
   const { kind } = data;
   // if (kind == "parse" && data?.req?.operation == "audioLink")
   if (kind == "searchResults") {
-    state.results = data.results;
+    stateRAM.results = data.results;
     state.displaying = data.req;
+    console.log(
+      "res+state0",
+      data.results.length,
+      data.req.query,
+      new Date().getTime()
+    );
+    stateRAM.fetched = structuredClone(data.req);
     state.embeddings = data.embeddings;
     stateRAM.showDesktop = false;
+    console.log("res+state", new Date().getTime());
   }
 };
-
-// const state = store(
-//   { loading: true, sub: { x: "john", y: "mary" } },
-//   storeOptions
-// );
-// // //simple console logging test
-// // const log = (arg: { [key: string]: string }) => console.log(arg);
-
-// // log({ event: "Logging into console", status: "ok" });
 
 function buildURLParams(params = {}) {
   return "#" + new URLSearchParams(params).toString();
@@ -108,16 +157,14 @@ function debounce<F extends (...params: any[]) => void>(fn: F, delay: number) {
 function setStateFromInput(event: Event): void {
   const input = event.target as HTMLInputElement;
   state.displaying.query = input.value;
-  worker.postMessage({
-    kind: "newSearch",
-    ...state.displaying,
-  });
+  postQuery();
 }
 
 //always show dasri thats all
 component(
   "#root",
   async () => {
+    console.log("render", new Date().getTime());
     return h(
       "div",
       {
@@ -148,7 +195,7 @@ component(
             {
               click: () => {
                 stateRAM.focused = 0;
-                state.searching.query = "";
+                state.displaying.query = "";
               },
             },
             h(
@@ -161,16 +208,16 @@ component(
                 {
                   class: [
                     `${
-                      state.searching.query === ""
+                      state.displaying.query === ""
                         ? `desktop`
-                        : `${state.searching.seskari}-search`
+                        : `${state.displaying.seskari}-search`
                     }-mode-title-color`,
                   ],
                 },
                 h("img#logo", {
                   src: "/assets/pixra/snime.svg",
                   style:
-                    state.searching.seskari === "rimni"
+                    state.displaying.seskari === "rimni"
                       ? { filter: "sepia(1.0)" }
                       : {},
                   height: "16",
@@ -398,8 +445,10 @@ component(
 );
 
 const outpBlock = async () => {
-  const d = new Date().toISOString();
+  console.log("skicu", new Date().getTime());
+
   let reses = await skicu_roledovalsi({ appendToSearch: false });
+  console.log("after skicu", new Date().getTime(), "aft");
 
   return h(
     "div#outp",
@@ -414,14 +463,13 @@ const outpBlock = async () => {
       h("div.term.noselect.nasezvafahi", {
         innerText: stateLeijufra.alerts.rhymesSearchAlert,
       }),
-    h("div", { innerText: d }),
     h("div", ...reses)
   );
 };
 
 function rectuResults() {
-  const results = state.results.slice(0, 100);
-  console.log(results);
+  const results = stateRAM.results.slice(0, 100);
+  // console.log(results);
   return [];
 }
 
@@ -444,19 +492,20 @@ function escapeRegExp(string: string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function getMemoizedBasna(query: string[]): RecursiveObject {
+//todo: change to regex
+function getMemoizedBasna(query: string[]): BasnaMemoized {
   const string = query.join(" ");
-  const cached = state.memoizedValues[string] as unknown as RecursiveObject;
+  const cached = state.memoizedValues[string] as unknown as BasnaMemoized;
   if (cached) return cached;
   let arrQuery = query
     .concat(query.map((i) => i.replace(/'/g, "h")))
     .map((i) => escapeRegExp(i.trim().replace(/[\|\(\)\{\}<>]/g, ".")))
     .filter((i) => i.length > 2);
   const regex = `(${arrQuery.join("|")})`;
-  return (state.memoizedValues[string] = {
-    arrQuery: arrQuery as unknown as RecursiveObject,
+  return ((state.memoizedValues as any)[string] = {
+    arrQuery,
     regex,
-  });
+  } as BasnaMemoized);
 }
 
 function basna({ def, query }: { def: any; query: string[] }) {
@@ -464,7 +513,7 @@ function basna({ def, query }: { def: any; query: string[] }) {
     return def;
   const { arrQuery, regex } = getMemoizedBasna(query);
 
-  if (Array.isArray(arrQuery) && arrQuery.length === 0) return def;
+  if ((arrQuery ?? []).length === 0) return def;
 
   return def.replace(
     new RegExp(regex as string, "igm"),
@@ -472,26 +521,26 @@ function basna({ def, query }: { def: any; query: string[] }) {
   );
 }
 
-function escHtml(a: string, apos?: boolean) {
+function escHtml(str: string, apos?: boolean) {
   //for displaying text
-  a = (a || "")
+  str = (str || "")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/\(/g, "&#40;")
     .replace(/\)/g, "&#41;");
-  if (!apos) a = a.replace(/'/g, "&#039;");
-  return a;
+  if (!apos) str = str.replace(/'/g, "&#039;");
+  return str;
 }
 
 function encodeValsiForWeb(v: string) {
   return encodeURIComponent(v).replace(/'/g, "h");
 }
 
-function plukaquery(a: string) {
-  if (a.charAt(0) !== "^" && a.slice(-1) !== "$")
-    return a.replace(/\./g, " ").replace(/ {2,}/g, " ").replace(/’/g, "'");
-  return a;
+function plukaquery(query: string) {
+  if (query.charAt(0) !== "^" && query.slice(-1) !== "$")
+    return query.replace(/\./g, " ").replace(/ {2,}/g, " ").replace(/’/g, "'");
+  return query;
 }
 
 function placeTagHasExpansion(v: string) {
@@ -563,7 +612,7 @@ import { UNICODE_START, lerfu_index } from "./utils/zlm";
 import { string } from "@tensorflow/tfjs";
 
 function latinToZbalermorna(c: string) {
-  if (c.codePointAt(0) ?? 0 >= 0xed80) {
+  if ((c.codePointAt(0) ?? 0) >= 0xed80) {
     return c;
   }
   if (c == " ") return " ";
@@ -613,93 +662,186 @@ function zbalermornaize({ w, ot, rfs }: Def) {
         .join("")
     )
     .join("");
-  console.log(w, word);
   return word.replace(/,/g, "");
 }
 
+function convertMathStringtoHtml({
+  iterTerbricmiId,
+  index,
+  fullDef,
+  jsonIds,
+  type,
+  placeTag,
+  dataArrAdded,
+  stringifiedPlaceTags,
+}: {
+  iterTerbricmiId: number;
+  index: number;
+  fullDef: Def;
+  jsonIds: Dict[];
+  type: string;
+  placeTag: string;
+  dataArrAdded: string[];
+  stringifiedPlaceTags: string[];
+}): {
+  span: HTMLSpanElement;
+  stringifiedPlaceTags: string[];
+  iterTerbricmiId: number;
+} {
+  iterTerbricmiId++;
+  const combInd = `${index}_${iterTerbricmiId}`;
+
+  if (type === "d") jsonIds.push({ [placeTag]: combInd });
+  const clearedPlaceTag = placeTag.replace(/[^a-zA-Z0-9]/g, "");
+  const isHead = (fullDef.rfs || []).length > 0;
+
+  const objectVeljvoReplacement = getVeljvoString({
+    isHead,
+    placeTag,
+    fullDef,
+    dataArrAdded,
+    clearedPlaceTag,
+  });
+  const stringifiedPlaceTag = objectVeljvoReplacement.stringifiedPlaceTag;
+  if (!stringifiedPlaceTags.includes(stringifiedPlaceTag))
+    stringifiedPlaceTags.push(stringifiedPlaceTag);
+  const number = stringifiedPlaceTags.indexOf(stringifiedPlaceTag);
+  const replacementTag = isHead
+    ? objectVeljvoReplacement.replacement
+    : placeTag;
+  const gradient = bgString2Int(number, { s: "90%", l: "100%" });
+  const gradientBorder = bgString2Int(number, { s: "100%", l: "40%" });
+  // dataArrAdded.push(clearedPlaceTag)
+  const background = `repeating-linear-gradient(to right,${gradient},${gradient} 100%) content-box content-box, linear-gradient(90deg, ${gradientBorder},${gradientBorder} 100%) padding-box padding-box`;
+  const span = h("span", {
+    class: "terbricmi",
+    id: type === "d" ? combInd : null,
+    style: {
+      background,
+    },
+    attributes: {
+      "data-arr":
+        objectVeljvoReplacement.dataArr && type === "d"
+          ? stringifiedPlaceTag
+          : null,
+      "data-color": !isHead ? number2ColorHue(number) : null,
+    },
+  });
+  get_mathjax_svg(replacementTag, span);
+  return { span, iterTerbricmiId, stringifiedPlaceTags };
+}
+
+function textToTaggedArray(
+  text: DefRenderedElement,
+  args: RegexFlavours[]
+): DefRenderedElement[] {
+  if (args.length === 0) return [text];
+  const regex = args[0];
+  return text.value
+    .split(regex.partial)
+    .map((el) => ({ type: "simple", value: el }) as DefRenderedElement)
+    .reduce((acc: DefRenderedElement[], el: DefRenderedElement) => {
+      //chunks: intralinks
+      if (regex.full.test(el.value)) {
+        return acc.concat([
+          { type: regex.tagName, value: el.value } as DefRenderedElement,
+        ]);
+      }
+      return acc.concat(textToTaggedArray(el, args.slice(1)));
+    }, [] as DefRenderedElement[]);
+}
+
 function melbi_uenzi({
-  def,
+  text,
   fullDef,
   type,
   query,
   index,
   stringifiedPlaceTags,
 }: {
-  def: string | Dict;
+  text: string | Dict;
   fullDef: Def;
   query: string[];
   type: string;
   index: string;
-  stringifiedPlaceTags: any[];
+  stringifiedPlaceTags: string[];
 }) {
+  /*
+  text: split, analyze each part
+  for -cll style special syntax, hilite it too
+  but probably just def.book_d outside melbi uenzi
+  {} parts
+  hyperlinks
+  hilite
+  */
   const { bangu, seskari } = state.displaying;
   let hasExpansion = false;
-  if (fullDef) {
-    let ul;
-    if (fullDef.bangu.indexOf("-cll") >= 0 && typeof def === "object") {
+  if (typeof text === "object") {
+    if (fullDef.bangu.indexOf("-cll") >= 0) {
       const url =
         stateLeijufra.custom_links?.filter((i) => !!i.uncll)?.[0]?.uncll?.url ||
         "/";
-      ul = h(
-        "ul",
-        {
-          class: "uoldeliste",
-          style: {
-            "list-style-image": "url(../pixra/cukta.svg)",
+      return {
+        tergeha: h(
+          "ul",
+          {
+            class: "uoldeliste",
+            style: {
+              "list-style-image": "url(../assets/pixra/cukta.svg)",
+            },
           },
-        },
-        ...Object.keys(def).map((address) =>
-          h(
-            "li",
-            h("a", {
-              rel: "noreferrer",
-              target: "_blank",
-              href: `${url}${address}`,
-              innerText: def[address],
-            })
+          ...Object.keys(text).map((address) =>
+            h(
+              "li",
+              h("a", {
+                rel: "noreferrer",
+                target: "_blank",
+                href: `${url}${address}`,
+                innerText: text[address],
+              })
+            )
           )
-        )
-      );
-    } else if (fullDef.bangu.indexOf("-ll") >= 0 && typeof def === "object") {
+        ).outerHTML,
+        hasExpansion: false,
+      };
+    } else if (fullDef.bangu.indexOf("-ll") >= 0) {
       const url =
         stateLeijufra.custom_links?.filter((i) => !!i.introbook)?.[0]?.introbook
           ?.url || "/";
-      ul = h(
-        "ul",
-        {
-          class: "uoldeliste",
-          style: {
-            "list-style-image": "url(../pixra/certu.svg)",
-          },
-        },
-        ...Object.keys(def).map((address) =>
-          h(
-            "li",
-            h("a", {
-              rel: "noreferrer",
-              target: "_blank",
-              href: `${url}${address}`,
-              innerText: def[address],
-            })
-          )
-        )
-      );
-    }
-    if (ul)
       return {
-        tergeha: ul.outerHTML,
+        tergeha: h(
+          "ul",
+          {
+            class: "uoldeliste",
+            style: {
+              "list-style-image": "url(../pixra/certu.svg)",
+            },
+          },
+          ...Object.keys(text).map((address) =>
+            h(
+              "li",
+              h("a", {
+                rel: "noreferrer",
+                target: "_blank",
+                href: `${url}${address}`,
+                innerText: text[address],
+              })
+            )
+          )
+        ).outerHTML,
         hasExpansion: false,
       };
+    }
   }
 
   let iterTerbricmiId = 0;
-  const jsonIds = [];
+  const jsonIds: Dict[] = [];
   const dataArrAdded: string[] = [];
   const curSeskari = ["cnano", "catni", "rimni"].includes(seskari)
     ? seskari
     : "cnano";
 
-  const placeTags = def.match(/\$.*?\$/g) || [];
+  const placeTags = text.match(/\$.*?\$/g) || [];
   for (const placeTag of placeTags) {
     if (
       type === "d" &&
@@ -712,7 +854,123 @@ function melbi_uenzi({
   }
 
   const jalge = h("span");
-  jalge.innerHTML = def
+  const renewed = [{ type: "simple", value: text } as DefRenderedElement]
+    .reduce((acc: DefRenderedElement[], el: DefRenderedElement) => {
+      return acc.concat(
+        textToTaggedArray(el, [
+          regexTeX,
+          regexIntraLink,
+          regexImageLink,
+          regexHyperLink,
+        ]).reduce((acc: DefRenderedElement[], el: DefRenderedElement) => {
+          if (el.type !== "simple") return acc.concat([el]);
+          const basnaized = getMemoizedBasna(query);
+          const regexHilite = new RegExp(basnaized.regex);
+          if ((basnaized.arrQuery ?? []).length === 0) return acc.concat([el]);
+          return acc.concat(
+            (el.value ?? "").split(regexHilite).map((el: string) =>
+              regexHilite.test(el)
+                ? ({
+                    type: "hilite",
+                    value: el,
+                  } as DefRenderedElement)
+                : ({
+                    type: "simple",
+                    value: el,
+                  } as DefRenderedElement)
+            )
+          );
+        }, [] as DefRenderedElement[])
+      );
+    }, [] as DefRenderedElement[])
+    // chunks: hilite
+    .reduce(
+      (
+        acc: DefRenderedElement[],
+        el: DefRenderedElement,
+        index: number,
+        renewed: DefRenderedElement[]
+      ) => {
+        if (
+          index > 0 &&
+          index < renewed.length - 1 &&
+          renewed[index - 1].type === "math" &&
+          renewed[index + 1].type === "math" &&
+          renewed[index].value === "="
+        ) {
+          const newEl = {
+            ...el,
+            type: "veljvocmiterjonmaho",
+          } as DefRenderedElement;
+          return acc.concat([newEl]);
+        }
+        return acc.concat([el]);
+      },
+      [] as DefRenderedElement[]
+    )
+
+    //convert to HTML
+    .map((el: DefRenderedElement, index: number) => {
+      // console.log(el);
+      if (el.type === regexTeX.tagName) {
+        const convertedChunk = convertMathStringtoHtml({
+          dataArrAdded,
+          fullDef,
+          index,
+          iterTerbricmiId,
+          jsonIds,
+          placeTag: el.value,
+          stringifiedPlaceTags,
+          type,
+        });
+        iterTerbricmiId = convertedChunk.iterTerbricmiId;
+        stringifiedPlaceTags = convertedChunk.stringifiedPlaceTags;
+        return convertedChunk.span;
+      } else if (el.type === "veljvocmiterjonmaho") {
+        return h("span", { class: ["veljvocmiterjonmaho"], innerText: "=" });
+      } else if (el.type === regexIntraLink.tagName) {
+        const intralink = el.value.substring(1, el.value.length - 1);
+        return h("a", {
+          class: `a-${curSeskari}`,
+          href: `#seskari=${curSeskari}&sisku=${encodeUrl(
+            intralink
+          )}&bangu=${bangu}&versio=masno`,
+          innerText: intralink,
+        });
+      } else if (el.type === regexImageLink.tagName) {
+        const url = el.value.replace(/^http:/, "https:");
+        return h(
+          "a",
+          {
+            href: url,
+            rel: "noreferrer",
+            target: "_blank",
+          },
+          h("img", {
+            class: ["se-tcidu-pixra"],
+            alt: query,
+            src: url,
+          })
+        );
+      } else if (el.type === regexHyperLink.tagName) {
+        const url = el.value.replace(/^http:/, "https:");
+        return h("a", {
+          href: url,
+          rel: "noreferrer",
+          target: "_blank",
+          innerText: url,
+        });
+      } else if (el.type === "hilite") {
+        return h("mark", {
+          class: ["basna"],
+          innerText: el.value,
+        });
+      } else {
+        return h("span", { innerText: el.value });
+      }
+    });
+
+  jalge.innerHTML = text
     //add span to linages of lujvo's complex places
     .replace(/\$=\$/g, `$<span class="veljvocmiterjonmaho">=</span>$`)
     //add span to borders of latex
@@ -722,7 +980,7 @@ function melbi_uenzi({
 
       if (type === "d") jsonIds.push({ [placeTag]: combInd });
       const clearedPlaceTag = placeTag.replace(/[^a-zA-Z0-9]/g, "");
-      const isHead = fullDef && (fullDef.rfs || []).length > 0 ? true : false;
+      const isHead = (fullDef.rfs || []).length > 0;
 
       const objectVeljvoReplacement = getVeljvoString({
         isHead,
@@ -755,10 +1013,8 @@ function melbi_uenzi({
               : null,
           "data-color": !isHead ? number2ColorHue(number) : null,
         },
-        innerHTML: get_mathjax_svg(replacementTag),
       });
-      // console.log((replacementTag));
-      // console.log(renderAsMathJax(replacementTag));
+      get_mathjax_svg(replacementTag, span);
       return span.outerHTML;
     })
     //add spans to intralinks
@@ -801,12 +1057,11 @@ function melbi_uenzi({
         node.nodeType === 3 && (node?.textContent ?? "").trim().length > 1
     )
     .forEach((node) => {
-      const newText = basna({
+      const span = document.createElement("span");
+      span.innerHTML = basna({
         def: node.textContent,
         query,
       });
-      const span = document.createElement("span");
-      span.innerHTML = newText;
       node.replaceWith(span);
     });
 
@@ -825,7 +1080,11 @@ function melbi_uenzi({
 
   jalge.innerHTML = jalge.innerHTML.replace(/\n+/g, "<br/>");
   //todo: list of placetags
-  return { tergeha: jalge.outerHTML, hasExpansion, stringifiedPlaceTags };
+  return {
+    tergeha: h("div", ...renewed).outerHTML,
+    hasExpansion,
+    stringifiedPlaceTags,
+  };
 }
 
 async function skicu_paledovalsi({
@@ -837,7 +1096,7 @@ async function skicu_paledovalsi({
   def: Def;
   inner: boolean;
   index: string;
-  stringifiedPlaceTags: any[];
+  stringifiedPlaceTags: string[];
 }) {
   if (
     def.bangu === "en-pixra" &&
@@ -874,7 +1133,10 @@ async function skicu_paledovalsi({
             query: [query],
           }),
           attributes: {
-            onclick: `window.runSearch("${seskari}","${selmaho}","${bangu}")`,
+            onclick: () => {
+              state.displaying.versio = "selmaho";
+              state.displaying.query = selmaho;
+            },
           },
         });
         selms.appendChild(inDefSelmahoElement);
@@ -965,22 +1227,22 @@ async function skicu_paledovalsi({
   let prettifiedDefinition: Partial<{
     tergeha: string;
     hasExpansion: boolean;
-    stringifiedPlaceTags: any[];
+    stringifiedPlaceTags: string[];
   }> = {};
   if (def.d && !def.nasezvafahi)
     if (
       !(supportedLangs[def.bangu as keyof typeof supportedLangs] as any)
         .pictureDictionary
-    )
+    ) {
       prettifiedDefinition = melbi_uenzi({
-        def: typeof def.d === "string" ? def.d : "",
+        text: def.d,
         fullDef: def,
         query: state.embeddings.length > 0 ? state.embeddings : [query],
         type: "d",
         index,
         stringifiedPlaceTags,
       });
-    else
+    } else {
       prettifiedDefinition = {
         tergeha:
           def.d.indexOf("../") === 0
@@ -991,7 +1253,7 @@ async function skicu_paledovalsi({
         hasExpansion: false,
         stringifiedPlaceTags,
       };
-
+    }
   if (prettifiedDefinition?.stringifiedPlaceTags)
     stringifiedPlaceTags = prettifiedDefinition.stringifiedPlaceTags;
 
@@ -1027,26 +1289,39 @@ async function skicu_paledovalsi({
   const heading = h("heading", { class: "heading" });
 
   if (stateLeijufra.lojbo) {
-    let arrRenderedFamymaho = [];
+    let arrRenderedFamymaho: HTMLElement[] = [];
     for (const key in listFamymaho) {
       if (
         listFamymaho[key as keyof typeof listFamymaho]
           .split(" ")
           .includes(def.w)
-      )
+      ) {
         arrRenderedFamymaho.push(
-          `<a href="#seskari=${seskari}&versio=selmaho&sisku=${encodeUrl(
-            key
-          )}&bangu=${bangu}">${escHtml(key)}</a>`
+          h("a", {
+            class: ["selmaho"],
+            href: `#seskari=${seskari}&versio=selmaho&sisku=${encodeUrl(
+              key
+            )}&bangu=${bangu}`,
+            innerText: key,
+          })
         );
+      }
     }
     if (arrRenderedFamymaho.length !== 0) {
-      const inDefElement = h("div", {
-        class: ["valsi"],
-        innerHTML: `<i><sup>[${arrRenderedFamymaho.join(
-          ", "
-        )}&nbsp;&nbsp;&nbsp;...&nbsp;]</sup></i>&nbsp;&nbsp;`,
-      });
+      const inDefElement = h(
+        "div",
+        {
+          class: ["valsi"],
+        },
+        h(
+          "i",
+          h(
+            "sup",
+            ...arrRenderedFamymaho,
+            h("span", { class: ["selmaho"], innerText: " ..." })
+          )
+        )
+      );
       if (inDefElement) heading.appendChild(inDefElement);
     }
   }
@@ -1271,7 +1546,7 @@ async function skicu_paledovalsi({
       h("div", {
         class: ["notes", "valsi"],
         innerHTML: melbi_uenzi({
-          def: def.n,
+          text: def.n,
           fullDef: def,
           query: state.embeddings.length > 0 ? state.embeddings : [query],
           type: "n",
@@ -1423,18 +1698,84 @@ function clicked({ target }: any) {
     const el = target;
     if (el.ctrlKey || el.metaKey) return;
     let href = el.getAttribute("href");
-    href = href.substring(href.indexOf("#") + 1);
-    state.displaying.query = decodeURIComponent(href);
+    setStateFromUrl(href);
   }
   return;
+}
+
+function generateStateFromUrl(href?: string) {
+  let newState: Dict = {};
+  if (href) {
+    href = href.substring(href.indexOf("#") + 1);
+  }
+  let params = parseQuery(href || window.location.hash) || {};
+  let newSearch;
+  if (params?.sisku) {
+    newSearch = decodeUrl(params.sisku);
+  } else {
+    href = href || window.location.search;
+    href = href.substring(href.indexOf("?") + 1);
+    const search = new URLSearchParams(href);
+    newSearch = decodeUrl(search.get("focus") || "");
+    if (newSearch) params = { sisku: newSearch, seskari: "cnano" };
+  }
+  if (
+    ["velcusku", "cnano", "catni", "rimni", "arxivo", "fanva"].includes(
+      params.seskari
+    )
+  )
+    newState.seskari = params["seskari"];
+
+  if (["selmaho"].includes(params.versio)) newState.versio = params.versio;
+  else newState.versio = "masno";
+
+  if (Object.keys(supportedLangs).includes(params.bangu))
+    newState.bangu = params.bangu;
+
+  if (params.sisku) newState.query = newSearch;
+  return newState;
+}
+function setStateFromUrl(href: string) {
+  const newState = generateStateFromUrl(href);
+  for (const i in newState) {
+    state.displaying[i as keyof typeof state.displaying] = newState[i];
+  }
+  postQuery();
+}
+
+function decodeUrl(urli: string) {
+  return decodeURIComponent(
+    urli.replace(/&amp;/g, "&").replace(/%27/g, "'")
+  ).replace(/[_]/g, " ");
+}
+
+function parseQuery(queryString: string) {
+  if (queryString === "") return;
+  const query: Dict = {};
+  let pairs = [];
+  //legacy support:
+  if (queryString.search(/^#sisku\//) === 0) {
+    pairs = [queryString.replace(/#sisku\/(.*)/, "sisku=$1")];
+  } else {
+    pairs = (
+      queryString[0] === "#" ? queryString.substr(1) : queryString
+    ).split("&");
+  }
+  for (let i = 0; i < pairs.length; i++) {
+    const pair = pairs[i].split("=");
+    if (pair[1])
+      query[decodeURIComponent(pair[0])] = decodeURIComponent(
+        pair[1].replace(/[\+]/g, " ") || ""
+      );
+  }
+  return query;
 }
 
 async function skicu_roledovalsi({
   appendToSearch,
 }: {
   appendToSearch: boolean;
-}) {
-  let newResultsDiv: HTMLDivElement[] = [];
+}): Promise<(HTMLDivElement | undefined)[]> {
   if (!appendToSearch) {
     // removePlumbs();
     // state.jimte = state.displaying.seskari === "velcusku" ? 201 : 30;
@@ -1444,21 +1785,24 @@ async function skicu_roledovalsi({
     // state.jimte += 10;
   }
 
-  const displayUpTo = Math.min(state.jimte, state.results.length);
+  const displayUpTo = Math.min(state.jimte, stateRAM.results.length);
   let resultCount = 0;
-  console.log(state.resultCount, state.results.length);
-  for (; resultCount < displayUpTo; resultCount++) {
-    if (state.results[resultCount]) {
-      const htmlTermBlock = await skicu_paledovalsi({
-        def: JSON.parse(JSON.stringify(state.results[resultCount] as Def)),
-        // length: state.results.length,
-        inner: false,
-        stringifiedPlaceTags: [],
-        index: resultCount.toString(),
-      });
-      // state.resultCount = resultCount;
-      if (htmlTermBlock) newResultsDiv.push(htmlTermBlock);
-    }
-  }
-  return newResultsDiv;
+
+  return await Promise.all(
+    stateRAM.results.slice(0, displayUpTo).reduce(
+      (acc, resultEl) => {
+        const htmlTermBlock = skicu_paledovalsi({
+          def: JSON.parse(JSON.stringify(resultEl as Def)),
+          // length: state.results.length,
+          inner: false,
+          stringifiedPlaceTags: [],
+          index: resultCount.toString(),
+        });
+        if (htmlTermBlock) acc.push(htmlTermBlock);
+
+        return acc;
+      },
+      [] as Promise<HTMLDivElement | undefined>[]
+    )
+  );
 }

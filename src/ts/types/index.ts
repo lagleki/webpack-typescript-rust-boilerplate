@@ -27,3 +27,21 @@ export type Searching = {
   leijufra?: any;
   loadingState?: boolean;
 };
+
+export type DefRenderedElementType =
+  | "simple"
+  | "math"
+  | "veljvocmiterjonmaho"
+  | "link"
+  | "image_link"
+  | "hilite"
+  | "intralink";
+
+export type DefRenderedElement = {
+  type: DefRenderedElementType;
+  value: string;
+};
+
+export type BasnaMemoized = { arrQuery: string[]; regex: string };
+
+export type RegexFlavours = { full: RegExp; partial: RegExp; tagName: string };
