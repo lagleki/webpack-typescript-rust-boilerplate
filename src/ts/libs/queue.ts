@@ -7,9 +7,13 @@ class Queue {
   }
 
   async dequeue() {
+    console.log(this._items);
     const withVlaste = this._items.filter((i) => i.name === "vlaste").slice(-1);
     const notWithVlaste = this._items.filter((i) => i.name !== "vlaste");
-    this._items = [...notWithVlaste, ...withVlaste];
+    if (withVlaste.length>0){
+      console.log('vlll', withVlaste);
+    }
+    this._items = [...withVlaste, ...notWithVlaste];
     return this._items.shift();
   }
 

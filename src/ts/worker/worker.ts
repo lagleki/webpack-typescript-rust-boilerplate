@@ -2,7 +2,8 @@ import SQLiteAsyncESMFactory from "../libs/wa-sqlite/dist/wa-sqlite-async.mjs";
 
 import * as SQLite from "../libs/wa-sqlite/src/sqlite-api.js";
 
-import { IDBBatchAtomicVFS } from "../libs/wa-sqlite/src/examples/IDBBatchAtomicVFS.js";
+import { IDBBatchAtomicVFS as VFS } from "../libs/wa-sqlite/src/examples/IDBBatchAtomicVFS.js";
+import { OriginPrivateFileSystemVFS as VFS2 } from "../libs/wa-sqlite/src/examples/OriginPrivateFileSystemVFS.js";
 
 import { AutoQueue } from "../libs/queue";
 import { parse } from "./template/cmaxes.js";
@@ -11,6 +12,7 @@ import jsonTeJufra from "./template/tejufra.json";
 
 import decompress from "brotli/decompress";
 import { Def, Dict, Searching } from "../types/index.js";
+import { blobChunkLength } from "../consts";
 
 self.postMessage({ kind: "loading" });
 
@@ -39,17 +41,13 @@ self.onmessage = function (ev) {
       },
     });
   } else if (ev.data.kind == "fancu" && ev.data.cmene) {
-    aQueue.enqueue({
-      action: () => {
-        (fancu as any)[ev.data.cmene](ev.data, function (results: any) {
-          self.postMessage({
-            kind: "fancu",
-            cmene: ev.data.cmene,
-            datni: ev.data,
-            results: results,
-          });
-        });
-      },
+    (fancu as any)[ev.data.cmene](ev.data, function (results: any) {
+      self.postMessage({
+        kind: "fancu",
+        cmene: ev.data.cmene,
+        datni: ev.data,
+        results: results,
+      });
     });
   }
 };
@@ -58,15 +56,31 @@ let db: number, sqlite3: SQLiteAPI, sql: any, wordEmbeddings: WordEmbeddings;
 
 /* TODO:
   check on clean startup fix all errors
-  add opfs
   test on old android browsers if opfs gets disabled
 */
 async function initSQLDB() {
   const module = await SQLiteAsyncESMFactory();
   sqlite3 = SQLite.Factory(module);
-  sqlite3.vfs_register(new IDBBatchAtomicVFS("sutysisku"));
+  if ("storage" in navigator && "getDirectory" in navigator.storage) {
+    // OPFS is supported
+    console.log("OPFS is supported");
 
-  db = await sqlite3.open_v2("sutysisku", undefined, "sutysisku");
+    sqlite3.vfs_register(new VFS2(), true);
+    const DB_NAME = "file:///benchmark?foo=bar";
+    db = await sqlite3.open_v2(
+      DB_NAME,
+      SQLite.SQLITE_OPEN_CREATE |
+        SQLite.SQLITE_OPEN_READWRITE |
+        SQLite.SQLITE_OPEN_URI,
+      "opfs"
+    );
+  } else {
+    // OPFS is not supported
+    console.log("OPFS is not supported");
+    sqlite3.vfs_register(new VFS("sutysisku"));
+
+    db = await sqlite3.open_v2("sutysisku", undefined, "sutysisku");
+  }
 
   sqlite3.create_function(
     db,
@@ -92,32 +106,19 @@ async function initSQLDB() {
   // `)
   sql = prepareWrapper();
 
-  // const module = await SQLiteModuleFactory()
-  // sqlite3 = SQLite.Factory(module)
-  // sqlite3.vfs_register(new OriginPrivateFileSystemVFS(), true)
-
-  // db = await sqlite3.open_v2(
-  //   DB_NAME,
-  //   SQLite.SQLITE_OPEN_CREATE |
-  //     SQLite.SQLITE_OPEN_READWRITE |
-  //     SQLite.SQLITE_OPEN_URI,
-  //   'opfs'
-  // )
-  //
-
   await runMigrations();
 
   if (sql_buffer_mode === "memory") {
     self.postMessage({
       kind: "loader",
-      cmene: "booting",
+      cmene: "bootingDb",
     });
 
     // await sql(`select w from valsi where bangu='en'`)
-    self.postMessage({
-      kind: "loader",
-      cmene: "loaded",
-    });
+    // self.postMessage({
+    //   kind: "loader",
+    //   cmene: "loaded",
+    // });
   }
 
   //embeddings
@@ -134,6 +135,7 @@ const log = (output: string | Dict, level: "log" | "warn" | "error" = "log") =>
   console[level ?? "log"](output);
 
 async function runMigrations() {
+  console.log("migrate");
   await sql`CREATE TABLE IF NOT EXISTS valsi (d text,n text,w text,r text,bangu text,s text,t text,g text,cache text,b text,z text);`;
   await sql`CREATE TABLE IF NOT EXISTS langs_ready (bangu TEXT, timestamp TEXT)`;
   await sql`CREATE TABLE IF NOT EXISTS tejufra (bangu TEXT, jufra TEXT)`;
@@ -262,7 +264,7 @@ function arrSupportedLangs() {
   );
 }
 
-const sufficientLangs = (searching: any) =>
+const sufficientLangs = (searching: Dict) =>
   [
     searching ? searching.bangu : null,
     "en",
@@ -306,28 +308,27 @@ const fancu = {
   cnino_bangu: ({ bangu }: { bangu: string }) => {
     sesisku_bangu = bangu;
   },
-  runQuery: (
-    { query, params = {} }: { query: string; params: any },
-    cb: any
-  ) => {
-    runQuery(query, params).then((rows) => cb(rows));
-  },
+  // runQuery: (
+  //   { query, params = {} }: { query: string; params: any },
+  //   cb: any
+  // ) => {
+  //   runQuery(query, params).then((rows) => cb(rows));
+  // },
   getNeighbors: ({ query }: { query: string }, cb: any) => {
     getNeighbors(query).then((rows) => cb(rows));
   },
-  ningau_lerosorcu: async (searching: Dict, cb: any) => {
+  ningau_lerosorcu: async (searching: Searching, cb: any) => {
     fancu.ningau_lesorcu(searching, cb, true);
   },
-  ningau_lesorcu: async (searching: Dict, cb: any, forceAll: boolean) => {
+  ningau_lesorcu: async (searching: Searching, cb: any, forceAll: boolean) => {
     aQueue.enqueue({
       action: async () => {
         await jufra({ bapli: true });
-
         let langsToUpdate = [];
         let response;
         try {
           response = await fetch(
-            `/sutysisku/data/versio.json?sisku=${new Date().getTime()}`
+            `/data/versio.json?sisku=${new Date().getTime()}`
           );
         } catch (error) {
           log(
@@ -382,11 +383,11 @@ const fancu = {
       },
     });
   },
-  ningau_lepasorcu: async (searching: Dict, cb: any) => {
+  ningau_lepasorcu: async (searching: Searching, cb: any) => {
     const lang = searching.bangu || "en";
     let json: Dict = {};
     const response = await fetch(
-      `/sutysisku/data/versio.json?sisku=${new Date().getTime()}`
+      `/data/versio.json?sisku=${new Date().getTime()}`
     );
     if (response.ok) {
       json = await response.json();
@@ -481,11 +482,10 @@ function addCache(def: Dict, tegerna: string) {
   return { bangu: tegerna, ...def, cache };
 }
 
-const blobChunkLength = 5;
 async function cnino_sorcu(
   cb: any,
   langsToUpdate: string[],
-  searching: Dict,
+  searching: Searching,
   json: Dict
 ) {
   langsToUpdate = [...new Set(langsToUpdate)];
@@ -527,14 +527,14 @@ async function cnino_sorcu(
 
     self.postMessage({
       kind: "loader",
-      cmene: "loading",
+      cmene: "startLanguageDirectionUpdate",
       completedRows: 12 + (Math.random() - 0.5) * 3,
       totalRows: 100,
       bangu: lang,
     });
     for (let i = 0; i < blobChunkLength; i++) {
       cb(`downloading ${lang}-${i}.bin dump`);
-      const url = `/sutysisku/data/parsed-${lang}-${i}.bin?sisku=${new Date().getTime()}`;
+      const url = `/data/parsed-${lang}-${i}.bin?sisku=${new Date().getTime()}`;
       const response = await fetch(url);
       let json;
       if (response.ok) {
@@ -581,12 +581,15 @@ async function cnino_sorcu(
           completedRows += chunkSize;
           self.postMessage({
             kind: "loader",
-            cmene: "loading",
+            cmene: "completeChunkInsertion",
             completedRows,
             totalRows,
             bangu: lang,
             banguRaw: lang,
           });
+          if (lang === searching.bangu) {
+            await sisku(searching);
+          }
         }
 
         log({
@@ -618,7 +621,7 @@ async function cnino_sorcu(
     cb(`imported ${lang}-*.bin files at ${new Date().toISOString()}`);
     self.postMessage({
       kind: "loader",
-      cmene: "loading",
+      cmene: "completeLanguageDirectionUpdate",
       completedRows,
       totalRows: completedRows,
       bangu: lang,
@@ -699,7 +702,7 @@ async function cnano_sisku({
 
   let embeddings: Dict = {};
   const embeddingsMode = bangu === "en" && seskari === "cnano"; // semantic search
-  console.log(';preembed',new Date().getTime());
+  console.log(";preembed", new Date().getTime());
   if (embeddingsMode) {
     embeddings = await getNeighbors(query);
   }
@@ -707,7 +710,7 @@ async function cnano_sisku({
   let rows;
   if (embeddingsMode) {
     const merged = getMergedArray(embeddings.words);
-    console.log(';prerun',new Date().getTime());
+    console.log(";prerun", new Date().getTime());
     rows = await runQuery(
       `
 		select distinct

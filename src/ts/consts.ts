@@ -77,6 +77,7 @@ export const initStateRAM = {
   results: [],
   focused: 1,
   scrollTop: 0,
+  scrollJvoTimer: 0,
   jimte: 10,
   typing: 0,
   showDesktop: true as boolean,
@@ -90,27 +91,33 @@ export const initStateRAM = {
 
 export const initStateLoading = {
   loading: true,
-  completedRows: 0,
-  totalRows: 0,
+  completedRows: 37,
+  totalRows: 100,
   innerText: "",
   hideProgress: false,
   firstRun: true,
   mathRendered: false,
   localesLoaded: false,
+  displaying: {
+    seskari: "cnano",
+    versio: "masno",
+    query: "",
+    bangu: "en",
+  }
 };
 
 export const positionScrollTopToggleBtn = 200;
 
 export const regexImageLink: RegexFlavours = {
-  full: /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)\.(jpg|png)$/,
+  full: /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-z]{2,6}\b(?:[-a-zA-Z0-9@:%_\+.~#?&//=]*)\.(?:jpg|png)$/,
   partial:
-    /(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)\.(jpg|png))/,
+    /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-z]{2,6}\b(?:[-a-zA-Z0-9@:%_\+.~#?&//=]*)\.(?:jpg|png))/,
   tagName: "imageLink",
 };
 export const regexHyperLink: RegexFlavours = {
-  full: /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$/,
+  full: /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-z]{2,6}\b[-a-zA-Z0-9@:%_\+.~#?&//=]*$/,
   partial:
-    /(https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*))/,
+    /(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-z]{2,6}\b[-a-zA-Z0-9@:%_\+.~#?&//=]*)/,
   tagName: "hyperLink",
 };
 export const regexIntraLink: RegexFlavours = {
@@ -123,3 +130,11 @@ export const regexTeX: RegexFlavours = {
   partial: /(\$.*?\$)/,
   tagName: "math",
 };
+
+export const regexTeXQuotation: RegexFlavours = {
+  full: /^``.*?''$/,
+  partial: /(``.*?'')/,
+  tagName: "TeX-quote",
+};
+
+export const blobChunkLength = 5;

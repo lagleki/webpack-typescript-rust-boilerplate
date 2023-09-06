@@ -1,4 +1,4 @@
-import { component, store, h } from "../../../renderer/src";
+import { component, store, h, s } from "../../../renderer/src";
 import { rows } from "./utils/pronunciation";
 import tejufra from "./worker/template/tejufra.json";
 
@@ -9,7 +9,6 @@ export function get_mathjax_svg(math: string, span: HTMLElement): void {
 }
 
 // import io from "socket.io-client";
-// import arrowCreate, { HEAD } from "arrows-svg";
 import {
   // listFamymaho,
   // modes,
@@ -23,6 +22,7 @@ import {
   regexIntraLink,
   regexImageLink,
   regexHyperLink,
+  regexTeXQuotation,
 } from "./consts";
 import {
   BasnaMemoized,
@@ -36,7 +36,7 @@ import {
 // //global vars:
 // let resultCount;
 // let typingTimer; //search after timeout
-// let cacheObj;
+let cacheObj: Cache;
 // let scrollTimer = null;
 // let scrollJvoTimer = null;
 // const timers = {
@@ -49,10 +49,7 @@ import {
 const stateRAM = store(initStateRAM, { eventKey: "RAM" });
 
 const storeOptions = { eventKey: "sutysisku-event", localCacheKey: "store" };
-console.log("sss", {
-  ...initState,
-  displaying: { ...initState.displaying, ...generateStateFromUrl() },
-});
+
 let state = store(
   {
     ...initState,
@@ -70,13 +67,101 @@ const stateLeijufra = store(tejufra.en, { eventKey: storeOptions.eventKey });
 
 // //worker
 const worker = new Worker(new URL("./worker/worker", import.meta.url));
-postQuery();
+// window.addEventListener("load", () => {
+onLoad();
+// });
 // worker.postMessage({
 //   kind: "parse",
 //   operation: "audioLink",
 //   tegerna: "coi",
 //   queryLanguage: "en",
 // });
+
+async function onLoad() {
+  if ("serviceWorker" in navigator) {
+  } else if (location.protocol === "https:") {
+    alert(
+      "Your browser is not supported. Please, upgrade to the latest Chrome / Firefox / Safari and don't use the app in incognito / private browsing mode (it needs to save dictionary data to disk to work successfully)."
+    );
+  } else {
+    alert("HTTP protocol, la sutysisku won't work.");
+    console.log("http protocol, service worker won't work");
+  }
+  await fetchAndSaveCachedListValues({ mode: "co'a" });
+  console.log({ crossOriginIsolated: window.crossOriginIsolated });
+
+  worker.postMessage({
+    kind: "fancu",
+    cmene: "ningau_lesorcu",
+    ...state.displaying,
+  });
+}
+
+async function getCachedListKeys() {
+  return await (await getCacheObject(cacheObj)).keys();
+}
+
+async function fetchAndSaveCachedListValues({ mode }: { mode: string }) {
+  const cachedList = await getCachedListKeys();
+  const initialCacheListLength = cachedList.length;
+
+  const response = await fetch(
+    `/data/tcini.json?sisku=${new Date().getTime()}`
+  );
+  if (!response.ok) {
+    if (initialCacheListLength === 0)
+      alert("Are you offline? We can't fetch the source.");
+    return false;
+  }
+  const vreji = (await response.json()).vreji.map(
+    (v: string) =>
+      new URL(v, window.location.origin + window.location.pathname).href
+  );
+  let cacheUpdated = false;
+  const objCache = await getCacheObject(cacheObj);
+  for (let i = 0; i < vreji.length; i++) {
+    const url = vreji[i];
+    if (mode === "co'a" && !/((\.(js|wasm|html|css))|\/)$/.test(url)) continue;
+    const isInCache = await objCache.match(url);
+    if (!isInCache) {
+      await objCache.add(url);
+      cacheUpdated = true;
+      if (mode === "co'a") {
+        stateLoading.completedRows = i;
+        stateLoading.totalRows = vreji.length;
+        stateLoading.innerText = `📦 💾 📁 🛠️`;
+      }
+    }
+  }
+
+  for (const key of cachedList) {
+    if (!vreji.includes(key.url)) {
+      await objCache.delete(key.url, { ignoreMethod: true, ignoreVary: true });
+      console.log({ event: "removing cache", url: key.url });
+    }
+  }
+  if (cacheUpdated) {
+    for (const url of [
+      new URL("", window.location.origin + window.location.pathname).href,
+      new URL("index.html", window.location.origin + window.location.pathname)
+        .href,
+    ]) {
+      await objCache.delete(url, { ignoreMethod: true, ignoreVary: true });
+      await objCache.add(url);
+      console.log({ event: "adding cache", url });
+    }
+  }
+  stateLoading.loading = false;
+
+  if (mode === "co'a" && cacheUpdated) {
+    window.location.reload();
+  }
+  //  else if (!window.crossOriginIsolated) {
+  //   alert("la sutysisku will likely not work. Please, use Chrome/Chromium browser.")
+  //   return false
+  // }
+  return true;
+}
 
 function postQuery() {
   console.log(
@@ -113,11 +198,194 @@ function twoJsonsAreEqual(obj1 = {}, obj2 = {}) {
   return true;
 }
 
+function removePlumbs() {
+  document.body
+    .querySelectorAll(".arrow")
+    .forEach((element) => element?.parentNode?.removeChild(element));
+}
+
+function kahe_sezgana(el: Element) {
+  const rect = el.getBoundingClientRect();
+  return (
+    rect.top >= 42 &&
+    rect.left >= 0 &&
+    rect.bottom <=
+      (window.innerHeight || document.documentElement.clientHeight) &&
+    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+  );
+}
+
+function addPlumbs(root = document.body) {
+  //plumbs for in-terbri interactions
+  root.querySelectorAll("[data-target]").forEach((target) => {
+    if (kahe_sezgana(target)) {
+      const start = target.getAttribute("data-color") ?? "";
+      const from = document?.getElementById(start);
+      if (!from) return;
+      let color = from.getAttribute("data-color");
+      color = `hsla(${color},100%,70%,0.62)`;
+      const arrow = generateArrow({
+        from,
+        to: target as HTMLElement,
+        arrowHeadSize: 5,
+        color,
+      });
+
+      document.body?.appendChild(arrow);
+    }
+  });
+}
+
+function generateArrow({
+  from,
+  to,
+  arrowHeadSize = 10,
+  color = "color",
+}: {
+  from: HTMLElement;
+  to: HTMLElement;
+  arrowHeadSize: number;
+  color: string;
+}): SVGSVGElement {
+  const [sx, sy, c1x, c1y, c2x, c2y, ex, ey, ae, as] = getBoxToBoxArrow(
+    from.offsetLeft,
+    from.offsetTop,
+    from.offsetWidth,
+    from.offsetHeight,
+    to.offsetLeft,
+    to.offsetTop,
+    to.offsetWidth,
+    to.offsetHeight,
+    {
+      padStart: 0,
+      padEnd: arrowHeadSize * 0.5,
+      prefer: "vertical",
+    }
+  );
+
+  const top = document?.getElementById("contentWrapper")?.scrollTop ?? 0;
+  return s(
+    "svg",
+    {
+      class: "arrow",
+      width: "100%",
+      // height: "100%",
+      height: `${from.offsetTop + from.offsetHeight}px`,
+      xmlns: "http://www.w3.org/2000/svg",
+      style: `top: ${-top}px;`,
+    },
+    s("path", {
+      d: `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${ex} ${ey}`,
+      stroke: color,
+      // "stroke-width": arrowHeadSize / 2,
+    }),
+    s("polyline", {
+      points: [
+        `${-arrowHeadSize * 0.7},${-arrowHeadSize * 0.9}`,
+        `${arrowHeadSize * 0.5},0`,
+        `${-arrowHeadSize * 0.7},${arrowHeadSize * 0.9}`,
+      ].join(" "),
+      transform: `translate(${ex}, ${ey}) rotate(${ae})`,
+      stroke: color,
+    })
+  );
+}
+
+async function checkScrolledNearBottom({ target }: Event) {
+  if (state.displaying.query === "") return;
+  removePlumbs();
+  addJvoPlumbs(true);
+  // if (scrollTimer !== null) {
+  //   clearTimeout(scrollTimer)
+  // }
+  // if (scrollJvoTimer !== null) {
+  //   clearTimeout(scrollJvoTimer)
+  // }
+  // if (
+  //   state.displaying.seskari !== 'velcusku' &&
+  //   target.scrollTop + window.innerHeight >=
+  //     document.getElementById('outp').clientHeight - 700
+  // ) {
+  //   skicu_roledovalsi({ ...state.displaying, appendToSearch: true })
+  // } else {
+  //   window.requestAnimationFrame(() => {
+  //     addJvoPlumbs(true)
+  //   })
+  //   addAudioLinks()
+  // }
+}
+
+function addJvoPlumbs(force = false) {
+  stateRAM.scrollJvoTimer = setTimeout(
+    () => {
+      window.requestAnimationFrame(() => {
+        removePlumbs();
+        addPlumbs();
+        if (force !== true) {
+          state.jvoPlumbsOn = !state.jvoPlumbsOn;
+        }
+        const targetedEls =
+          Array.from(document.body.querySelectorAll("[data-arr]")) ?? [];
+        for (
+          let targetedElIndex = 0;
+          targetedElIndex < targetedEls.length;
+          targetedElIndex++
+        ) {
+          const target = targetedEls[targetedElIndex];
+          const targetVeljvoElements: string[] =
+            target?.getAttribute("data-arr")?.split(",") ?? [];
+          const targetIdComponents = target.id.split("_");
+          const targetFinalIndex = targetIdComponents.slice(0, -1);
+          const WeCanSeeThisElement = kahe_sezgana(target);
+          targetedEls.filter((startElement) => {
+            const startElIdComponents = startElement.id.split("_");
+            const startElFinalIndexes = startElIdComponents.slice(0, -2);
+            const startElVeljvoElements =
+              startElement?.getAttribute("data-arr")?.split(",") ?? [];
+            const startVeljvoElementComponents =
+              startElVeljvoElements?.[0]?.split(/(?=[0-9]+)/) ?? [];
+            if (
+              startElVeljvoElements?.length === 1 &&
+              startElFinalIndexes.length === targetFinalIndex.length &&
+              startElFinalIndexes.join("_") === targetFinalIndex.join("_") &&
+              targetVeljvoElements.filter((targetVeljvoElement) => {
+                const targetVeljvoElementComponents =
+                  targetVeljvoElement.split(/(?=[0-9])/);
+                return (
+                  startVeljvoElementComponents[0].indexOf(
+                    targetVeljvoElementComponents[0]
+                  ) === 0 &&
+                  startVeljvoElementComponents[1] ===
+                    targetVeljvoElementComponents[1]
+                );
+              }).length > 0 &&
+              (WeCanSeeThisElement || kahe_sezgana(startElement))
+            ) {
+              let color = startElement?.getAttribute("data-color");
+              color = `hsla(${color},100%,70%,0.62)`;
+
+              const arrow = generateArrow({
+                from: startElement as HTMLElement,
+                to: target as HTMLElement,
+                arrowHeadSize: 5,
+                color,
+              });
+
+              document.body?.appendChild(arrow);
+            }
+          });
+        }
+      });
+    },
+    force === true ? 450 : 0
+  ) as unknown as number;
+}
+
 worker.onmessage = (ev) => {
   console.log("res", new Date().getTime());
 
   const { data } = ev;
-  const { kind } = data;
+  const { kind, cmene } = data;
   // if (kind == "parse" && data?.req?.operation == "audioLink")
   if (kind == "searchResults") {
     stateRAM.results = data.results;
@@ -132,6 +400,57 @@ worker.onmessage = (ev) => {
     state.embeddings = data.embeddings;
     stateRAM.showDesktop = false;
     console.log("res+state", new Date().getTime());
+  } else if (kind == "loader") {
+    if (
+      [
+        "startLanguageDirectionUpdate",
+        "completeChunkInsertion",
+        "completeLanguageDirectionUpdate",
+      ].includes(cmene)
+    ) {
+      // if (
+      //   [
+      //     "completeChunkInsertion",
+      //   ].includes(cmene)
+      // )
+      //   try {
+      //     console.log('in flight!');
+      //     worker.postMessage({
+      //       kind: "newSearch",
+      //       ...JSON.parse(JSON.stringify(state.displaying)),
+      //       versio: "masno",
+      //       loadingState: JSON.parse(JSON.stringify(stateLoading)),
+      //     });
+      //   } catch (error) {
+      //     console.log(error, state.displaying);
+      //   }
+      if (
+        data.banguRaw === state.displaying.bangu ||
+        data.completedRows === 0 ||
+        data.completedRows === data.totalRows
+      ) {
+        if (
+          data.completedRows === data.totalRows ||
+          !twoJsonsAreEqual(stateLoading.displaying, state.displaying)
+        ) {
+          stateLoading.loading = true;
+          stateLoading.displaying = { ...state.displaying };
+        }
+      }
+      stateLoading.completedRows = data.completedRows;
+      stateLoading.totalRows = data.totalRows;
+      stateLoading.innerText =
+        "🗃️ " + ((supportedLangs as any)[data.bangu]?.n ?? data.bangu);
+    } else if (cmene === "loaded") {
+      fetchAndSaveCachedListValues({ mode: "ca'o" });
+      postQuery();
+    } else if (cmene === "bootingDb") {
+      stateLoading.completedRows = 1;
+      stateLoading.totalRows = 3;
+      stateLoading.innerText = "🗃️ " + stateLeijufra.booting;
+    }
+    //todo: resize
+    // calcVH();
   }
 };
 
@@ -291,6 +610,7 @@ component(
               content.scrollTop > positionScrollTopToggleBtn
                 ? "d-block"
                 : "d-block dizlo";
+            checkScrolledNearBottom(event);
           },
         },
         h(
@@ -361,7 +681,7 @@ component(
             ),
             h(
               "div#rectu",
-              ...rectuResults(),
+              // ...rectuResults(),
               h("div#drata", { style: { "text-align": "center" } }),
               h(
                 "div#descr",
@@ -440,6 +760,8 @@ component(
     eventKeys: ["sutysisku-event"],
     afterRender: () => {
       document.getElementById("ciska")?.[stateRAM.focused ? "focus" : "blur"]();
+
+      addJvoPlumbs(true);
     },
   }
 );
@@ -448,6 +770,8 @@ const outpBlock = async () => {
   console.log("skicu", new Date().getTime());
 
   let reses = await skicu_roledovalsi({ appendToSearch: false });
+  const content = document.getElementById("contentWrapper");
+  if (content) content.scrollTop = 0;
   console.log("after skicu", new Date().getTime(), "aft");
 
   return h(
@@ -473,18 +797,18 @@ function rectuResults() {
   return [];
 }
 
-let cacheObj: Cache;
-async function getCacheObject() {
+async function getCacheObject(cacheObj: Cache): Promise<Cache> {
   if (!cacheObj) cacheObj = await caches.open("sutysisku");
+
   return cacheObj;
 }
 
 async function getOrFetchResource(url: string) {
-  const match = await (await getCacheObject()).match(url);
+  const match = await (await getCacheObject(cacheObj)).match(url);
   if (match) return true;
   const response = await fetch(url);
   if (!response.ok) return false;
-  cacheObj.put(url, response);
+  cacheObj?.put(url, response);
   return true;
 }
 
@@ -508,16 +832,31 @@ function getMemoizedBasna(query: string[]): BasnaMemoized {
   } as BasnaMemoized);
 }
 
-function basna({ def, query }: { def: any; query: string[] }) {
+function basna({
+  text,
+  query,
+}: {
+  text: string;
+  query: string[];
+}): HTMLElement[] {
   if (query.length === 0 || (query.length === 1 && query[0].length <= 2))
-    return def;
+    return [h("span", { innerText: text })];
   const { arrQuery, regex } = getMemoizedBasna(query);
 
-  if ((arrQuery ?? []).length === 0) return def;
+  if ((arrQuery ?? []).length === 0) return [h("span", { innerText: text })];
 
-  return def.replace(
-    new RegExp(regex as string, "igm"),
-    "<span class='basna'>$1</span>"
+  return hilite([{ value: text, type: "simple" }], arrQuery).map(
+    (el: DefRenderedElement, index: number) => {
+      // console.log(el);
+      if (el.type === "hilite") {
+        return h("mark", {
+          class: ["basna"],
+          innerText: el.value,
+        });
+      } else {
+        return h("span", { innerText: el.value });
+      }
+    }
   );
 }
 
@@ -609,7 +948,7 @@ function getVeljvoString({
 }
 
 import { UNICODE_START, lerfu_index } from "./utils/zlm";
-import { string } from "@tensorflow/tfjs";
+import { getBoxToBoxArrow } from "./libs/arrows";
 
 function latinToZbalermorna(c: string) {
   if ((c.codePointAt(0) ?? 0) >= 0xed80) {
@@ -676,7 +1015,7 @@ function convertMathStringtoHtml({
   stringifiedPlaceTags,
 }: {
   iterTerbricmiId: number;
-  index: number;
+  index: string;
   fullDef: Def;
   jsonIds: Dict[];
   type: string;
@@ -751,6 +1090,27 @@ function textToTaggedArray(
     }, [] as DefRenderedElement[]);
 }
 
+function hilite(els: DefRenderedElement[], query: string[]) {
+  return els.reduce((acc: DefRenderedElement[], el: DefRenderedElement) => {
+    if (el.type !== "simple") return acc.concat([el]);
+    const basnaized = getMemoizedBasna(query);
+    const regexHilite = new RegExp(basnaized.regex);
+    if ((basnaized.arrQuery ?? []).length === 0) return acc.concat([el]);
+    return acc.concat(
+      (el.value ?? "").split(regexHilite).map((el: string) =>
+        regexHilite.test(el)
+          ? ({
+              type: "hilite",
+              value: el,
+            } as DefRenderedElement)
+          : ({
+              type: "simple",
+              value: el,
+            } as DefRenderedElement)
+      )
+    );
+  }, [] as DefRenderedElement[]);
+}
 function melbi_uenzi({
   text,
   fullDef,
@@ -765,15 +1125,11 @@ function melbi_uenzi({
   type: string;
   index: string;
   stringifiedPlaceTags: string[];
-}) {
-  /*
-  text: split, analyze each part
-  for -cll style special syntax, hilite it too
-  but probably just def.book_d outside melbi uenzi
-  {} parts
-  hyperlinks
-  hilite
-  */
+}): {
+  tergeha: HTMLElement;
+  hasExpansion: boolean;
+  stringifiedPlaceTags?: string[];
+} {
   const { bangu, seskari } = state.displaying;
   let hasExpansion = false;
   if (typeof text === "object") {
@@ -801,7 +1157,7 @@ function melbi_uenzi({
               })
             )
           )
-        ).outerHTML,
+        ),
         hasExpansion: false,
       };
     } else if (fullDef.bangu.indexOf("-ll") >= 0) {
@@ -814,7 +1170,7 @@ function melbi_uenzi({
           {
             class: "uoldeliste",
             style: {
-              "list-style-image": "url(../pixra/certu.svg)",
+              "list-style-image": "url(../assets/pixra/certu.svg)",
             },
           },
           ...Object.keys(text).map((address) =>
@@ -828,7 +1184,7 @@ function melbi_uenzi({
               })
             )
           )
-        ).outerHTML,
+        ),
         hasExpansion: false,
       };
     }
@@ -853,37 +1209,21 @@ function melbi_uenzi({
     }
   }
 
-  const jalge = h("span");
   const renewed = [{ type: "simple", value: text } as DefRenderedElement]
     .reduce((acc: DefRenderedElement[], el: DefRenderedElement) => {
       return acc.concat(
-        textToTaggedArray(el, [
-          regexTeX,
-          regexIntraLink,
-          regexImageLink,
-          regexHyperLink,
-        ]).reduce((acc: DefRenderedElement[], el: DefRenderedElement) => {
-          if (el.type !== "simple") return acc.concat([el]);
-          const basnaized = getMemoizedBasna(query);
-          const regexHilite = new RegExp(basnaized.regex);
-          if ((basnaized.arrQuery ?? []).length === 0) return acc.concat([el]);
-          return acc.concat(
-            (el.value ?? "").split(regexHilite).map((el: string) =>
-              regexHilite.test(el)
-                ? ({
-                    type: "hilite",
-                    value: el,
-                  } as DefRenderedElement)
-                : ({
-                    type: "simple",
-                    value: el,
-                  } as DefRenderedElement)
-            )
-          );
-        }, [] as DefRenderedElement[])
+        hilite(
+          textToTaggedArray(el, [
+            regexTeX,
+            regexTeXQuotation,
+            regexIntraLink,
+            regexImageLink,
+            regexHyperLink,
+          ]),
+          query
+        )
       );
     }, [] as DefRenderedElement[])
-    // chunks: hilite
     .reduce(
       (
         acc: DefRenderedElement[],
@@ -910,7 +1250,7 @@ function melbi_uenzi({
     )
 
     //convert to HTML
-    .map((el: DefRenderedElement, index: number) => {
+    .map((el: DefRenderedElement) => {
       // console.log(el);
       if (el.type === regexTeX.tagName) {
         const convertedChunk = convertMathStringtoHtml({
@@ -926,6 +1266,8 @@ function melbi_uenzi({
         iterTerbricmiId = convertedChunk.iterTerbricmiId;
         stringifiedPlaceTags = convertedChunk.stringifiedPlaceTags;
         return convertedChunk.span;
+      } else if (el.type === regexTeXQuotation.tagName) {
+        return h("code", { innerText: el.value.replace(/``(.*?)''/g, "$1") });
       } else if (el.type === "veljvocmiterjonmaho") {
         return h("span", { class: ["veljvocmiterjonmaho"], innerText: "=" });
       } else if (el.type === regexIntraLink.tagName) {
@@ -970,102 +1312,7 @@ function melbi_uenzi({
       }
     });
 
-  jalge.innerHTML = text
-    //add span to linages of lujvo's complex places
-    .replace(/\$=\$/g, `$<span class="veljvocmiterjonmaho">=</span>$`)
-    //add span to borders of latex
-    .replace(/\$.*?\$/g, (placeTag: string) => {
-      iterTerbricmiId++;
-      const combInd = `${index}_${iterTerbricmiId}`;
-
-      if (type === "d") jsonIds.push({ [placeTag]: combInd });
-      const clearedPlaceTag = placeTag.replace(/[^a-zA-Z0-9]/g, "");
-      const isHead = (fullDef.rfs || []).length > 0;
-
-      const objectVeljvoReplacement = getVeljvoString({
-        isHead,
-        placeTag,
-        fullDef,
-        dataArrAdded,
-        clearedPlaceTag,
-      });
-      const stringifiedPlaceTag = objectVeljvoReplacement.stringifiedPlaceTag;
-      if (!stringifiedPlaceTags.includes(stringifiedPlaceTag))
-        stringifiedPlaceTags.push(stringifiedPlaceTag);
-      const number = stringifiedPlaceTags.indexOf(stringifiedPlaceTag);
-      const replacementTag = isHead
-        ? objectVeljvoReplacement.replacement
-        : placeTag;
-      const gradient = bgString2Int(number, { s: "90%", l: "100%" });
-      const gradientBorder = bgString2Int(number, { s: "100%", l: "40%" });
-      // dataArrAdded.push(clearedPlaceTag)
-      const background = `repeating-linear-gradient(to right,${gradient},${gradient} 100%) content-box content-box, linear-gradient(90deg, ${gradientBorder},${gradientBorder} 100%) padding-box padding-box`;
-      const span = h("span", {
-        class: "terbricmi",
-        id: type === "d" ? combInd : null,
-        style: {
-          background,
-        },
-        attributes: {
-          "data-arr":
-            objectVeljvoReplacement.dataArr && type === "d"
-              ? stringifiedPlaceTag
-              : null,
-          "data-color": !isHead ? number2ColorHue(number) : null,
-        },
-      });
-      get_mathjax_svg(replacementTag, span);
-      return span.outerHTML;
-    })
-    //add spans to intralinks
-    .replace(/\{.*?\}/g, (intralink: string) => {
-      intralink = intralink.substring(1, intralink.length - 1);
-      return h("a", {
-        class: `a-${curSeskari}`,
-        href: `#seskari=${curSeskari}&sisku=${encodeUrl(
-          intralink
-        )}&bangu=${bangu}&versio=masno`,
-        innerHTML: basna({
-          def: escHtml(intralink, true),
-          query: query,
-        }),
-      }).outerHTML;
-    })
-    //add hyperlinks
-    .replace(
-      /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/g,
-      (url: string) => {
-        url = url.replace(/^http:/, "https:");
-        return h("a", {
-          href: url,
-          rel: "noreferrer",
-          target: "_blank",
-          innerHTML: !/^https?:\/\/.*\.(jpg|png)$/.test(url)
-            ? basna({
-                def: url,
-                query,
-              })
-            : `<img class='se-tcidu-pixra' alt='secusku' src="${url}"/>\n`,
-        }).outerHTML;
-      }
-    );
-
-  //add hiliting where still absent
-  Array.from(jalge.childNodes)
-    .filter(
-      (node) =>
-        node.nodeType === 3 && (node?.textContent ?? "").trim().length > 1
-    )
-    .forEach((node) => {
-      const span = document.createElement("span");
-      span.innerHTML = basna({
-        def: node.textContent,
-        query,
-      });
-      node.replaceWith(span);
-    });
-
-  //@todo:
+  // TODO
   // .replace(
   //   /(<span [^<>]+?>[^\(\)<>]+?<\/span>) \([^\(\)<>]*?\bproperty of <span .*?id="([^\(\)<>]+?)"[^<>]+?>([^\(\)<>]+?)<\/span>\)/g,
   //   (c, _, id, t) => {
@@ -1078,10 +1325,9 @@ function melbi_uenzi({
   //   }
   // )
 
-  jalge.innerHTML = jalge.innerHTML.replace(/\n+/g, "<br/>");
-  //todo: list of placetags
+  // TODO: list of placetags
   return {
-    tergeha: h("div", ...renewed).outerHTML,
+    tergeha: h("div", ...renewed),
     hasExpansion,
     stringifiedPlaceTags,
   };
@@ -1104,7 +1350,7 @@ async function skicu_paledovalsi({
       ? await getOrFetchResource(
           def.d?.indexOf("../") === 0
             ? def.d
-            : `../pixra/xraste/${encodeURIComponent(def.d ?? "")}`
+            : `../assets/pixra/xraste/${encodeURIComponent(def.d ?? "")}`
         )
       : null)
   )
@@ -1126,32 +1372,23 @@ async function skicu_paledovalsi({
     if (selmahos.length > 0) {
       selms = h("div");
       for (const selmaho of selmahos) {
-        const inDefSelmahoElement = h("button", {
-          class: "xp-btn tutci tutci-sampu",
-          innerHTML: basna({
-            def: escHtml(selmaho),
-            query: [query],
-          }),
-          attributes: {
-            onclick: () => {
+        const inDefSelmahoElement = h(
+          "button",
+          {
+            class: "xp-btn tutci tutci-sampu",
+            click: () => {
               state.displaying.versio = "selmaho";
               state.displaying.query = selmaho;
             },
           },
-        });
+          ...basna({ text: selmaho, query: [query] })
+        );
         selms.appendChild(inDefSelmahoElement);
       }
     }
   }
   let hasTranslateButton = false;
-  const word = h("h4", {
-    class: ["valsi"],
-    attributes:
-      def.d && !def.nasezvafahi
-        ? { "data-valsi": encodeValsiForWeb(def.w) }
-        : {},
-  });
-
+  let children: HTMLElement[];
   if (
     stateLeijufra.lojbo &&
     def.t !== stateLeijufra.bangudecomp &&
@@ -1159,28 +1396,44 @@ async function skicu_paledovalsi({
     (plukaquery(def.w) == query || seskari == "velcusku")
   ) {
     hasTranslateButton = true;
-    word.innerHTML = `${basna({
-      def: def.q || def.w,
+    children = basna({
+      text: def.q || def.w,
       query: [query],
-    })} `;
-  } else {
-    const aTag = h("a", {
-      innerHTML: basna({
-        def: escHtml(def.w, true),
-        query: [query],
-      }),
-      class: "valsi",
-      attributes: {
-        href: buildURLParams({
-          seskari: seskari === "fanva" ? "catni" : seskari,
-          sisku: encodeUrl(def.w),
-          bangu,
-          versio: "masno",
-        }),
-      },
     });
-    word.appendChild(aTag);
+  } else {
+    children = [
+      h(
+        "a",
+        {
+          class: "valsi",
+          attributes: {
+            href: buildURLParams({
+              seskari: seskari === "fanva" ? "catni" : seskari,
+              sisku: encodeUrl(def.w),
+              bangu,
+              versio: "masno",
+            }),
+          },
+        },
+        ...basna({
+          text: def.w,
+          query: [query],
+        })
+      ),
+    ];
   }
+
+  const word = h(
+    "h4",
+    {
+      class: ["valsi"],
+      attributes:
+        def.d && !def.nasezvafahi
+          ? { "data-valsi": encodeValsiForWeb(def.w) }
+          : {},
+    },
+    ...children
+  );
 
   let jvs;
   if (typeof def.t === "string") {
@@ -1225,7 +1478,7 @@ async function skicu_paledovalsi({
   }
 
   let prettifiedDefinition: Partial<{
-    tergeha: string;
+    tergeha: HTMLElement;
     hasExpansion: boolean;
     stringifiedPlaceTags: string[];
   }> = {};
@@ -1244,12 +1497,14 @@ async function skicu_paledovalsi({
       });
     } else {
       prettifiedDefinition = {
-        tergeha:
-          def.d.indexOf("../") === 0
-            ? `<img src="${def.d}"/>`
-            : `<img src="../pixra/xraste/${encodeURIComponent(
-                typeof def.d === "string" ? def.d : ""
-              )}"/>`,
+        tergeha: h("img", {
+          src:
+            def.d.indexOf("../") === 0
+              ? def.d
+              : `../assets/pixra/xraste/${encodeURIComponent(
+                  typeof def.d === "string" ? def.d : ""
+                )}`,
+        }),
         hasExpansion: false,
         stringifiedPlaceTags,
       };
@@ -1351,17 +1606,26 @@ async function skicu_paledovalsi({
     typeof def.s === "string" &&
     listFamymaho[def.s as keyof typeof listFamymaho]
       ? listFamymaho[def.s as keyof typeof listFamymaho].split(" ")
-      : undefined;
-  if (typeof famymahos !== "undefined") {
-    let innerHTML = "";
-    for (const famymaho of famymahos) {
-      innerHTML += `&nbsp;&nbsp;<i><sup>[&nbsp;...&nbsp;&nbsp;&nbsp;<a href="#seskari=${seskari}&sisku=${encodeUrl(
-        famymaho
-      )}&bangu=${bangu}&versio=masno">${escHtml(famymaho)}</a>]</sup></i>`;
-    }
-    const inDefElement = h("h4", { class: "tfm", innerHTML });
-    heading.appendChild(inDefElement);
-  }
+      : [];
+  if (famymahos.length > 0)
+    heading.appendChild(
+      h(
+        "h4",
+        { class: "tfm" },
+        ...famymahos.map((child) =>
+          h(
+            "span",
+            { class: ["italic", "sup"] },
+            h("a", {
+              href: `#seskari=${seskari}&sisku=${encodeUrl(
+                child
+              )}&bangu=${bangu}&versio=masno`,
+              innerText: child,
+            })
+          )
+        )
+      )
+    );
 
   if (jvs) {
     const inDefElement = h("div", { class: "sampu noselect" });
@@ -1369,29 +1633,25 @@ async function skicu_paledovalsi({
     jvs = inDefElement;
   }
 
-  //<xuzganalojudri|lojbo>
   let jvo;
 
-  //todo: restore
-  // if (
-  //   def.t === "lujvo" &&
-  //   (def.rfs || []).length > 0 &&
-  //   prettifiedDefinition.hasExpansion
-  // ) {
-  //   jvo = h("button", {
-  //     style: { "background-image": "url(../pixra/shuffle.svg)" },
-  //     class: [
-  //       "tutci",
-  //       "tutci-pixra",
-  //       "xp-btn",
-  //       "jvo_plumber",
-  //       state.jvoPlumbsOn ? "tutci-hover" : null,
-  //     ],
-  //     click: addJvoPlumbs,
-  //   });
-  // }
-
-  //</xuzganalojudri|lojbo>
+  if (
+    def.t === "lujvo" &&
+    (def.rfs || []).length > 0 &&
+    prettifiedDefinition.hasExpansion
+  ) {
+    jvo = h("button", {
+      style: { "background-image": "url(../assets/pixra/shuffle.svg)" },
+      class: [
+        "tutci",
+        "tutci-pixra",
+        "xp-btn",
+        "jvo_plumber",
+        state.jvoPlumbsOn ? "tutci-hover" : null,
+      ],
+      click: addJvoPlumbs,
+    });
+  }
 
   let whoIsFirstLine = [];
 
@@ -1422,34 +1682,36 @@ async function skicu_paledovalsi({
 
   if (selms) heading.appendChild(selms);
 
-  const copy = h("input", {
-    type: "button",
-    class: ["tutci", "tutci-pixra", "xp-btn"],
-    style: { "background-image": "url(../assets/pixra/fukpi.svg)" },
-  });
-  copy.addEventListener("click", function () {
-    copyToClipboard([def.w, def.d, def.n].filter(Boolean).join("\r\n"));
-  });
-  heading.appendChild(copy);
+  heading.appendChild(
+    h("button", {
+      class: ["tutci", "tutci-pixra", "xp-btn"],
+      style: { "background-image": "url(../assets/pixra/fukpi.svg)" },
+      click: () => {
+        copyToClipboard([def.w, def.d, def.n].filter(Boolean).join("\r\n"));
+      },
+    })
+  );
 
   if (def.semMaxDistance ?? Infinity <= 1) {
-    const distance = h("div", {
-      innerText: `${Math.round(
-        parseFloat((def.semMaxDistance ?? Infinity).toPrecision(2)) * 100
-      )}%`,
-      class: ["tutci", "tutci-sampu", "xp-btn", "klesi", "noselect"],
-    });
-    distance.addEventListener("click", function () {
-      stateLoading.innerText = interpolate(stateLeijufra.distance || "", {
-        distance: distance.innerText,
-      });
-      stateLoading.hideProgress = true;
-      stateLoading.loading = true;
-      //   setTimeout(() => {
-      //     stateLoading.loading = true;
-      // }, 4000);
-    });
-    heading.appendChild(distance);
+    const innerText = `${Math.round(
+      parseFloat((def.semMaxDistance ?? Infinity).toPrecision(2)) * 100
+    )}%`;
+    heading.appendChild(
+      h("div", {
+        innerText,
+        class: ["tutci", "tutci-sampu", "xp-btn", "klesi", "noselect"],
+        click: () => {
+          stateLoading.innerText = interpolate(stateLeijufra.distance || "", {
+            distance: innerText,
+          });
+          stateLoading.hideProgress = true;
+          stateLoading.loading = true;
+          //   setTimeout(() => {
+          //     stateLoading.loading = true;
+          // }, 4000);
+        },
+      })
+    );
   }
 
   out.appendChild(heading);
@@ -1470,13 +1732,13 @@ async function skicu_paledovalsi({
     const row = h("button", {
       class: "xp-btn tutci tutci-sampu klesi align-right",
       //todo: add feedback button
-      // onclick: () => window.send_muplis_feedback(def),
+      // click: () => window.send_muplis_feedback(def),
       innerText: stateLeijufra.report_feedback,
     });
     out.appendChild(row);
   }
 
-  if (seskari !== "arxivo" && def.d) {
+  if (def.d) {
     if (def?.nasezvafahi) {
       if (!(!def.t && (def.rfs || []).length === 0)) {
         out.appendChild(
@@ -1490,70 +1752,33 @@ async function skicu_paledovalsi({
       }
     } else {
       out.appendChild(
-        h("div", {
-          class: "definition valsi",
-          innerHTML: prettifiedDefinition.tergeha,
-        })
+        h(
+          "div",
+          {
+            class: "definition valsi",
+          },
+          prettifiedDefinition.tergeha
+        )
       );
     }
   }
-  if (seskari === "arxivo" && typeof def?.d === "string") {
-    const inDefElement1 = h("div", {
-      class: "definition valsi pointer",
-      innerHTML: ConstructArxivoValsiExtract(def.d, query, 50),
-    });
-    // inDefElement1.addEventListener("click", () => {
-    //   h(inDefElement1, {
-    //     "update!": true,
-    //     style: { display: "none" },
-    //   });
-    //   h(inDefElement1.nextElementSibling, {
-    //     "update!": true,
-    //     style: { display: "block" },
-    //   });
-    // });
-    out.appendChild(inDefElement1);
 
-    const inDefElement = h("div", {
-      class: (def?.nasezvafahi ? ["nasezvafahi", "noselect"] : []).concat([
-        "definition",
-        "valsi",
-      ]),
-      innerHTML: def?.nasezvafahi
-        ? stateLeijufra.nasezvafahi
-        : `${basna({
-            def: def.d.replace(/([a-z0-9])\/([a-z0-9])/gi, "$1 / $2"),
-            query: [query],
-          })} `,
-      style: { display: "none" },
-      click: () => {
-        // h(inDefElement, {
-        //   "update!": true,
-        //   style: { display: "none" },
-        // });
-        // h(inDefElement.previousElementSibling, {
-        //   "update!": true,
-        //   style: { display: "block" },
-        // });
-        // inDefElement.parentElement.scrollIntoView();
-      },
-    });
-    out.appendChild(inDefElement);
-    //add two divs. first is hidden. on click hide and display the other
-  }
   if (def.n) {
     out.appendChild(
-      h("div", {
-        class: ["notes", "valsi"],
-        innerHTML: melbi_uenzi({
+      h(
+        "div",
+        {
+          class: ["notes", "valsi"],
+        },
+        melbi_uenzi({
           text: def.n,
           fullDef: def,
           query: state.embeddings.length > 0 ? state.embeddings : [query],
           type: "n",
           index,
           stringifiedPlaceTags,
-        }).tergeha,
-      })
+        }).tergeha
+      )
     );
   }
   if ((def.r || []).length > 0) {
@@ -1565,43 +1790,59 @@ async function skicu_paledovalsi({
     });
     tanxe_leirafsi.appendChild(rafcme);
 
-    const rafsi = h("div", { class: "tanxe pritu_tanxe" });
-    for (const el of def.r ?? []) {
-      const rafElem = h("span", {
-        class: "pamei",
-        innerHTML: basna({
-          def: el,
+    const children = (def.r ?? []).map((el) => {
+      return h(
+        "span",
+        {
+          class: "pamei",
+        },
+        ...basna({
+          text: el,
           query: [query],
-        }),
-      });
-      rafsi.appendChild(rafElem);
-    }
+        })
+      );
+    });
+    const rafsi = h("div", { class: "tanxe pritu_tanxe" }, ...children);
+
     tanxe_leirafsi.appendChild(rafsi);
     out.appendChild(tanxe_leirafsi);
   }
   if (def.b) {
-    const tanxe_leirafsi = h("div", { class: "rafsi noselect hue_rotate" });
+    const tanxe_leirafsi = h(
+      "div",
+      { class: "rafsi noselect hue_rotate" },
+      h("div", {
+        class: "tanxe zunle_tanxe kurfa_tanxe",
+        innerText: "BAI",
+      }),
+      h(
+        "div",
+        { class: "tanxe pritu_tanxe kurfa_tanxe" },
+        ...(def.b ?? []).map((el) => {
+          const rafElem = h(
+            "span",
+            {
+              class: "pamei",
+            },
+            h(
+              "a",
+              {
+                class: `hue_rotate_back a-${seskari}`,
+                href: `#seskari=${seskari}&sisku=${encodeUrl(
+                  el
+                )}&bangu=${bangu}&versio=masno"`,
+              },
+              ...basna({
+                text: el,
+                query: [query],
+              })
+            )
+          );
+          return rafElem;
+        })
+      )
+    );
 
-    const rafcme = h("div", {
-      class: "tanxe zunle_tanxe kurfa_tanxe",
-      innerText: "BAI",
-    });
-    tanxe_leirafsi.appendChild(rafcme);
-
-    const rafsi = h("div", { class: "tanxe pritu_tanxe kurfa_tanxe" });
-    for (const el of def.b) {
-      const rafElem = h("span", {
-        class: "pamei",
-        innerHTML: `</span><a class="hue_rotate_back a-${seskari}" href="#seskari=${seskari}&sisku=${encodeUrl(
-          el
-        )}&bangu=${bangu}&versio=masno">${basna({
-          def: escHtml(el, true),
-          query: [query],
-        })}</a><span>`,
-      });
-      rafsi.appendChild(rafElem);
-    }
-    tanxe_leirafsi.appendChild(rafsi);
     out.appendChild(tanxe_leirafsi);
   }
 
@@ -1609,13 +1850,13 @@ async function skicu_paledovalsi({
     class: ["definition", "subdefinitions"],
   });
   for (const [i, subdef] of (def.rfs || []).entries()) {
-    const html = await skicu_paledovalsi({
+    const htmlElement = await skicu_paledovalsi({
       def: subdef,
       inner: true,
       index: `${index}_${i}`,
       stringifiedPlaceTags,
     });
-    if (html) subDefs.appendChild(html);
+    if (htmlElement) subDefs.appendChild(htmlElement);
   }
   out.appendChild(subDefs);
 
@@ -1624,13 +1865,7 @@ async function skicu_paledovalsi({
 }
 
 function copyToClipboard(value: string) {
-  const myTemporaryInputElement = h("textarea", { value });
-  document.body.appendChild(myTemporaryInputElement);
-
-  myTemporaryInputElement.select();
-  document.execCommand("Copy");
-
-  document.body.removeChild(myTemporaryInputElement);
+  navigator.clipboard.writeText(value);
   stateLoading.innerText = stateLeijufra.copied;
   stateLoading.hideProgress = true;
 }
@@ -1639,58 +1874,6 @@ function interpolate(str: string, params: Dict) {
   const names = Object.keys(params);
   const vals = Object.values(params);
   return new Function(...names, `return \`${str}\`;`)(...vals);
-}
-
-function getMatchIndices(query: string, d: string) {
-  const regex = new RegExp(query, "g");
-  const result = [];
-  let match;
-  while ((match = regex.exec(d))) result.push(match.index);
-  return result;
-}
-
-function onlyUnique(value: any, index: number, self: any[]) {
-  return self.indexOf(value) === index;
-}
-
-function ConstructArxivoValsiExtract(d: string, query: string, range: number) {
-  let locs: any[];
-  locs = getMatchIndices(query, d);
-  locs = locs.map((i_) => {
-    const i = [i_ - range, i_ + range];
-    if (i[0] < 0) i[0] = 0;
-    if (i[0] >= d.length) i[0] = d.length - 1;
-    return i;
-  });
-  for (let i = 0; i < locs.length - 1; i++) {
-    if (locs[i][1] > locs[i + 1][0]) {
-      locs[i][1] = locs[i + 1][1];
-      locs[i + 1][0] = locs[i][0];
-    }
-  }
-  locs = locs.map((i) => JSON.stringify(i));
-  if (locs.length > 0) {
-    locs = locs.filter(onlyUnique).map((i) => {
-      i = JSON.parse(i);
-      let n = d.substr(i[0], i[1] - i[0]);
-      n = basna({
-        def: n,
-        query: [query],
-      });
-      if (i[0] > 3) n = `...${n}`;
-      if (i[1] < d.length - 4) n = `${n}...`;
-      return n;
-    });
-    return locs.join("<br/>");
-  } else {
-    let n = d.substr(0, Math.min(100, d.length));
-    if (n.length < d.length) n = `${n}...`;
-    n = basna({
-      def: n,
-      query: [query],
-    });
-    return n;
-  }
 }
 
 function clicked({ target }: any) {
@@ -1719,11 +1902,7 @@ function generateStateFromUrl(href?: string) {
     newSearch = decodeUrl(search.get("focus") || "");
     if (newSearch) params = { sisku: newSearch, seskari: "cnano" };
   }
-  if (
-    ["velcusku", "cnano", "catni", "rimni", "arxivo", "fanva"].includes(
-      params.seskari
-    )
-  )
+  if (["velcusku", "cnano", "catni", "rimni", "fanva"].includes(params.seskari))
     newState.seskari = params["seskari"];
 
   if (["selmaho"].includes(params.versio)) newState.versio = params.versio;
@@ -1735,11 +1914,12 @@ function generateStateFromUrl(href?: string) {
   if (params.sisku) newState.query = newSearch;
   return newState;
 }
+
 function setStateFromUrl(href: string) {
   const newState = generateStateFromUrl(href);
-  for (const i in newState) {
+  for (const i in newState)
     state.displaying[i as keyof typeof state.displaying] = newState[i];
-  }
+
   postQuery();
 }
 
@@ -1786,17 +1966,16 @@ async function skicu_roledovalsi({
   }
 
   const displayUpTo = Math.min(state.jimte, stateRAM.results.length);
-  let resultCount = 0;
 
   return await Promise.all(
     stateRAM.results.slice(0, displayUpTo).reduce(
-      (acc, resultEl) => {
+      (acc, resultEl, index) => {
         const htmlTermBlock = skicu_paledovalsi({
           def: JSON.parse(JSON.stringify(resultEl as Def)),
           // length: state.results.length,
           inner: false,
           stringifiedPlaceTags: [],
-          index: resultCount.toString(),
+          index: index.toString(),
         });
         if (htmlTermBlock) acc.push(htmlTermBlock);
 

@@ -1,10 +1,14 @@
+* search doesnt work while loading
+* loading bar improve embeddings and initial preload messging
+* prolong on near bottom
+* check resize window handling
+* inter-bridi arrows restore
+* add audio links
+    * audio file generation script 
 * search too slow
 * rotation animation on search
-* prolong on near bottom
-* get rid of innerhtml, outerhtml
 * check browsing history change back forward
-* sw.js, files to cache
-* arrows restore
+* coi.js, Cache: files to cache
 * dasri - rework
 
 mobile:
@@ -16,6 +20,11 @@ history:
 
 
 desktop: search + buttons
+
+## test
+* add opfs - how to detect support?
+
+## other
 
 * grpc
 * move ssr-prerenderer to a npm package

@@ -2156,13 +2156,6 @@ arraybuffer.prototype.slice@^1.0.1:
     is-array-buffer "^3.0.2"
     is-shared-array-buffer "^1.0.2"
 
-arrows-svg@^1.6.0:
-  version "1.6.0"
-  resolved "https://registry.yarnpkg.com/arrows-svg/-/arrows-svg-1.6.0.tgz#047590417f90899ad7b70c2d6f455e31fff6ec9d"
-  integrity sha512-qauo6RoVX/5mLtMR26HVGSIqs3YrvWoU8jq6Xa4WWw8ylCDmXH+ygiVmuAczz0n4jSrYO/BI3ZVsv0m8chkINg==
-  dependencies:
-    preact "^10.5.7"
-
 asynckit@^0.4.0:
   version "0.4.0"
   resolved "https://registry.npmjs.org/asynckit/-/asynckit-0.4.0.tgz"
@@ -6653,11 +6646,6 @@ postcss@^8.4.28:
     nanoid "^3.3.6"
     picocolors "^1.0.0"
     source-map-js "^1.0.2"
-
-preact@^10.5.7:
-  version "10.15.1"
-  resolved "https://registry.yarnpkg.com/preact/-/preact-10.15.1.tgz#a1de60c9fc0c79a522d969c65dcaddc5d994eede"
-  integrity sha512-qs2ansoQEwzNiV5eAcRT1p1EC/dmEzaATVDJNiB3g2sRDWdA7b7MurXdJjB2+/WQktGWZwxvDrnuRFbWuIr64g==
 
 prelude-ls@^1.2.1:
   version "1.2.1"

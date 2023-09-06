@@ -252,6 +252,21 @@ code {
   color: rgb(118, 118, 118);
 }
 
+.tfm > span {
+  vertical-align: top;
+  font-size: 0.7em;
+  margin-left: 1em;
+}
+
+.tfm > span::before {
+  margin-right: 0.7em;
+  content: "[...";
+}
+
+.tfm > span::after {
+  content: "]";
+}
+
 .nasezvafahi {
   font-style: italic;
   color: rgb(118, 118, 118);
@@ -903,7 +918,7 @@ ul > li > a {
   font-size: 90%;
   text-align: center;
   margin: 0;
-  display: none;
+  // display: none;
   justify-content: center;
   align-items: center;
   padding: 0;
@@ -912,7 +927,7 @@ ul > li > a {
   top: 42px;
   /* bottom: 0; */
   left: 0;
-  position: relative;
+  // position: relative;
   background: white;
   z-index: 199;
   box-shadow:
@@ -1951,18 +1966,18 @@ user-select: none; */
 
 .arrow {
   pointer-events: none;
+  position: absolute;
 }
 
-.arrow__path {
-  stroke: #000;
+.arrow path {
   fill: transparent;
   stroke-dasharray: 6 3;
   stroke-width: 3px;
   animation: dash 2.9s linear reverse infinite;
 }
 
-.arrow__head line {
-  stroke: #000;
+.arrow polyline {
+  fill: none;
   stroke-width: 3px;
 }
 
