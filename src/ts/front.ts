@@ -17,12 +17,13 @@ import {
   positionScrollTopToggleBtn,
   listFamymaho,
   initStateLoading,
-  initStateRAM,
+  initStateOutsideComponents,
   regexTeX,
   regexIntraLink,
   regexImageLink,
   regexHyperLink,
   regexTeXQuotation,
+  cisn_default,
 } from "./consts";
 import {
   BasnaMemoized,
@@ -30,6 +31,7 @@ import {
   DefRenderedElement,
   Dict,
   RegexFlavours,
+  State,
 } from "./types";
 // import { UNICODE_START, lerfu_index } from "./worker/template/utils/zlm.js";
 
@@ -46,24 +48,23 @@ let cacheObj: Cache;
 // let socket, socket1Chat, socket1Chat_connected;
 
 // //stores
-const stateRAM = store(initStateRAM, { eventKey: "RAM" });
-
-const storeOptions = { eventKey: "sutysisku-event", localCacheKey: "store" };
+const stateOutsideComponents = store(initStateOutsideComponents, {
+  eventKey: "RAM",
+});
 
 let state = store(
   {
     ...initState,
     displaying: { ...initState.displaying, ...generateStateFromUrl() },
   },
-  storeOptions
+  { eventKey: "sutysisku-state", localCacheKey: "sutysisku-state" }
 );
-const stateLoading = store(initStateLoading, storeOptions);
-const stateLeijufra = store(tejufra.en, { eventKey: storeOptions.eventKey });
+const stateLoading = store(initStateLoading, { eventKey: "sutysisku-loading" });
 
-// const jvoPlumbsOn = store(
-//   { on: false },
-//   { localCacheKey: "plumbsOn", eventKey: "plumbsOn" }
-// );
+const tejufraCustom = getTejufra();
+const stateLeijufra = store(tejufraCustom ?? { ...tejufra.en, name: "en" }, {
+  eventKey: "sutysisku-jufra",
+});
 
 // //worker
 const worker = new Worker(new URL("./worker/worker", import.meta.url));
@@ -94,6 +95,18 @@ async function onLoad() {
     kind: "fancu",
     cmene: "ningau_lesorcu",
     ...state.displaying,
+  });
+}
+
+function ningau_lepasorcu(url: string, bangu: string) {
+  stateLoading.showDesktop = false;
+  postQuery();
+  if (url.indexOf("http") === 0) return;
+  worker.postMessage({
+    kind: "fancu",
+    cmene: "ningau_lepasorcu",
+    ...state.displaying,
+    bangu,
   });
 }
 
@@ -163,28 +176,72 @@ async function fetchAndSaveCachedListValues({ mode }: { mode: string }) {
   return true;
 }
 
+function cloneObject(obj: any) {
+  return JSON.parse(JSON.stringify(obj));
+}
+function dispatchCitri() {
+  if (
+    ["fanva", "velcusku"].includes(state.displaying.seskari) ||
+    state.displaying.query === ""
+  )
+    return;
+  const citri = cloneObject(state.citri);
+  let i = 0;
+  for (i = 0; i < citri.length; i++) {
+    if (
+      citri[i].query === state.displaying.query &&
+      citri[i].seskari === state.displaying.seskari
+    ) {
+      citri.splice(i, 1);
+      break;
+    }
+  }
+  citri.unshift({ ...state.displaying });
+  state.citri = citri.slice(0, 10);
+}
+
+function updateState(src: any, trg: any) {
+  Object.keys(src).forEach((key) => {
+    trg[key] = src[key];
+  });
+}
+
+function getTejufra() {
+  const tejufraCustom = (tejufra as any)[state.displaying.bangu] ?? {};
+  if (state.displaying.bangu === "en") return { ...tejufraCustom, name: "en" };
+  const target = structuredClone(tejufra.en);
+  updateState(tejufraCustom, target);
+  return { ...target, name: state.displaying.bangu };
+}
+
 function postQuery() {
   console.log(
     "ppp",
     state.displaying.query,
-    twoJsonsAreEqual(state.displaying, stateRAM.fetched),
+    twoJsonsAreEqual(state.displaying, stateOutsideComponents.fetched),
     state.displaying,
-    stateRAM.fetched
+    stateOutsideComponents.fetched
   );
+  if (state.displaying.bangu !== stateLeijufra.name) {
+    const tejufraCustom = getTejufra();
+    updateState(tejufraCustom, stateLeijufra);
+  }
   if (
     state.displaying.query &&
-    !twoJsonsAreEqual(state.displaying, stateRAM.fetched)
+    !twoJsonsAreEqual(state.displaying, stateOutsideComponents.fetched)
   ) {
     console.log(
       "posty",
       new Date().getTime(),
       state.displaying.query,
-      stateRAM.fetched.query
+      stateOutsideComponents.fetched.query
     );
+    removePlumbs();
     worker.postMessage({
       kind: "newSearch",
       ...state.displaying,
     });
+    dispatchCitri();
   }
 }
 
@@ -217,21 +274,27 @@ function kahe_sezgana(el: Element) {
 
 function addPlumbs(root = document.body) {
   //plumbs for in-terbri interactions
-  root.querySelectorAll("[data-target]").forEach((target) => {
+  root.querySelectorAll("[data-from]").forEach((target) => {
+    const targetPrefix = target.id.split("_").slice(0, -1).join("_");
     if (kahe_sezgana(target)) {
-      const start = target.getAttribute("data-color") ?? "";
-      const from = document?.getElementById(start);
-      if (!from) return;
-      let color = from.getAttribute("data-color");
-      color = `hsla(${color},100%,70%,0.62)`;
-      const arrow = generateArrow({
-        from,
-        to: target as HTMLElement,
-        arrowHeadSize: 5,
-        color,
-      });
-
-      document.body?.appendChild(arrow);
+      Array.from(
+        root.querySelectorAll(`[data-arr=${target.getAttribute("data-from")}]`)
+      )
+        .slice(0, 1)
+        .forEach((from) => {
+          if (from.id.split("_").slice(0, -1).join("_") === targetPrefix) {
+            let color = from.getAttribute("data-color");
+            color = `hsla(${color},100%,70%,0.62)`;
+            const arrow = generateArrow({
+              from: from as HTMLElement,
+              to: target as HTMLElement,
+              arrowHeadSize: 5,
+              color,
+              height: "100%",
+            });
+            document.body?.appendChild(arrow);
+          }
+        });
     }
   });
 }
@@ -241,11 +304,13 @@ function generateArrow({
   to,
   arrowHeadSize = 10,
   color = "color",
+  height,
 }: {
   from: HTMLElement;
   to: HTMLElement;
   arrowHeadSize: number;
   color: string;
+  height?: string;
 }): SVGSVGElement {
   const [sx, sy, c1x, c1y, c2x, c2y, ex, ey, ae, as] = getBoxToBoxArrow(
     from.offsetLeft,
@@ -270,7 +335,7 @@ function generateArrow({
       class: "arrow",
       width: "100%",
       // height: "100%",
-      height: `${from.offsetTop + from.offsetHeight}px`,
+      height: height ?? `${from.offsetTop + from.offsetHeight}px`,
       xmlns: "http://www.w3.org/2000/svg",
       style: `top: ${-top}px;`,
     },
@@ -292,21 +357,31 @@ function generateArrow({
 }
 
 async function checkScrolledNearBottom({ target }: Event) {
+  const content = target as HTMLElement;
+  const btnScrollToTop = document.getElementById("scrollToTop") as HTMLElement;
+  btnScrollToTop.className =
+    content.scrollTop > positionScrollTopToggleBtn
+      ? "d-block"
+      : "d-block dizlo";
   if (state.displaying.query === "") return;
-  removePlumbs();
-  addJvoPlumbs(true);
   // if (scrollTimer !== null) {
   //   clearTimeout(scrollTimer)
   // }
-  // if (scrollJvoTimer !== null) {
-  //   clearTimeout(scrollJvoTimer)
+  // if (stateRAM.scrollJvoTimer !== null) {
+  //   clearTimeout(stateRAM.scrollJvoTimer)
   // }
-  // if (
-  //   state.displaying.seskari !== 'velcusku' &&
-  //   target.scrollTop + window.innerHeight >=
-  //     document.getElementById('outp').clientHeight - 700
-  // ) {
-  //   skicu_roledovalsi({ ...state.displaying, appendToSearch: true })
+  addJvoPlumbs();
+  const element = target as HTMLElement;
+
+  const scrollTop = element.scrollTop;
+  const scrollHeight = element.scrollHeight;
+  const clientHeight = element.clientHeight;
+
+  const scrollPercentage = (scrollTop / (scrollHeight - clientHeight)) * 100;
+
+  if (scrollPercentage >= 90) {
+    if (stateOutsideComponents.results.length > state.jimte) state.jimte += 10;
+  }
   // } else {
   //   window.requestAnimationFrame(() => {
   //     addJvoPlumbs(true)
@@ -315,70 +390,65 @@ async function checkScrolledNearBottom({ target }: Event) {
   // }
 }
 
-function addJvoPlumbs(force = false) {
-  stateRAM.scrollJvoTimer = setTimeout(
-    () => {
-      window.requestAnimationFrame(() => {
-        removePlumbs();
-        addPlumbs();
-        if (force !== true) {
-          state.jvoPlumbsOn = !state.jvoPlumbsOn;
-        }
-        const targetedEls =
-          Array.from(document.body.querySelectorAll("[data-arr]")) ?? [];
-        for (
-          let targetedElIndex = 0;
-          targetedElIndex < targetedEls.length;
-          targetedElIndex++
-        ) {
-          const target = targetedEls[targetedElIndex];
-          const targetVeljvoElements: string[] =
-            target?.getAttribute("data-arr")?.split(",") ?? [];
-          const targetIdComponents = target.id.split("_");
-          const targetFinalIndex = targetIdComponents.slice(0, -1);
-          const WeCanSeeThisElement = kahe_sezgana(target);
-          targetedEls.filter((startElement) => {
-            const startElIdComponents = startElement.id.split("_");
-            const startElFinalIndexes = startElIdComponents.slice(0, -2);
-            const startElVeljvoElements =
-              startElement?.getAttribute("data-arr")?.split(",") ?? [];
-            const startVeljvoElementComponents =
-              startElVeljvoElements?.[0]?.split(/(?=[0-9]+)/) ?? [];
-            if (
-              startElVeljvoElements?.length === 1 &&
-              startElFinalIndexes.length === targetFinalIndex.length &&
-              startElFinalIndexes.join("_") === targetFinalIndex.join("_") &&
-              targetVeljvoElements.filter((targetVeljvoElement) => {
-                const targetVeljvoElementComponents =
-                  targetVeljvoElement.split(/(?=[0-9])/);
-                return (
-                  startVeljvoElementComponents[0].indexOf(
-                    targetVeljvoElementComponents[0]
-                  ) === 0 &&
-                  startVeljvoElementComponents[1] ===
-                    targetVeljvoElementComponents[1]
-                );
-              }).length > 0 &&
-              (WeCanSeeThisElement || kahe_sezgana(startElement))
-            ) {
-              let color = startElement?.getAttribute("data-color");
-              color = `hsla(${color},100%,70%,0.62)`;
+function addJvoPlumbs() {
+  removePlumbs();
+  stateOutsideComponents.scrollJvoTimer = setTimeout(() => {
+    window.requestAnimationFrame(() => {
+      if (!state.jvoPlumbsOn) return;
+      addPlumbs();
+      const targetedEls =
+        Array.from(document.body.querySelectorAll("[data-arr]")) ?? [];
+      for (
+        let targetedElIndex = 0;
+        targetedElIndex < targetedEls.length;
+        targetedElIndex++
+      ) {
+        const target = targetedEls[targetedElIndex];
+        const targetVeljvoElements: string[] =
+          target?.getAttribute("data-arr")?.split(",") ?? [];
+        const targetIdComponents = target.id.split("_");
+        const targetFinalIndex = targetIdComponents.slice(0, -1);
+        const WeCanSeeThisElement = kahe_sezgana(target);
+        targetedEls.filter((startElement) => {
+          const startElIdComponents = startElement.id.split("_");
+          const startElFinalIndexes = startElIdComponents.slice(0, -2);
+          const startElVeljvoElements =
+            startElement?.getAttribute("data-arr")?.split(",") ?? [];
+          const startVeljvoElementComponents =
+            startElVeljvoElements?.[0]?.split(/(?=[0-9]+)/) ?? [];
+          if (
+            startElVeljvoElements?.length === 1 &&
+            startElFinalIndexes.length === targetFinalIndex.length &&
+            startElFinalIndexes.join("_") === targetFinalIndex.join("_") &&
+            targetVeljvoElements.filter((targetVeljvoElement) => {
+              const targetVeljvoElementComponents =
+                targetVeljvoElement.split(/(?=[0-9])/);
+              return (
+                startVeljvoElementComponents[0].indexOf(
+                  targetVeljvoElementComponents[0]
+                ) === 0 &&
+                startVeljvoElementComponents[1] ===
+                  targetVeljvoElementComponents[1]
+              );
+            }).length > 0 &&
+            (WeCanSeeThisElement || kahe_sezgana(startElement))
+          ) {
+            let color = startElement?.getAttribute("data-color");
+            color = `hsla(${color},100%,70%,0.62)`;
 
-              const arrow = generateArrow({
-                from: startElement as HTMLElement,
-                to: target as HTMLElement,
-                arrowHeadSize: 5,
-                color,
-              });
+            const arrow = generateArrow({
+              from: startElement as HTMLElement,
+              to: target as HTMLElement,
+              arrowHeadSize: 5,
+              color,
+            });
 
-              document.body?.appendChild(arrow);
-            }
-          });
-        }
-      });
-    },
-    force === true ? 450 : 0
-  ) as unknown as number;
+            document.body?.appendChild(arrow);
+          }
+        });
+      }
+    });
+  }, 100) as unknown as number;
 }
 
 worker.onmessage = (ev) => {
@@ -388,7 +458,8 @@ worker.onmessage = (ev) => {
   const { kind, cmene } = data;
   // if (kind == "parse" && data?.req?.operation == "audioLink")
   if (kind == "searchResults") {
-    stateRAM.results = data.results;
+    state.jimte = initState.jimte;
+    stateOutsideComponents.results = data.results;
     state.displaying = data.req;
     console.log(
       "res+state0",
@@ -396,9 +467,9 @@ worker.onmessage = (ev) => {
       data.req.query,
       new Date().getTime()
     );
-    stateRAM.fetched = structuredClone(data.req);
-    state.embeddings = data.embeddings;
-    stateRAM.showDesktop = false;
+    stateOutsideComponents.fetched = structuredClone(data.req);
+    state.embeddings = data.embeddings ?? [];
+    stateLoading.showDesktop = false;
     console.log("res+state", new Date().getTime());
   } else if (kind == "loader") {
     if (
@@ -454,8 +525,9 @@ worker.onmessage = (ev) => {
   }
 };
 
-function buildURLParams(params = {}) {
-  return "#" + new URLSearchParams(params).toString();
+function buildURLParams(params: State) {
+  const { query, ...rest } = params;
+  return "#" + new URLSearchParams({ ...rest, sisku: query }).toString();
 }
 
 function encodeUrl(uenzi: string) {
@@ -466,24 +538,46 @@ function encodeUrl(uenzi: string) {
   );
 }
 
-function debounce<F extends (...params: any[]) => void>(fn: F, delay: number) {
+function debounce<F extends (...params: any[]) => void>(
+  fn: F,
+  delay: number,
+  obj: any,
+  key: string
+) {
   return function (this: any, ...args: any[]) {
-    clearTimeout(stateRAM.typing);
-    stateRAM.typing = window.setTimeout(() => fn.apply(this, args), delay);
+    clearTimeout(obj[key]);
+    obj[key] = window.setTimeout(() => fn.apply(this, args), delay);
   } as F;
+}
+
+function setDocumentTitle(state: Dict) {
+  document.title = [state.query, "la sutysisku"].filter(Boolean).join(" - ");
 }
 
 function setStateFromInput(event: Event): void {
   const input = event.target as HTMLInputElement;
   state.displaying.query = input.value;
   postQuery();
+  const urlState = generateStateFromUrl();
+  if (
+    urlState.query !== state.displaying.query ||
+    urlState.bangu !== state.displaying.bangu
+  ) {
+    history.pushState("", "", buildURLParams(state.displaying));
+  }
 }
+
+window.addEventListener("hashchange", () => setStateFromUrl());
 
 //always show dasri thats all
 component(
   "#root",
   async () => {
     console.log("render", new Date().getTime());
+    const inFetching = !twoJsonsAreEqual(
+      state.displaying,
+      stateOutsideComponents.fetched
+    );
     return h(
       "div",
       {
@@ -511,10 +605,70 @@ component(
           },
           h(
             "div",
+            h("input#ciska", {
+              class: inFetching ? ["granim-css"] : [],
+              "aria-label": stateLeijufra.cnano,
+              required: true,
+              placeholder: stateLeijufra.bangusisku,
+              spellcheck: "false",
+              autocapitalize: "off",
+              autocomplete: "false",
+              type: "text",
+              name: "focus",
+              value: state.displaying.query,
+              focus: () => {
+                stateOutsideComponents.focused = 1;
+                if (state.displaying.query !== "")
+                  stateLoading.showDesktop = false;
+              },
+              input: (event: Event) => {
+                debounce(
+                  setStateFromInput,
+                  1000,
+                  stateOutsideComponents,
+                  "typing"
+                )(event);
+              },
+            }),
+            h("button#clear", {
+              "aria-label": "clear",
+              type: "reset",
+              click: () => {
+                state.displaying.query = "";
+              },
+              class: inFetching ? ["pulsate-css"] : [],
+            })
+          ),
+          h(
+            "div#leitutci.xp-btn-list",
+            ...["catni", "cnano", "rimni"].map((el) =>
+              h(`button#${el}`, {
+                click: () => {
+                  state.displaying.seskari = el;
+                  stateLoading.showDesktop = false;
+                  postQuery();
+                },
+                class: [
+                  // "osx",
+                  // "primary",
+                  "xp-btn",
+                  "ralju-tutci",
+                  ...(state.displaying.seskari === el &&
+                  !stateLoading.showDesktop
+                    ? [`${state.displaying.seskari}-tutci-hover`, "tutci-hover"]
+                    : []),
+                ],
+                textContent: stateLeijufra[el as "catni" | "cnano" | "rimni"],
+              })
+            )
+          ),
+          h(
+            "div",
             {
               click: () => {
-                stateRAM.focused = 0;
-                state.displaying.query = "";
+                stateLoading.showDesktop = true;
+                stateOutsideComponents.focused = 0;
+                removePlumbs();
               },
             },
             h(
@@ -527,58 +681,88 @@ component(
                 {
                   class: [
                     `${
-                      state.displaying.query === ""
+                      stateLoading.showDesktop
                         ? `desktop`
                         : `${state.displaying.seskari}-search`
                     }-mode-title-color`,
                   ],
                 },
-                h("img#logo", {
-                  src: "/assets/pixra/snime.svg",
+                h("img", {
+                  src: "/assets/pixra/bangu.svg",
+                  class: inFetching ? ["rotate"] : ["rotate", "stopRotate"],
                   style:
                     state.displaying.seskari === "rimni"
                       ? { filter: "sepia(1.0)" }
                       : {},
-                  height: "16",
-                  width: "16",
-                  alt: "logo",
-                }),
-                h("span", {
-                  style: { color: "#fff" },
-                  "data-jufra": "titlelogo-inner",
-                  textContent: "la sutysisku",
+                  alt: "language-switch",
                 })
+                // h("span", {
+                //   style: { color: "#fff" },
+                //   "data-jufra": "titlelogo-inner",
+                //   textContent: "la sutysisku",
+                // })
               )
             )
-          ),
-          h("div#kicne1"),
-          h("input#ciska", {
-            "aria-label": stateLeijufra.cnano,
-            required: true,
-            placeholder: stateLeijufra.bangusisku,
-            spellcheck: "false",
-            autocapitalize: "off",
-            autocomplete: "false",
-            type: "text",
-            name: "focus",
-            value: state.displaying.query,
-            input: (event: Event) => {
-              debounce(setStateFromInput, 1000)(event);
-            },
-          }),
-          h("button#clear", {
-            "aria-label": "clear",
-            type: "reset",
-          })
+          )
         )
       ),
       h(
-        "div#loading.noselect",
-        { class: stateLoading.loading ? ["d-inline-flex"] : ["d-none"] },
-        h("div#bangu_loading.loading_elems", {
-          innerText: stateLoading.innerText,
-          class: stateLoading.hideProgress ? ["simple"] : [],
+        "div.loading.noselect",
+        { class: ["d-inline-flex"] },
+        h("span", {
+          class: "romoi_lehiseciska",
+          innerText: state.citri.length > 0 ? stateLeijufra.purc : null,
         }),
+        ...state.citri.map(({ seskari, versio, query, bangu }) => {
+          if (seskari === "velcusku") return;
+          const curState = {
+            seskari,
+            versio,
+            query,
+            bangu,
+          };
+          const isCurrentQuery = twoJsonsAreEqual(curState, state.displaying);
+          const class_ = [
+            "citrycmi",
+            isCurrentQuery
+              ? ["a-cabna"]
+              : `a-${versio !== "masno" ? versio : seskari}`,
+          ];
+          if (isCurrentQuery)
+            return h("span", { innerText: query, class: class_ });
+          if (query.length > 10)
+            return h("span", {
+              class: class_.concat("pointer"),
+              innerText: query,
+              click: () => {
+                stateLoading.innerText = query;
+                stateLoading.href = buildURLParams(curState);
+                stateLoading.hideProgress = true;
+                hideNotificationInAWhile();
+              },
+            });
+          return h("a", {
+            class: class_,
+            attributes: {
+              href: buildURLParams(curState),
+            },
+            innerText: query,
+          });
+        })
+      ),
+      h(
+        "div#loading.loading.noselect",
+        { class: stateLoading.loading ? ["d-inline-flex"] : ["d-none"] },
+        stateLoading.href
+          ? h("a.bangu_loading.loading_elems", {
+              innerText: stateLoading.innerText,
+              class: stateLoading.hideProgress ? ["simple"] : [],
+              href: stateLoading.href,
+            })
+          : h("div.bangu_loading.loading_elems", {
+              innerText: stateLoading.innerText,
+              class: stateLoading.hideProgress ? ["simple"] : [],
+            }),
         h(
           "div#cpacu.loading_elems",
           { class: stateLoading.hideProgress ? ["d-none"] : ["d-block"] },
@@ -595,6 +779,27 @@ component(
           })
         )
       ),
+      // stateLoading.loading === false &&
+      //   state.displaying.seskari === "cnano" &&
+      //   (supportedLangs as any)[state.displaying.bangu as any]
+      //     .semanticSearchPossible &&
+      //   h(
+      //     "div.loading.noselect",
+      //     { class: ["d-inline-flex"] },
+      //     h("span.bangu_loading.loading_elems.noselect.nasezvafahi", {
+      //       innerText: stateLeijufra.alerts.semanticSearchAlert,
+      //     })
+      //   ),
+      // stateLoading.loading === false &&
+      //   state.displaying.seskari === "rimni" &&
+      //   stateLeijufra.alerts?.rhymesSearchAlert &&
+      //   h(
+      //     "div.loading.noselect",
+      //     { class: ["d-inline-flex"] },
+      //     h("span.bangu_loading.loading_elems.noselect.nasezvafahi", {
+      //       innerText: stateLeijufra.alerts.rhymesSearchAlert,
+      //     })
+      //   ),
       h(
         "div#contentWrapper",
         {
@@ -602,15 +807,13 @@ component(
             paddingBottom: stateLoading.loading ? "28px" : 0,
           },
           scroll: (event: Event) => {
-            const content = event.target as HTMLElement;
-            const btnScrollToTop = document.getElementById(
-              "scrollToTop"
-            ) as HTMLElement;
-            btnScrollToTop.className =
-              content.scrollTop > positionScrollTopToggleBtn
-                ? "d-block"
-                : "d-block dizlo";
-            checkScrolledNearBottom(event);
+            removePlumbs();
+            debounce(
+              checkScrolledNearBottom,
+              250,
+              stateOutsideComponents,
+              "scroll"
+            )(event);
           },
         },
         h(
@@ -629,114 +832,74 @@ component(
           h(
             "div.content-panel",
             h(
-              "div#sidju",
-              {
-                class: ["sidju", "sidju-top", "ralju", "noselect"],
-              },
-              h(
-                "div#citri.citri",
-                h("span", {
-                  class: "romoi_lehiseciska",
-                  innerText:
-                    state.citri.length > 0 ? stateLeijufra.purc || "" : null,
-                }),
-                ...state.citri.map(({ seskari, versio, query, bangu }) => {
-                  if (seskari === "velcusku") return;
-                  return h("a", {
-                    class: [
-                      `citrycmi`,
-                      `a-${versio !== "masno" ? versio : seskari}`,
-                    ],
-                    attributes: {
-                      href: buildURLParams({
-                        seskari,
-                        versio,
-                        sisku: encodeUrl(query),
-                        bangu,
-                      }),
-                    },
-                    innerText: query,
-                  });
-                })
-              ),
-              h(
-                "div#leitutci.xp-btn-list",
-                ...["catni", "cnano", "rimni"].map((el) =>
-                  h(`button#${el}`, {
-                    class: [
-                      "xp-btn",
-                      "ralju-tutci",
-                      ...(state.displaying.seskari === el
-                        ? [
-                            `${state.displaying.seskari}-tutci-hover`,
-                            "tutci-hover",
-                          ]
-                        : []),
-                    ],
-                    textContent:
-                      stateLeijufra[el as "catni" | "cnano" | "rimni"],
-                  })
-                )
-              )
-            ),
-            h(
               "div#rectu",
-              // ...rectuResults(),
-              h("div#drata", { style: { "text-align": "center" } }),
-              h(
-                "div#descr",
-                { class: stateRAM.showDesktop ? ["d-block"] : ["d-none"] },
-                h("div", {
-                  class: ["term", "termouter"],
-                  innerHTML: stateLeijufra.bangudesc,
-                }),
-                h(
-                  "div",
-                  { class: ["term", "termouter"] },
-                  h(
-                    "h1#pronunciation",
-                    { style: { "font-weight": "bold" } },
-                    h("span", { textContent: stateLeijufra.pron_guide })
-                  ),
-                  h("div", {
-                    textContent:
-                      ". , a b c d e f g ' i j k l m n o p r s t u v x y z",
-                  }),
-                  h(
-                    "div#table",
+              ...(stateLoading.showDesktop
+                ? [
                     h(
-                      "table.centero",
-                      ...rows.map((row) =>
+                      "div#drata",
+                      { style: { "text-align": "center" } },
+                      ...links()
+                    ),
+                    h(
+                      "div#descr",
+                      // {
+                      //   class: stateLoading.showDesktop ? ["d-block"] : ["d-none"],
+                      // },
+                      h("div", {
+                        class: ["term", "termouter"],
+                        innerHTML: stateLeijufra.bangudesc,
+                      }),
+                      h(
+                        "div",
+                        { class: ["term", "termouter"] },
                         h(
-                          "tr",
-                          ...row.map((col) =>
-                            h(
-                              "td",
-                              col &&
-                                h("button", {
-                                  innerHTML: col,
-                                  class: "bangu",
-                                  click: () => {
-                                    const audio: HTMLAudioElement | null =
-                                      document.querySelector("#audio");
-                                    if (audio) {
-                                      audio.src = `/assets/sance/lerfu/${encodeURIComponent(
-                                        col.replace(/.*<b>(.*?)<\/b>.*/g, "$1")
-                                      )}.ogg`;
-                                      audio.play();
-                                    }
-                                  },
-                                })
+                          "h1#pronunciation",
+                          { style: { "font-weight": "bold" } },
+                          h("span", { textContent: stateLeijufra.pron_guide })
+                        ),
+                        h("div", {
+                          textContent:
+                            ". , a b c d e f g ' i j k l m n o p r s t u v x y z",
+                        }),
+                        h(
+                          "div#table",
+                          h(
+                            "table.centero",
+                            ...rows.map((row) =>
+                              h(
+                                "tr",
+                                ...row.map((col) =>
+                                  h(
+                                    "td",
+                                    col &&
+                                      h("button", {
+                                        innerHTML: col,
+                                        class: "bangu",
+                                        click: () => {
+                                          const audio: HTMLAudioElement | null =
+                                            document.querySelector("#audio");
+                                          if (audio) {
+                                            audio.src = `/assets/sance/lerfu/${encodeURIComponent(
+                                              col.replace(
+                                                /.*<b>(.*?)<\/b>.*/g,
+                                                "$1"
+                                              )
+                                            )}.ogg`;
+                                            audio.play();
+                                          }
+                                        },
+                                      })
+                                  )
+                                )
+                              )
                             )
                           )
-                        )
+                        ),
+                        h("audio#audio")
                       )
-                    )
-                  ),
-                  h("audio#audio")
-                )
-              ),
-              await outpBlock()
+                    ),
+                  ]
+                : [await outpBlock({ inFetching })])
             )
           )
         )
@@ -757,32 +920,51 @@ component(
     );
   },
   {
-    eventKeys: ["sutysisku-event"],
-    afterRender: () => {
-      document.getElementById("ciska")?.[stateRAM.focused ? "focus" : "blur"]();
+    eventKeys: ["sutysisku-state", "sutysisku-loading", "sutysisku-jufra"],
+    afterRender: ({ newStateAmendments, previousState, eventKey }) => {
+      // console.warn("afterrr", { newStateAmendments, previousState, eventKey });
+      if (
+        eventKey === "sutysisku-state" &&
+        newStateAmendments?.displaying !== undefined &&
+        // !twoJsonsAreEqual(
+        //   newStateAmendments.displaying,
+        //   previousState.displaying
+        // )
+        // &&
+        twoJsonsAreEqual(state.displaying, stateOutsideComponents.fetched)
+      ) {
+        const content = document.getElementById("contentWrapper");
+        if (content) content.scrollTop = 0;
+        addJvoPlumbs();
+      }
 
-      addJvoPlumbs(true);
+      document
+        .getElementById("ciska")
+        ?.[stateOutsideComponents.focused ? "focus" : "blur"]();
     },
   }
 );
 
-const outpBlock = async () => {
+const outpBlock = async ({ inFetching }: { inFetching: boolean }) => {
   console.log("skicu", new Date().getTime());
 
-  let reses = await skicu_roledovalsi({ appendToSearch: false });
-  const content = document.getElementById("contentWrapper");
-  if (content) content.scrollTop = 0;
+  let reses = await skicu_roledovalsi();
   console.log("after skicu", new Date().getTime(), "aft");
+
+  setDocumentTitle(state.displaying);
 
   return h(
     "div#outp",
-    state.displaying.seskari === "cnano" &&
+    {
+      class: stateLoading.showDesktop ? ["d-none"] : ["d-block"],
+    },
+    !inFetching && state.displaying.seskari === "cnano" &&
       (supportedLangs as any)[state.displaying.bangu as any]
         .semanticSearchPossible &&
       h("div.term.noselect.nasezvafahi", {
         innerText: stateLeijufra.alerts.semanticSearchAlert,
       }),
-    state.displaying.seskari === "rimni" &&
+    !inFetching && state.displaying.seskari === "rimni" &&
       stateLeijufra.alerts?.rhymesSearchAlert &&
       h("div.term.noselect.nasezvafahi", {
         innerText: stateLeijufra.alerts.rhymesSearchAlert,
@@ -791,10 +973,95 @@ const outpBlock = async () => {
   );
 };
 
-function rectuResults() {
-  const results = stateRAM.results.slice(0, 100);
-  // console.log(results);
-  return [];
+const links = () =>
+  getDesktopTiles().map((elem: Dict | string) => {
+    if (typeof elem === "string") return h("div");
+    const name = Object.keys(elem)[0];
+    if (!elem[name].url) {
+      elem[name].url = buildURLParams({
+        seskari:
+          state.displaying.seskari !== "fanva" && name.indexOf("muplis") !== 0
+            ? state.displaying.seskari
+            : "catni",
+        query: state.displaying.query,
+        bangu: name,
+        versio: "masno",
+      });
+    } else {
+      elem[name].url = elem[name].url.replace(
+        /{lastQuery}/g,
+        encodeUrl(state.displaying.query)
+      );
+    }
+
+    return tile({
+      ...elem[name],
+      name,
+      isUrl: (elem.url || "").indexOf("http") === 0,
+      height: (elem.height || 1) * cisn_default + "px",
+      width: (elem.width ?? 1) * cisn_default + "px",
+    });
+  });
+
+function tile({
+  title,
+  name,
+  url,
+  picture,
+  isUrl,
+  height,
+  width,
+}: {
+  title: string;
+  name: string;
+  url: string;
+  picture: string;
+  isUrl: boolean;
+  height: string;
+  width: string;
+}) {
+  return h(
+    "div",
+    {
+      class: "DIV_1",
+      style: { height, width },
+    },
+    h(
+      "div",
+      {
+        class: "DIV_2",
+        style: {
+          height,
+          width,
+        },
+      },
+
+      h(
+        "span",
+        {
+          class: "SPAN_3",
+          style: { width: "auto" },
+        },
+        h("b", { class: "B_4", innerHTML: title })
+      ),
+      h(
+        "a",
+        {
+          rel: isUrl ? "noreferrer" : "",
+          target: isUrl ? "_blank" : "",
+          "aria-label": title.replace(/<[^>]+?>/g, ""),
+          // TODO: update stateleijufra
+          click: () => ningau_lepasorcu(url, name),
+          href: url,
+          class: "A_7",
+        },
+        h("div", {
+          class: "DIV_8",
+          style: { "background-image": `url(${picture})` },
+        })
+      )
+    )
+  );
 }
 
 async function getCacheObject(cacheObj: Cache): Promise<Cache> {
@@ -821,15 +1088,74 @@ function getMemoizedBasna(query: string[]): BasnaMemoized {
   const string = query.join(" ");
   const cached = state.memoizedValues[string] as unknown as BasnaMemoized;
   if (cached) return cached;
-  let arrQuery = query
-    .concat(query.map((i) => i.replace(/'/g, "h")))
-    .map((i) => escapeRegExp(i.trim().replace(/[\|\(\)\{\}<>]/g, ".")))
-    .filter((i) => i.length > 2);
+  let arrQuery = [
+    ...new Set(
+      query
+        .concat(query.map((i) => i.replace(/'/g, "h")))
+        .map((i) => escapeRegExp(i.trim().replace(/[\|\(\)\{\}<>]/g, ".")))
+        .filter((i) => i.length > 2)
+    ),
+  ];
   const regex = `(${arrQuery.join("|")})`;
   return ((state.memoizedValues as any)[string] = {
     arrQuery,
     regex,
   } as BasnaMemoized);
+}
+
+function getDesktopTiles() {
+  return cloneObject(stateLeijufra.custom_links ?? []).concat([
+    "hr",
+    {
+      en: {
+        title: "English-Lojban",
+        picture: "/assets/pixra/selsku_lanci_eng.svg",
+      },
+    },
+    {
+      jbo: {
+        title: "fanva fi le'e lojbo ri",
+        picture: "/assets/pixra/lanci_jbo.svg",
+      },
+    },
+    {
+      ja: {
+        title: '日本 - <span style="white-space:pre;">ロジバン</span>',
+        picture: "/assets/pixra/selsku_lanci_jpn.svg",
+      },
+    },
+    {
+      "fr-facile": {
+        title: "français facile - lojban",
+        picture: "/assets/pixra/selsku_lanci_fra.svg",
+      },
+    },
+    {
+      ru: {
+        title: "русский - ложбан",
+        picture: "/assets/pixra/selsku_lanci_rus.svg",
+      },
+    },
+    {
+      eo: {
+        title: "Esperanto - Loĵbano",
+        picture: "/assets/pixra/lanci_epo.svg",
+      },
+    },
+    {
+      es: {
+        title: "español - lojban",
+        picture: "/assets/pixra/selsku_lanci_spa.svg",
+      },
+    },
+    {
+      zh: {
+        title: "中文 - 逻辑语",
+        picture: "/assets/pixra/selsku_lanci_zho.svg",
+      },
+    },
+    { loglan: { title: "Loglan", picture: "/assets/pixra/loglan.png" } },
+  ]);
 }
 
 function basna({
@@ -847,7 +1173,6 @@ function basna({
 
   return hilite([{ value: text, type: "simple" }], arrQuery).map(
     (el: DefRenderedElement, index: number) => {
-      // console.log(el);
       if (el.type === "hilite") {
         return h("mark", {
           class: ["basna"],
@@ -858,18 +1183,6 @@ function basna({
       }
     }
   );
-}
-
-function escHtml(str: string, apos?: boolean) {
-  //for displaying text
-  str = (str || "")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/\(/g, "&#40;")
-    .replace(/\)/g, "&#41;");
-  if (!apos) str = str.replace(/'/g, "&#039;");
-  return str;
 }
 
 function encodeValsiForWeb(v: string) {
@@ -943,12 +1256,14 @@ function getVeljvoString({
   return {
     stringifiedPlaceTag,
     dataArr: !dataArrAdded.includes(clearedPlaceTag),
-    replacement: `$${replacingPlaceTag}$`,
+    replacement: `\$${replacingPlaceTag}\$`,
   };
 }
 
 import { UNICODE_START, lerfu_index } from "./utils/zlm";
 import { getBoxToBoxArrow } from "./libs/arrows";
+import { RecursiveObject } from "../../../renderer/src/common/types";
+import { clone } from "@tensorflow/tfjs";
 
 function latinToZbalermorna(c: string) {
   if ((c.codePointAt(0) ?? 0) >= 0xed80) {
@@ -1004,7 +1319,29 @@ function zbalermornaize({ w, ot, rfs }: Def) {
   return word.replace(/,/g, "");
 }
 
-function convertMathStringtoHtml({
+function getStringifiedPlacetag({
+  fullDef,
+  placeTag,
+  dataArrAdded,
+}: {
+  fullDef: Def;
+  placeTag: string;
+  dataArrAdded: string[];
+}): string {
+  const clearedPlaceTag = placeTag.replace(/[^a-zA-Z0-9]/g, "");
+  const isHead = (fullDef.rfs || []).length > 0;
+
+  const objectVeljvoReplacement = getVeljvoString({
+    isHead,
+    placeTag,
+    fullDef,
+    dataArrAdded,
+    clearedPlaceTag,
+  });
+  return objectVeljvoReplacement.stringifiedPlaceTag;
+}
+
+function convertMathStringToHtml({
   iterTerbricmiId,
   index,
   fullDef,
@@ -1013,6 +1350,7 @@ function convertMathStringtoHtml({
   placeTag,
   dataArrAdded,
   stringifiedPlaceTags,
+  moreAttributes,
 }: {
   iterTerbricmiId: number;
   index: string;
@@ -1022,6 +1360,7 @@ function convertMathStringtoHtml({
   placeTag: string;
   dataArrAdded: string[];
   stringifiedPlaceTags: string[];
+  moreAttributes?: Dict;
 }): {
   span: HTMLSpanElement;
   stringifiedPlaceTags: string[];
@@ -1064,6 +1403,7 @@ function convertMathStringtoHtml({
           ? stringifiedPlaceTag
           : null,
       "data-color": !isHead ? number2ColorHue(number) : null,
+      ...moreAttributes,
     },
   });
   get_mathjax_svg(replacementTag, span);
@@ -1135,15 +1475,15 @@ function melbi_uenzi({
   if (typeof text === "object") {
     if (fullDef.bangu.indexOf("-cll") >= 0) {
       const url =
-        stateLeijufra.custom_links?.filter((i) => !!i.uncll)?.[0]?.uncll?.url ||
-        "/";
+        stateLeijufra.custom_links?.filter((i: any) => !!i.uncll)?.[0]?.uncll
+          ?.url || "/";
       return {
         tergeha: h(
           "ul",
           {
             class: "uoldeliste",
             style: {
-              "list-style-image": "url(../assets/pixra/cukta.svg)",
+              "list-style-image": "url(/assets/pixra/cukta.svg)",
             },
           },
           ...Object.keys(text).map((address) =>
@@ -1162,15 +1502,15 @@ function melbi_uenzi({
       };
     } else if (fullDef.bangu.indexOf("-ll") >= 0) {
       const url =
-        stateLeijufra.custom_links?.filter((i) => !!i.introbook)?.[0]?.introbook
-          ?.url || "/";
+        stateLeijufra.custom_links?.filter((i: any) => !!i.introbook)?.[0]
+          ?.introbook?.url || "/";
       return {
         tergeha: h(
           "ul",
           {
             class: "uoldeliste",
             style: {
-              "list-style-image": "url(../assets/pixra/certu.svg)",
+              "list-style-image": "url(/assets/pixra/certu.svg)",
             },
           },
           ...Object.keys(text).map((address) =>
@@ -1209,7 +1549,9 @@ function melbi_uenzi({
     }
   }
 
-  const renewed = [{ type: "simple", value: text } as DefRenderedElement]
+  const structuredDefinition = [
+    { type: "simple", value: text } as DefRenderedElement,
+  ]
     .reduce((acc: DefRenderedElement[], el: DefRenderedElement) => {
       return acc.concat(
         hilite(
@@ -1243,17 +1585,36 @@ function melbi_uenzi({
             type: "veljvocmiterjonmaho",
           } as DefRenderedElement;
           return acc.concat([newEl]);
+        } else if (
+          index < renewed.length - 2 &&
+          renewed[index].type === "math" &&
+          renewed[index + 1].value.trim() === "(property of" &&
+          renewed[index + 2].type === "math"
+        ) {
+          const newEl = {
+            ...el,
+            meta: {
+              from: renewed[index + 2].value,
+            },
+          } as DefRenderedElement;
+          return acc.concat([newEl]);
         }
         return acc.concat([el]);
       },
       [] as DefRenderedElement[]
     )
-
     //convert to HTML
     .map((el: DefRenderedElement) => {
-      // console.log(el);
       if (el.type === regexTeX.tagName) {
-        const convertedChunk = convertMathStringtoHtml({
+        const moreAttributes: Dict = {};
+        if (el.meta?.from) {
+          moreAttributes["data-from"] = getStringifiedPlacetag({
+            dataArrAdded,
+            fullDef,
+            placeTag: el.meta.from,
+          });
+        }
+        const convertedChunk = convertMathStringToHtml({
           dataArrAdded,
           fullDef,
           index,
@@ -1262,6 +1623,7 @@ function melbi_uenzi({
           placeTag: el.value,
           stringifiedPlaceTags,
           type,
+          moreAttributes,
         });
         iterTerbricmiId = convertedChunk.iterTerbricmiId;
         stringifiedPlaceTags = convertedChunk.stringifiedPlaceTags;
@@ -1272,13 +1634,19 @@ function melbi_uenzi({
         return h("span", { class: ["veljvocmiterjonmaho"], innerText: "=" });
       } else if (el.type === regexIntraLink.tagName) {
         const intralink = el.value.substring(1, el.value.length - 1);
-        return h("a", {
-          class: `a-${curSeskari}`,
-          href: `#seskari=${curSeskari}&sisku=${encodeUrl(
-            intralink
-          )}&bangu=${bangu}&versio=masno`,
-          innerText: intralink,
-        });
+        const curState = {
+          seskari: curSeskari,
+          query: intralink,
+          bangu,
+          versio: "masno",
+        };
+        return twoJsonsAreEqual(curState, state.displaying)
+          ? h("b", { innerText: intralink })
+          : h("a", {
+              class: `a-${curSeskari}`,
+              href: buildURLParams(curState),
+              innerText: intralink,
+            });
       } else if (el.type === regexImageLink.tagName) {
         const url = el.value.replace(/^http:/, "https:");
         return h(
@@ -1327,7 +1695,7 @@ function melbi_uenzi({
 
   // TODO: list of placetags
   return {
-    tergeha: h("div", ...renewed),
+    tergeha: h("div", ...structuredDefinition),
     hasExpansion,
     stringifiedPlaceTags,
   };
@@ -1350,7 +1718,7 @@ async function skicu_paledovalsi({
       ? await getOrFetchResource(
           def.d?.indexOf("../") === 0
             ? def.d
-            : `../assets/pixra/xraste/${encodeURIComponent(def.d ?? "")}`
+            : `/assets/pixra/xraste/${encodeURIComponent(def.d ?? "")}`
         )
       : null)
   )
@@ -1409,7 +1777,7 @@ async function skicu_paledovalsi({
           attributes: {
             href: buildURLParams({
               seskari: seskari === "fanva" ? "catni" : seskari,
-              sisku: encodeUrl(def.w),
+              query: def.w,
               bangu,
               versio: "masno",
             }),
@@ -1445,7 +1813,7 @@ async function skicu_paledovalsi({
         ? stateLeijufra.judri + txt
         : buildURLParams({
             seskari: seskari === "catni" ? "catni" : "cnano",
-            sisku: txt,
+            query: def.w,
             bangu,
             versio: "masno",
           }),
@@ -1501,7 +1869,7 @@ async function skicu_paledovalsi({
           src:
             def.d.indexOf("../") === 0
               ? def.d
-              : `../assets/pixra/xraste/${encodeURIComponent(
+              : `/assets/pixra/xraste/${encodeURIComponent(
                   typeof def.d === "string" ? def.d : ""
                 )}`,
         }),
@@ -1528,7 +1896,7 @@ async function skicu_paledovalsi({
             attributes: {
               href: buildURLParams({
                 seskari,
-                sisku: "zbalermorna",
+                query: "zbalermorna",
                 bangu,
                 versio,
               }),
@@ -1554,9 +1922,12 @@ async function skicu_paledovalsi({
         arrRenderedFamymaho.push(
           h("a", {
             class: ["selmaho"],
-            href: `#seskari=${seskari}&versio=selmaho&sisku=${encodeUrl(
-              key
-            )}&bangu=${bangu}`,
+            href: buildURLParams({
+              bangu,
+              versio: "selmaho",
+              seskari,
+              query: key,
+            }),
             innerText: key,
           })
         );
@@ -1617,9 +1988,12 @@ async function skicu_paledovalsi({
             "span",
             { class: ["italic", "sup"] },
             h("a", {
-              href: `#seskari=${seskari}&sisku=${encodeUrl(
-                child
-              )}&bangu=${bangu}&versio=masno`,
+              href: buildURLParams({
+                seskari,
+                query: child,
+                bangu,
+                versio: "masno",
+              }),
               innerText: child,
             })
           )
@@ -1641,7 +2015,7 @@ async function skicu_paledovalsi({
     prettifiedDefinition.hasExpansion
   ) {
     jvo = h("button", {
-      style: { "background-image": "url(../assets/pixra/shuffle.svg)" },
+      style: { "background-image": "url(/assets/pixra/shuffle.svg)" },
       class: [
         "tutci",
         "tutci-pixra",
@@ -1649,7 +2023,10 @@ async function skicu_paledovalsi({
         "jvo_plumber",
         state.jvoPlumbsOn ? "tutci-hover" : null,
       ],
-      click: addJvoPlumbs,
+      click: () => {
+        state.jvoPlumbsOn = !state.jvoPlumbsOn;
+        addJvoPlumbs();
+      },
     });
   }
 
@@ -1685,7 +2062,7 @@ async function skicu_paledovalsi({
   heading.appendChild(
     h("button", {
       class: ["tutci", "tutci-pixra", "xp-btn"],
-      style: { "background-image": "url(../assets/pixra/fukpi.svg)" },
+      style: { "background-image": "url(/assets/pixra/fukpi.svg)" },
       click: () => {
         copyToClipboard([def.w, def.d, def.n].filter(Boolean).join("\r\n"));
       },
@@ -1701,14 +2078,11 @@ async function skicu_paledovalsi({
         innerText,
         class: ["tutci", "tutci-sampu", "xp-btn", "klesi", "noselect"],
         click: () => {
-          stateLoading.innerText = interpolate(stateLeijufra.distance || "", {
+          stateLoading.innerText = interpolate(stateLeijufra.distance, {
             distance: innerText,
           });
           stateLoading.hideProgress = true;
-          stateLoading.loading = true;
-          //   setTimeout(() => {
-          //     stateLoading.loading = true;
-          // }, 4000);
+          hideNotificationInAWhile();
         },
       })
     );
@@ -1781,12 +2155,14 @@ async function skicu_paledovalsi({
       )
     );
   }
-  if ((def.r || []).length > 0) {
+  def.r = def.r ?? [];
+  if (def.r.length > 0 && !(def.r.length === 1 && def.r[0].length > 15)) {
+    //if it's the only rafsi and the word is long dont show the rafsi
     const tanxe_leirafsi = h("div", { class: "rafsi noselect" });
 
     const rafcme = h("div", {
       class: "tanxe zunle_tanxe",
-      innerText: stateLeijufra.rafsi || "rafsi",
+      innerText: stateLeijufra.rafsi,
     });
     tanxe_leirafsi.appendChild(rafcme);
 
@@ -1828,9 +2204,12 @@ async function skicu_paledovalsi({
               "a",
               {
                 class: `hue_rotate_back a-${seskari}`,
-                href: `#seskari=${seskari}&sisku=${encodeUrl(
-                  el
-                )}&bangu=${bangu}&versio=masno"`,
+                href: buildURLParams({
+                  seskari,
+                  query: el,
+                  bangu,
+                  versio: "masno",
+                }),
               },
               ...basna({
                 text: el,
@@ -1864,10 +2243,17 @@ async function skicu_paledovalsi({
   return out;
 }
 
+function hideNotificationInAWhile(timeout = 4000) {
+  stateLoading.loading = true;
+  setTimeout(() => {
+    stateLoading.loading = false;
+  }, timeout);
+}
 function copyToClipboard(value: string) {
   navigator.clipboard.writeText(value);
   stateLoading.innerText = stateLeijufra.copied;
   stateLoading.hideProgress = true;
+  hideNotificationInAWhile();
 }
 
 function interpolate(str: string, params: Dict) {
@@ -1915,7 +2301,7 @@ function generateStateFromUrl(href?: string) {
   return newState;
 }
 
-function setStateFromUrl(href: string) {
+function setStateFromUrl(href?: string) {
   const newState = generateStateFromUrl(href);
   for (const i in newState)
     state.displaying[i as keyof typeof state.displaying] = newState[i];
@@ -1951,27 +2337,17 @@ function parseQuery(queryString: string) {
   return query;
 }
 
-async function skicu_roledovalsi({
-  appendToSearch,
-}: {
-  appendToSearch: boolean;
-}): Promise<(HTMLDivElement | undefined)[]> {
-  if (!appendToSearch) {
-    // removePlumbs();
-    // state.jimte = state.displaying.seskari === "velcusku" ? 201 : 30;
-    // state.resultCount = 0;
-  } else {
-    // newResultsDiv = document.getElementById("outp").cloneNode(true);
-    // state.jimte += 10;
-  }
-
-  const displayUpTo = Math.min(state.jimte, stateRAM.results.length);
+async function skicu_roledovalsi(): Promise<(HTMLDivElement | undefined)[]> {
+  const displayUpTo = Math.min(
+    state.jimte,
+    stateOutsideComponents.results.length
+  );
 
   return await Promise.all(
-    stateRAM.results.slice(0, displayUpTo).reduce(
+    stateOutsideComponents.results.slice(0, displayUpTo).reduce(
       (acc, resultEl, index) => {
         const htmlTermBlock = skicu_paledovalsi({
-          def: JSON.parse(JSON.stringify(resultEl as Def)),
+          def: cloneObject(resultEl as unknown as RecursiveObject),
           // length: state.results.length,
           inner: false,
           stringifiedPlaceTags: [],

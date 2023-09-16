@@ -8,10 +8,10 @@ $mupliskari2: rgba(34, 87, 213, 1);
 $mupliskari3: rgba(38, 99, 224, 1);
 $mupliskari4: rgba(25, 65, 165, 1);
 
-$catniskari1: rgba(58, 116, 233, 1);
-$catniskari2: rgba(34, 87, 210, 1);
-$catniskari3: rgba(36, 68, 224, 1);
-$catniskari4: rgba(25, 48, 164, 1);
+$catniskari1: hsl(220, 80%, 57%);
+$catniskari2: hsl(222, 72%, 48%);
+$catniskari3: hsl(230, 75%, 51%);
+$catniskari4: hsl(230, 74%, 37%);
 
 $fanvaskari1: rgba(210, 58, 233, 1);
 $fanvaskari2: rgba(208, 34, 211, 1);
@@ -274,19 +274,7 @@ code {
 }
 
 .noselect {
-  -webkit-touch-callout: none;
-  /* iOS Safari */
-  -webkit-user-select: none;
-  /* Safari */
-  -khtml-user-select: none;
-  /* Konqueror HTML */
-  -moz-user-select: none;
-  /* Firefox */
-  -ms-user-select: none;
-  /* Internet Explorer/Edge */
   user-select: none;
-  /* Non-prefixed version, currently
-                            supported by Chrome and Opera */
   cursor: default;
 }
 
@@ -300,23 +288,16 @@ code {
   /* These are technically the same, but use both */
   overflow-wrap: break-word;
   word-wrap: break-word;
-  -ms-word-break: break-all;
   /* This is the dangerous one in WebKit, as it breaks things wherever */
   word-break: break-all;
   /* Instead use this non-standard one: */
   word-break: break-word;
   /* Adds a hyphen where the word breaks, if supported (No Blink) */
-  -ms-hyphens: auto;
-  -moz-hyphens: auto;
-  -webkit-hyphens: auto;
   hyphens: auto;
 }
 
 .valsi pre {
   white-space: pre-wrap;
-  /* Since CSS 2.1 */
-  word-wrap: break-word;
-  /* Internet Explorer 5.5+ */
 }
 
 .definition {
@@ -418,7 +399,8 @@ code {
   text-shadow: 1px 1px #4d4d4d;
 }
 
-.cnano-dasri {
+.cnano-dasri,
+.catni-dasri {
   background: linear-gradient(
     180deg,
     #0997ff,
@@ -434,16 +416,16 @@ code {
   text-shadow: 1px 1px #0f1089;
 }
 
-.catni-dasri {
-  background: linear-gradient(
-    to bottom,
-    $catniskari1 $gradpos1,
-    $catniskari2 $gradpos2,
-    $catniskari3 $gradpos3,
-    $catniskari4 $gradpos4
-  );
-  border-top: 1px solid #0831d9;
-}
+// .catni-dasri {
+//   background: linear-gradient(
+//     to bottom,
+//     $catniskari1 $gradpos1,
+//     $catniskari2 $gradpos2,
+//     $catniskari3 $gradpos3,
+//     $catniskari4 $gradpos4
+//   );
+//   border-top: 1px solid #0831d9;
+// }
 
 .fanva-dasri {
   background: linear-gradient(
@@ -496,10 +478,10 @@ code {
 }
 
 #site-title {
-  margin-top: -1px;
+  // margin-top: -1px;
   font-size: 18px;
   font-weight: bold;
-  float: left;
+  // float: left;
   border-radius: 0 0 0.5em 0.5em;
   border-color: #333;
   border-width: 0 1px 1px 1px;
@@ -507,6 +489,13 @@ code {
   height: 19px;
   padding: 12px 10px 14px 10px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+#site-title img {
+  height: 32px;
+  width: 32px;
 }
 
 .cnano-search-mode-title-color {
@@ -569,14 +558,14 @@ code {
 }
 
 #ciska {
-  height: 27px;
+  box-sizing: border-box;
+  height: 32px;
   font-size: 120%;
   font-family: Arial, Helvetica, sans-serif;
   border: 1px solid #777;
   padding: 2px 50px 2px 10px;
   transition: background 0.4s;
-  margin-top: 4px;
-  margin-left: auto;
+  // margin-left: auto;
   outline: 0;
   min-width: 0;
 }
@@ -590,13 +579,14 @@ code {
 }
 
 #clear {
-  float: right;
-  position: absolute;
+  // float: right;
+  // position: absolute;
   border: 1px solid transparent;
   vertical-align: middle;
   outline: 0;
   cursor: pointer;
-  margin-top: 6px;
+  margin-left: -50px;
+  margin-top: -4px;
   height: 0;
   background-color: transparent;
   background-image: url(../assets/pixra/x.svg);
@@ -673,12 +663,14 @@ code {
     width: auto;
   }
 
-  #kicne1 {
-    display: none;
+  #se-vasru-lo-galtu-dasri > * {
+    margin-top: -2px;
   }
 
   #se-vasru-lo-galtu-dasri {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 
   #ciska {
@@ -716,23 +708,12 @@ code {
     line-height: 150%;
   }
 
-  #title > #site-title > img {
-    /* padding: 0 4px 0 10px; */
-    width: 23px;
-    height: 23px;
-  }
-
   #title > #site-title > img:nth-child(1) ~ img {
     display: none;
   }
 
   [data-jufra="titlelogo-inner"] {
     display: none;
-  }
-
-  #kicne1 {
-    display: block;
-    width: 6px;
   }
 
   #se-vasru-lo-galtu-dasri {
@@ -787,6 +768,7 @@ code {
 body {
   margin: 0;
   height: 100%;
+  overflow: hidden;
 }
 
 #root.body-sutysisku {
@@ -860,11 +842,6 @@ body {
   font-size: 90%;
 }
 
-a {
-  color: #2b79e0;
-  text-decoration: none;
-}
-
 ul {
   margin-top: 0;
 }
@@ -874,35 +851,45 @@ ul > li > a {
 }
 
 .citrycmi {
-  margin-left: 5px;
-  border-left: 1px #ccc solid;
-  border-top: 1px #ccc solid;
-  padding: 3px;
+  margin-left: 3px;
+  border-left: 1px #aaa solid;
+  padding: 0px 4px 0 5px;
   display: inline-block;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 13ch;
 }
 
 .selmaho {
   margin-right: 5px;
 }
 
+a {
+  color: hsl(214, 74%, 52%);
+  text-decoration: none;
+}
+
+.a-cabna {
+  color: hsl(0, 0%, 49%);
+  font-style: italic;
+}
+
 .a-selmaho {
-  color: #0c741d;
+  color: hsl(130, 81%, 25%);
 }
 
 .a-catni {
-  color: #2b4ae0;
+  color: hsl(214, 74%, 42%);
 }
 
 .a-fanva {
-  color: #952be0;
+  color: hsl(275, 74%, 52%);
 }
 
 .a-rimni {
-  color: #af0a0a;
-}
-
-.a-arxivo {
-  color: #b59b14;
+  color: hsl(0, 89%, 36%);
 }
 
 #descr {
@@ -913,8 +900,8 @@ ul > li > a {
   /* font-size: 90%; */
 }
 
-#loading {
-  flex: none;
+.loading {
+  display: flex;
   font-size: 90%;
   text-align: center;
   margin: 0;
@@ -930,11 +917,12 @@ ul > li > a {
   // position: relative;
   background: white;
   z-index: 199;
+  // border-bottom: 4px solid black;
   box-shadow:
-    0 0 0 1px $mupliskari1,
-    0 0 0 2px $mupliskari2,
-    0 0 0 3px $mupliskari3,
-    0 0 0 4px $mupliskari4;
+    0 0px 0 1px $mupliskari1,
+    0 1px 0 1px $mupliskari2,
+    0 2px 0 1px $mupliskari3,
+    0 3px 0 1px $mupliskari4;
 }
 
 #velsku {
@@ -1271,10 +1259,12 @@ user-select: none; */
 
 #leitutci {
   display: flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
   padding: 0 3px 0 3px;
-  margin-left: auto;
-  margin-right: 0;
+  // margin-left: auto;
+  // margin-right: 0;
   text-align: right;
 }
 
@@ -1510,7 +1500,6 @@ user-select: none; */
   background-color: transparent;
   z-index: 5;
   overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
   visibility: hidden;
   transition:
     visibility 0s linear 0.1s,
@@ -1580,7 +1569,6 @@ user-select: none; */
 .spinner:before,
 .spinner:after {
   background: #ffffff;
-  -webkit-animation: load1 1s infinite ease-in-out;
   animation: load1 1s infinite ease-in-out;
   width: 1em;
   height: 4em;
@@ -1592,10 +1580,7 @@ user-select: none; */
   position: relative;
   font-size: 3px;
   margin: 0 10px 0 10px;
-  -webkit-transform: translateZ(0);
-  -ms-transform: translateZ(0);
   transform: translateZ(0);
-  -webkit-animation-delay: -0.16s;
   animation-delay: -0.16s;
 }
 
@@ -1608,26 +1593,11 @@ user-select: none; */
 
 .spinner:before {
   left: -1.5em;
-  -webkit-animation-delay: -0.32s;
   animation-delay: -0.32s;
 }
 
 .spinner:after {
   left: 1.5em;
-}
-
-@-webkit-keyframes load1 {
-  0%,
-  80%,
-  100% {
-    box-shadow: 0 0;
-    height: 4em;
-  }
-
-  40% {
-    box-shadow: 0 -2em;
-    height: 5em;
-  }
 }
 
 @keyframes load1 {
@@ -1647,9 +1617,12 @@ user-select: none; */
 .xp-btn-list .xp-btn {
   border-radius: 0;
   margin: 0;
+  box-sizing: border-box;
+  height: 32px;
 }
 
 .xp-btn-list .xp-btn:first-child {
+  border-top-left-radius: 3px;
   border-bottom-left-radius: 3px;
 }
 
@@ -1658,17 +1631,18 @@ user-select: none; */
 }
 
 .xp-btn-list .xp-btn:last-child {
+  border-top-right-radius: 3px;
   border-bottom-right-radius: 3px;
 }
 
 .xp-btn-list .ralju-tutci:first-child {
-  margin-left: 5px;
+  margin-left: 0px;
 }
 
 .xp-btn {
-  -webkit-font-smoothing: antialiased;
   box-sizing: border-box;
   border: 1px solid #003c74;
+  color: #333;
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 1) 0,
@@ -1680,14 +1654,22 @@ user-select: none; */
   padding: 4px 10px 4px 10px;
   cursor: default;
   font-family: "Pixelated MS Sans Serif", Arial;
-  -webkit-font-smoothing: antialiased;
-  font-size: 11px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-click {
+  pointer-events: none;
 }
 
 .tutci-hover,
 .xp-btn:not(:disabled):active,
 .xp-btn:not(:disabled).active {
   box-shadow: none;
+  color: #333;
+  // font-weight: bold;
   background: linear-gradient(
     180deg,
     rgba(205, 202, 195, 1) 0,
@@ -1726,33 +1708,6 @@ user-select: none; */
   text-shadow: 0 0 5px #000;
 }
 
-@-webkit-keyframes sihesle_farlu {
-  0% {
-    top: -10%;
-  }
-
-  100% {
-    top: 100%;
-  }
-}
-
-@-webkit-keyframes sihesle_slilu {
-  0% {
-    -webkit-transform: translateX(0) rotate(0deg);
-    transform: translateX(0) rotate(0deg);
-  }
-
-  50% {
-    -webkit-transform: translateX(80px) rotate(180deg);
-    transform: translateX(80px) rotate(180deg);
-  }
-
-  100% {
-    -webkit-transform: translateX(0) rotate(359deg);
-    transform: translateX(0) rotate(359deg);
-  }
-}
-
 @keyframes sihesle_farlu {
   0% {
     top: -10%;
@@ -1781,16 +1736,8 @@ user-select: none; */
   position: fixed;
   top: -10%;
   z-index: 9999;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
   user-select: none;
   cursor: default;
-  -webkit-animation-name: sihesle_farlu, sihesle_slilu, sihesle_carna;
-  -webkit-animation-duration: 40s, 7s;
-  -webkit-animation-timing-function: linear, ease-in-out;
-  -webkit-animation-iteration-count: infinite, infinite;
-  -webkit-animation-play-state: running, running;
   animation-name: sihesle_farlu, sihesle_slilu;
   animation-duration: 40s, 7s;
   animation-timing-function: linear, ease-in-out;

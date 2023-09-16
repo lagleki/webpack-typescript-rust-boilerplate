@@ -1,14 +1,20 @@
-* search doesnt work while loading
-* loading bar improve embeddings and initial preload messging
-* prolong on near bottom
+* tts stopped working
+* show language flags in history line
+* restore feedback
+* preload embeddings
+* embeddings pregeneration script for all muplis and english sentences into z
+* merge muplis results into english
+* loading bar improve embeddings and initial preload messaging
+
 * check resize window handling
-* inter-bridi arrows restore
-* add audio links
+* pregeneration script
     * audio file generation script 
+        * add audio links
+    * muplis generation
 * search too slow
-* rotation animation on search
-* check browsing history change back forward
 * coi.js, Cache: files to cache
+    * cross origin isolated is a must
+        * implement reload
 * dasri - rework
 
 mobile:
@@ -22,7 +28,19 @@ history:
 desktop: search + buttons
 
 ## test
+* tooltips for long words must show load line
+* on language change load more dicts
+* language not changed on click from desktop
+* if url coincides with clicked tile then search doesnt happen
+* restore desktop tiles
+* semdistance not disappears
+* arrows disable button not working
 * add opfs - how to detect support?
+* when switching from tankomo to ctucku even arrows flicker
+* on word change it is reset too early
+* from desktop to searching mode - what if empty search
+* clear button not working
+* rotation animation on search
 
 ## other
 

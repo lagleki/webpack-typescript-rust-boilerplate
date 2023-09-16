@@ -28,6 +28,13 @@ export type Searching = {
   loadingState?: boolean;
 };
 
+export type State = {
+  query: string;
+  seskari: string;
+  bangu: string;
+  versio: string;
+};
+
 export type DefRenderedElementType =
   | "simple"
   | "math"
@@ -40,6 +47,7 @@ export type DefRenderedElementType =
 export type DefRenderedElement = {
   type: DefRenderedElementType;
   value: string;
+  meta?: Dict;
 };
 
 export type BasnaMemoized = { arrQuery: string[]; regex: string };

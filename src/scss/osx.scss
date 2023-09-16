@@ -1,0 +1,112 @@
+.osx {
+  margin: 0 2px 0px 2px;
+}
+
+.osx,
+.osx:hover {
+  color: #000;
+  text-decoration: none;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.2);
+//   font-size: 100%;
+  // 400 13px/19px sans-serif;
+  height: 32px;
+  padding: 4px 10px 4px 10px;
+
+  border: 1px solid;
+  border-top-color: #9d9d9d;
+  border-bottom-color: #939393;
+  border-left-color: #949494;
+  border-right-color: #949494;
+
+  border-radius: 4px;
+  box-shadow: 0 1px rgba(0, 0, 0, 0.1);
+
+  appearance: none;
+
+  background: #ffffff; /* Old browsers */
+  background: linear-gradient(
+    top,
+    hsl(0, 0%, 100%) 0%,
+    // #ffffff 25%,
+    // #fcfcfc 30%,
+    // #f9f9f9 35%,
+    // #f7f7f7 40%,
+    // #f5f5f5 45%,
+    // #f2f2f2 50%,
+    // #ececec 50%,
+    // #ededed 80%,
+    // #efefef 95%,
+    hsl(0, 0%, 95%) 100%
+  );
+  cursor: default;
+  user-select: none;
+}
+
+.osx:active,
+.osx.primary,
+.osx.primary:hover {
+  background: linear-gradient(
+    top,
+    hsl(209, 61%, 84%) 0%,
+    // #a3c1ef 5%,
+    // #98b8e9 10%,
+    // #91b3e9 15%,
+    // #8ab1e9 20%,
+    // #8ab2ea 25%,
+    // #83abe8 30%,
+    // #7cabe9 35%,
+    // #73a6e8 40%,
+    // #6ca4e9 45%,
+    // #67a1e9 50%,
+    // #4693ea 50%,
+    // #579eec 70%,
+    // #64a7ee 75%,
+    // #6eaeee 80%,
+    // #7db6ef 85%,
+    // #88bfef 90%,
+    // #97caef 95%,
+    hsl(204, 68%, 80%) 100%
+  );
+  border-top-color: #5158ab;
+  border-bottom-color: #464872;
+  border-left-color: #4b4d8c;
+  border-right-color: #4b4d8c;
+}
+
+.osx.primary,
+.osx.primary:hover {
+  animation: osx_pulsate 730ms infinite alternate ease-in-out;
+}
+
+.osx.primary:active {
+  animation: none;
+}
+
+@keyframes osx_pulsate {
+  0% {
+    box-shadow:
+      0 1px rgba(0, 0, 0, 0.1),
+      inset 0 0 19px 2px #d2f7ff;
+  }
+  100% {
+    box-shadow:
+      0 1px rgba(0, 0, 0, 0.1),
+      inset 0 0 19px 0px #a0c1ed;
+  }
+}
+
+.osx:focus {
+  box-shadow:
+    0 1px rgba(0, 0, 0, 0.1),
+    0 0 4px hsl(204, 100%, 88%);
+  border-color: hsl(204, 68%, 58%);
+}
+
+.osx.round {
+  border-radius: 9999px;
+  padding: 0 10px;
+}
+
+.osx.single {
+  padding: 0 6px;
+}

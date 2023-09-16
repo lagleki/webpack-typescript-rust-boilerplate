@@ -384,27 +384,31 @@ const fancu = {
     });
   },
   ningau_lepasorcu: async (searching: Searching, cb: any) => {
-    const lang = searching.bangu || "en";
-    let json: Dict = {};
-    const response = await fetch(
-      `/data/versio.json?sisku=${new Date().getTime()}`
-    );
-    if (response.ok) {
-      json = await response.json();
-    }
-    const count =
-      (
-        await sql(
-          `SELECT count(*) as klani FROM langs_ready where bangu=? and timestamp=?`,
-          [lang, json[lang]]
-        )
-      )?.[0]?.klani ?? 0;
+    aQueue.enqueue({
+      action: async () => {
+        const lang = searching.bangu || "en";
+        let json: Dict = {};
+        const response = await fetch(
+          `/data/versio.json?sisku=${new Date().getTime()}`
+        );
+        if (response.ok) {
+          json = await response.json();
+        }
+        const count =
+          (
+            await sql(
+              `SELECT count(*) as klani FROM langs_ready where bangu=$bangu and timestamp=$timestamp`,
+              { $bangu: lang, $timestamp: json[lang] }
+            )
+          )?.[0]?.klani ?? 0;
 
-    if (count > 0) return;
-    await cnino_sorcu(cb, [lang], searching, json);
-    self.postMessage({
-      kind: "loader",
-      cmene: "loaded",
+        if (count > 0) return;
+        await cnino_sorcu(cb, [lang], searching, json);
+        self.postMessage({
+          kind: "loader",
+          cmene: "loaded",
+        });
+      },
     });
   },
 };

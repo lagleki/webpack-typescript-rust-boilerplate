@@ -1,5 +1,5 @@
 import { RecursiveObject } from "../../../renderer/src/common/types";
-import { RegexFlavours } from "./types";
+import { RegexFlavours, Searching, State } from "./types";
 
 export const modes = ["velcusku", "arxivo", "cnano", "rimni", "catni", "fanva"];
 export const supportedLangs = {
@@ -64,36 +64,36 @@ export const initState = {
     versio: "masno",
     query: "",
     bangu: "en",
-  },
-  citri: [],
+  } as State,
+  citri: [] as State[],
   jvoPlumbsOn: true,
   embeddings: [],
   memoizedValues: {} as RecursiveObject,
   jimte: 100,
-  resultCount: 30,
 };
 
-export const initStateRAM = {
-  results: [],
+export const initStateOutsideComponents = {
+  results: [] as RecursiveObject[],
   focused: 1,
   scrollTop: 0,
   scrollJvoTimer: 0,
-  jimte: 10,
   typing: 0,
-  showDesktop: true as boolean,
+  scroll: 0,
   fetched: {
     seskari: "cnano",
     versio: "masno",
     query: "",
     bangu: "en",
-  },
+  } as State,
 };
 
 export const initStateLoading = {
+  showDesktop: true as boolean,
   loading: true,
   completedRows: 37,
   totalRows: 100,
   innerText: "",
+  href: "",
   hideProgress: false,
   firstRun: true,
   mathRendered: false,
@@ -103,7 +103,7 @@ export const initStateLoading = {
     versio: "masno",
     query: "",
     bangu: "en",
-  }
+  } as State
 };
 
 export const positionScrollTopToggleBtn = 200;
@@ -138,3 +138,5 @@ export const regexTeXQuotation: RegexFlavours = {
 };
 
 export const blobChunkLength = 5;
+
+export const cisn_default = 100
