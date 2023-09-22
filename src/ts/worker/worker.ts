@@ -7,12 +7,13 @@ import { OriginPrivateFileSystemVFS as VFS2 } from "../libs/wa-sqlite/src/exampl
 
 import { AutoQueue } from "../libs/queue";
 import { parse } from "./template/cmaxes.js";
-import { WordEmbeddings, loadModel } from "./template/w2v/embeddings.js";
+import { WordEmbeddings, loadModel } from "./template/w2v/embeddings";
 import jsonTeJufra from "./template/tejufra.json";
 
 import decompress from "brotli/decompress";
-import { Def, Dict, Searching } from "../types/index.js";
+import { Def, Dict, EmbeddingsFile, Searching } from "../types/index.js";
 import { blobChunkLength } from "../consts";
+import { log } from "../libs/logger";
 
 self.postMessage({ kind: "loading" });
 
@@ -52,7 +53,10 @@ self.onmessage = function (ev) {
   }
 };
 
-let db: number, sqlite3: SQLiteAPI, sql: any, wordEmbeddings: WordEmbeddings;
+let db: number,
+  sqlite3: SQLiteAPI,
+  sql: (sql: string | string[], ...values: any[]) => Promise<Dict[]>,
+  wordEmbeddings: WordEmbeddings;
 
 /* TODO:
   check on clean startup fix all errors
@@ -63,7 +67,7 @@ async function initSQLDB() {
   sqlite3 = SQLite.Factory(module);
   if ("storage" in navigator && "getDirectory" in navigator.storage) {
     // OPFS is supported
-    console.log("OPFS is supported");
+    log("OPFS is supported");
 
     sqlite3.vfs_register(new VFS2(), true);
     const DB_NAME = "file:///benchmark?foo=bar";
@@ -76,7 +80,7 @@ async function initSQLDB() {
     );
   } else {
     // OPFS is not supported
-    console.log("OPFS is not supported");
+    log("OPFS is not supported");
     sqlite3.vfs_register(new VFS("sutysisku"));
 
     db = await sqlite3.open_v2("sutysisku", undefined, "sutysisku");
@@ -114,6 +118,7 @@ async function initSQLDB() {
       cmene: "bootingDb",
     });
 
+    //TODO: restore?
     // await sql(`select w from valsi where bangu='en'`)
     // self.postMessage({
     //   kind: "loader",
@@ -121,39 +126,81 @@ async function initSQLDB() {
     // });
   }
 
+  self.postMessage({
+    kind: "loader",
+    cmene: "startLanguageDirectionUpdate",
+    completedRows: 1,
+    totalRows: 3,
+    bangu: 'en-embeddings',
+  });
+  log("loading embeddings");
   //embeddings
-  const response = await fetch("../data/embeddings-en.json.bin");
-  const blob = await response.arrayBuffer();
+  const response = await getOrFetchResource(
+    `/data/embeddings-en.json.bin`
+  );
+  // const response = await fetch(`/data/embeddings-en.json.bin?sisku=${new Date().getTime()}`);
 
-  const decompressedData = Buffer.from(
-    decompress(Buffer.from(blob))
-  ).toString();
-  wordEmbeddings = await loadModel(JSON.parse(decompressedData));
+  wordEmbeddings = await loadModel(response as EmbeddingsFile);
+  self.postMessage({
+    kind: "loader",
+    cmene: "startLanguageDirectionUpdate",
+    completedRows: 3,
+    totalRows: 3,
+    bangu: 'en-embeddings',
+    banguRaw: 'en-embeddings',
+  });
+  log("processed embeddings");
 }
 
-const log = (output: string | Dict, level: "log" | "warn" | "error" = "log") =>
-  console[level ?? "log"](output);
+let cacheObj: Cache;
+
+async function getCacheObject(): Promise<Cache> {
+  if (!cacheObj) cacheObj = await caches.open("sutysisku");
+
+  return cacheObj;
+}
+
+async function getOrFetchResource(url: string) {
+  const match = await (await getCacheObject()).match(url);
+  if (match) return match.json();
+  const response = await fetch(url);
+  if (response.ok) {
+    const blob = await response.arrayBuffer();
+    log("loaded embeddings");
+
+    const decompressedData = Buffer.from(
+      decompress(Buffer.from(blob))
+    ).toString();
+    log("decompressed embeddings");
+    const newResponse = new Response(decompressedData);
+    cacheObj.put(url, newResponse);
+    return JSON.parse(decompressedData);
+  }
+  return {};
+}
 
 async function runMigrations() {
-  console.log("migrate");
-  await sql`CREATE TABLE IF NOT EXISTS valsi (d text,n text,w text,r text,bangu text,s text,t text,g text,cache text,b text,z text);`;
-  await sql`CREATE TABLE IF NOT EXISTS langs_ready (bangu TEXT, timestamp TEXT)`;
-  await sql`CREATE TABLE IF NOT EXISTS tejufra (bangu TEXT, jufra TEXT)`;
-
-  try {
-    await sql`alter table valsi add column b text`;
-  } catch (error) {}
-  try {
-    await sql`alter table valsi add column z text`;
-  } catch (error) {}
-  try {
-    await sql`alter table valsi add column v text`;
-  } catch (error) {}
+  log("sql migrations");
+  await sql(
+    `CREATE TABLE IF NOT EXISTS valsi (d text,n text,w text,r text,bangu text,s text,t text,g text,cache text,b text,z text);`
+  );
+  await sql(
+    `CREATE TABLE IF NOT EXISTS langs_ready (bangu TEXT, timestamp TEXT)`
+  );
+  await sql(`CREATE TABLE IF NOT EXISTS tejufra (bangu TEXT, jufra TEXT)`);
+  await sql(`CREATE INDEX if not exists idx_valsi_cache ON valsi (cache);`);
+  await sql(`CREATE INDEX if not exists idx_valsi_w ON valsi (w);`);
+  await sql(`CREATE INDEX if not exists idx_valsi_w_bangu ON valsi (w,bangu);`);
+  await sql(`CREATE INDEX if not exists idx_valsi_bangu ON valsi (bangu);`);
+  await sql(`CREATE INDEX if not exists idx_valsi_s_bangu ON valsi (s,b);`);
 }
 
-const convertToObject = (data: any) => {
-  return data.rows.map((row: any) => {
-    return row.reduce((acc: Dict, value: any, index: string | number) => {
+const convertToObject = (data: {
+  columns: string[];
+  rows: SQLiteCompatibleType[][];
+}) => {
+  return data.rows.map((row) => {
+    return row.reduce((acc: Dict, value, index: number) => {
       acc[data.columns[index]] = value;
       return acc;
     }, {});
@@ -181,7 +228,7 @@ function prepareWrapper() {
     return results;
   }
 
-  return async function (sql: any, ...values: any[]) {
+  return async function (sql: string | string[], ...values: any[]) {
     if (Array.isArray(sql)) {
       // Tag function:
       const results = [];
@@ -203,18 +250,15 @@ async function runQuery(sqlQuery: string, params = {}) {
   const rows = await sql(sqlQuery, params);
   if (production !== "production")
     log({
-      startedAt: new Date().getTime(),
+      startedAt: start,
+      endedAt: new Date().getTime(),
       duration: new Date().getTime() - start,
       sqlQuery: prettifySqlQuery(sqlQuery),
       params,
       rows,
     });
 
-  return rows.map((row: any) => {
-    if (production === "production") {
-      delete row.cache;
-      delete row.no;
-    }
+  return rows.map((row) => {
     if (row.r) row.r = JSON.parse(row.r);
     if ((row.t || "").indexOf("{") === 0) row.t = JSON.parse(row.t);
     for (let i of ["s", "b", "z", "cache", "v"]) {
@@ -416,7 +460,7 @@ const fancu = {
 async function jufra({ bapli }: { bapli: boolean }) {
   aQueue.enqueue({
     action: async () => {
-      if (bapli) await sql`delete from tejufra`;
+      if (bapli) await sql(`delete from tejufra`);
       //tejufra
       const nitejufra = (
         await sql(`SELECT count(jufra) as klani FROM tejufra`)
@@ -462,9 +506,9 @@ function addCache(def: Dict, tegerna: string) {
   }
 
   if (supportedLangs[tegerna].simpleCache)
-    return { bangu: tegerna, ...def, cache: [def.w] };
+    return { bangu: tegerna, ...def, cache: def.w };
   if (def.cache) {
-    if (def.w) def.cache = [...new Set(def.cache)];
+    if (def.w) def.cache = def.cache.join(";");
     return { bangu: tegerna, ...def };
   }
   let cache;
@@ -481,11 +525,43 @@ function addCache(def: Dict, tegerna: string) {
     ";"
   );
   cache = `${cache};${cache.replace(/h/g, "'")}`.split(";");
-  cache = [...new Set(cache.concat(cache2))].filter(Boolean);
 
+  if (def.z) cache.push(def.z);
+
+  cache = [...new Set(cache.concat(cache2))].filter(Boolean).join(";");
   return { bangu: tegerna, ...def, cache };
 }
 
+const getRec2 = () => ({
+  $d: "",
+  $n: "",
+  $w: "",
+  $r: "",
+  $bangu: "",
+  $s: "",
+  $t: "",
+  $g: "",
+  $cache: "",
+  $b: "",
+  $z: "",
+  $v: "",
+});
+function prepareFields(rec: Dict) {
+  //TODO merged with addcache
+  let rec2: Dict = getRec2();
+  Object.keys(rec).map((key) => {
+    const key2 = `$${key}`;
+    const val = rec[key];
+    if (key === "z" && !val) {
+      rec2[key2] = [""];
+    } else if (typeof val == "object") {
+      rec2[key2] = JSON.stringify(val || "");
+    } else {
+      rec2[key2] = val || "";
+    }
+  });
+  return rec2;
+}
 async function cnino_sorcu(
   cb: any,
   langsToUpdate: string[],
@@ -565,20 +641,10 @@ async function cnino_sorcu(
         }
         for (const toAdd of rows) {
           await sqlite3.exec(db, `BEGIN;`);
-          // let stmt = db.prepare(
-          //   `INSERT INTO valsi (d,n,w,r,bangu,s,t,g,cache,b,z,v) VALUES (?${',?'.repeat(
-          //     12 - 1
-          //   )})`
-          // )
           for (let rec of toAdd) {
-            const { d, n, w, r, bangu, s, t, g, cache, b, z, v } = rec;
             await sql(
-              `INSERT INTO valsi (d,n,w,r,bangu,s,t,g,cache,b,z,v) VALUES (?${",?".repeat(
-                12 - 1
-              )})`,
-              [d, n, w, r, bangu, s, t, g, cache, b, z, v].map((i) =>
-                typeof i == "object" ? JSON.stringify(i || "") : i || ""
-              )
+              `INSERT INTO valsi (d,n,w,r,bangu,s,t,g,cache,b,z,v) VALUES ($d,$n,$w,$r,$bangu,$s,$t,$g,$cache,$b,$z,$v)`,
+              prepareFields(rec)
             );
           }
           await sqlite3.exec(db, `COMMIT;`);
@@ -662,7 +728,7 @@ async function getCachedDefinitions({
     );
   if (result.length === 0)
     result = await runQuery(
-      `SELECT * FROM valsi where bangu=$bangu and (w=$query COLLATE NOCASE or d=$query COLLATE NOCASE)`,
+      `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where (w=$query COLLATE NOCASE or d=$query COLLATE NOCASE) and bangu=$bangu`,
       { $bangu: bangu, $query: query.toLowerCase() }
     );
   return result;
@@ -688,6 +754,11 @@ async function getNeighbors(query: string) {
   return { words: results.map((i) => i.word), results };
 }
 
+function arraysShareElement(array1: string[], array2: string[]) {
+  return array1.filter((item) => array2.includes(item)).length;
+  // return array1.some((i) => array2.includes(i));
+}
+
 async function cnano_sisku({
   query_apos,
   query,
@@ -706,50 +777,15 @@ async function cnano_sisku({
 
   let embeddings: Dict = {};
   const embeddingsMode = bangu === "en" && seskari === "cnano"; // semantic search
-  console.log(";preembed", new Date().getTime());
   if (embeddingsMode) {
     embeddings = await getNeighbors(query);
   }
 
-  let rows;
-  if (embeddingsMode) {
-    const merged = getMergedArray(embeddings.words);
-    console.log(";prerun", new Date().getTime());
-    rows = await runQuery(
-      `
-		select distinct
-			d,n,w,r,bangu,s,t,g,b,z,v
-		from valsi,json_each(valsi.cache)
-		where 
-		${
-      queryDecomposition.length > 1
-        ? `(bangu=$bangu and json_each.value in ${getMergedArray(arrayQuery)})
-		or `
-        : ``
-    }
-		(
-				(w like $query or json_each.value like $query)
-			and (bangu = $bangu or bangu like $likebangu or bangu='en-pixra')
-		)
-		union
-		select distinct
-			d,n,w,r,bangu,s,t,g,b,z,v
-		from valsi,json_each(replace(iif(z<>'',z,'[""]'), ']','') || ',"' || replace(g, ';', '","') || '"]')
-		where
-				(json_each.value in ${merged})
-			and (bangu = $bangu)
-			and json_valid('["' || replace(valsi.g, ';', '","') || '"]')=1
-		`,
-      {
-        $query: "%" + query_apos + "%",
-        $bangu: bangu,
-        $likebangu: `${bangu}-%`,
-      }
-    );
-  } else if (versio === "selmaho") {
+  let rows: Dict[];
+  if (versio === "selmaho") {
     if (bangu === "muplis") {
       rows = await runQuery(
-        `SELECT * FROM valsi where s = $query and bangu=$bangu`,
+        `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where s=$query and bangu=$bangu`,
         {
           $query: query,
           $bangu: bangu,
@@ -758,99 +794,84 @@ async function cnano_sisku({
     } else {
       rows = (
         await runQuery(
-          `SELECT * FROM valsi where s like $query and bangu=$bangu`,
+          `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where s like $query and bangu=$bangu`,
           {
             $query: query + "%",
             $bangu: bangu,
           }
         )
       ).filter(
-        (valsi: { s: string }) =>
+        (valsi: Dict) =>
           typeof valsi.s === "string" &&
           new RegExp(`^${query}[0-9]*[a-z]*$`).test(valsi.s)
       );
     }
   } else if (seskari === "fanva") {
-    rows = (
-      await runQuery(`SELECT * FROM valsi where w= $valsi`, {
-        $valsi: query_apos,
-      })
-    ).sort((a: { bangu: string }, b: { bangu: string }) => {
-      if (a.bangu === bangu) return -1;
-      return (
-        supportedLangs?.[b.bangu]?.searchPriority -
-        supportedLangs?.[a.bangu]?.searchPriority
-      );
-    });
-  } else if (queryDecomposition.length > 1) {
-    const sqlQuery = `select d,n,w,r,bangu,s,t,g,count(ex) as no,b from (select distinct valsi.d as d,valsi.n as n,valsi.w as w,valsi.r as r,valsi.bangu as bangu,valsi.s as s,valsi.t as t,valsi.g as g,json_each.value as ex,valsi.b as b from valsi,json_each(valsi.cache) where 
-		(json_each.value in ${getMergedArray(arrayQuery)} and bangu=$bangu)
-		or
-		((w like $query or json_each.value like $query) and (bangu = $bangu or bangu like $likebangu or bangu='en-pixra'))
-		) as k
-		group by d,n,w,r,bangu,s,t,g,b
-		${
-      bangu === "muplis"
-        ? `having 2 * no >= ${arrayQuery.length}`
-        : `having no>=${splitQuery_apos.length}`
-    }
-		order by no desc
-		;`;
-
-    rows = await runQuery(sqlQuery, {
-      $query: "%" + query_apos + "%",
-      $bangu: bangu,
-      $likebangu: `${bangu}-%`,
-    });
-  } else if (production !== "production") {
-    //normal search:debug
     rows = await runQuery(
-      `select 
-			distinct d,n,w,r,bangu,s,t,g,cache,b,v
-			from valsi,json_each(valsi.cache)
-			where 
-				(w like $query or json_each.value like $query)
-			and (
-				   bangu = $bangu 
-				or bangu like $likebangu
-				or bangu='en-pixra'
-			)`,
+      `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where w=$valsi`,
       {
-        $query: "%" + query_apos + "%",
-        $bangu: bangu,
-        $likebangu: `${bangu}-%`,
+        $valsi: query_apos,
       }
     );
   } else {
-    //normal search:prod
+    //normal search
+    const queryNEmbeddings = arrayQuery.concat(embeddings.word);
     rows = await runQuery(
-      `select
-			distinct d,n,w,r,bangu,s,t,g,b,v
-			from valsi,json_each(valsi.cache)
-			where 
-				(w like $query or json_each.value like $query)
-			and (
-					bangu = $bangu
-				or bangu like $likebangu
-				or bangu='en-pixra')`,
-      {
-        $query: "%" + query_apos + "%",
-        $bangu: bangu,
-        $likebangu: `${bangu}-%`,
-      }
+      `
+		select distinct d,n,w,r,bangu,s,t,g,b,z,v,cache
+		from valsi
+		where ${Array(arrayQuery.length).fill(`(cache like ?)`).join(" or ")}
+    `,
+      arrayQuery.map((el) => `%${el}%`)
     );
+
+    rows = rows.filter((def: Dict) => {
+      const noSharedElementsInCache = arraysShareElement(
+        def.cache.split(";"),
+        queryNEmbeddings
+      );
+      if (bangu === "muplis") {
+        def.noSharedElementsInCache =
+          (2 * noSharedElementsInCache) / arrayQuery.length;
+      } else {
+        def.noSharedElementsInCache =
+          noSharedElementsInCache / splitQuery_apos.length;
+      }
+      if (def.w === query_apos && def.bangu === "jbo") return true;
+      if (def.bangu === bangu && noSharedElementsInCache) return true;
+      if (
+        ((def.w.includes(query_apos) || def.cache.includes(query_apos)) &&
+          def.bangu === bangu) ||
+        def.bangu.includes(`${bangu}-`) ||
+        def.bangu === "en-pixra"
+      )
+        return true;
+      return false;
+    });
   }
 
+  if (queryDecomposition.length > 1 || bangu === "muplis")
+    rows = rows.filter((def: Dict) => def.noSharedElementsInCache >= 1);
   rows = rows
     .map((el: Dict) => {
       const { cache, ...rest } = el;
       return rest;
     })
-    .sort(
-      (a: { bangu: string }, b: { bangu: string }) =>
-        supportedLangs?.[b.bangu]?.searchPriority -
-        supportedLangs?.[a.bangu]?.searchPriority
-    );
+    .sort((def1: Dict, def2: Dict) => {
+      if (def1.bangu === bangu) return -1;
+      if (def2.bangu === bangu) return 1;
+      if (
+        supportedLangs?.[def2.bangu]?.searchPriority !==
+        supportedLangs?.[def1.bangu]?.searchPriority
+      )
+        return (
+          supportedLangs?.[def2.bangu]?.searchPriority -
+          supportedLangs?.[def1.bangu]?.searchPriority
+        );
+      if (queryDecomposition.length > 1 || bangu === "muplis")
+        return def2.noSharedElementsInCache - def1.noSharedElementsInCache;
+      return 0;
+    });
   mapti_vreji = mapti_vreji.slice().concat(rows);
   if (seskari === "fanva" || bangu === "muplis") {
     return { result: mapti_vreji, decomposed: false };
@@ -922,7 +943,7 @@ async function cnano_sisku({
     if (type.indexOf("fu'ivla") >= 0 && parsedWord.indexOf("-") >= 0) {
       const rafsi = parsedWord.split("-")[0];
       const selrafsi = await runQuery(
-        `SELECT * FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=$rafsi and valsi.bangu=$bangu limit 1`,
+        `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=$rafsi and valsi.bangu=$bangu limit 1`,
         { $rafsi: rafsi, $bangu: bangu }
       );
       allMatches[0][0].rfs = selrafsi;
@@ -1057,7 +1078,7 @@ async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu }: any) {
     for (const veljvocmi of def.v) {
       const se_skicu_le_veljvocmi = (
         await runQuery(
-          `SELECT * FROM valsi where bangu=$bangu and w=$veljvocmi limit 1`,
+          `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where w=$veljvocmi and bangu=$bangu limit 1`,
           { $bangu: bangu, $veljvocmi: veljvocmi }
         )
       )[0];
@@ -1072,7 +1093,7 @@ async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu }: any) {
     for (const veljvocmi of porsi_le_veljvocmi) {
       const se_skicu_le_veljvocmi = (
         await runQuery(
-          `SELECT * FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=? and valsi.bangu=? limit 1`,
+          `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=? and valsi.bangu=? limit 1`,
           [veljvocmi, bangu]
         )
       )[0];
@@ -1145,7 +1166,7 @@ async function shortget({
           const valsi = vuhilevelujvo[j];
           const le_se_skicu_valsi = (
             await runQuery(
-              `SELECT * FROM valsi where w =$valsi and bangu=$bangu limit 1`,
+              `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where w=$valsi and bangu=$bangu limit 1`,
               { $valsi: valsi, $bangu: bangu }
             )
           )[0];
@@ -1183,6 +1204,7 @@ function isCoreWord(def: Def) {
 function defaultPriorityGroups() {
   return {
     wordFullMatch: [],
+    wordFullMatchJbo: [],
     wordFullMatchAdditional: [],
     zMatch: [],
     zSemMatch: [],
@@ -1259,6 +1281,8 @@ async function sortThem({
         }
       }
       if (def.bangu == bangu) searchPriorityGroups.wordFullMatch.push(def);
+      else if (def.bangu === "jbo")
+        searchPriorityGroups.wordFullMatchJbo.push(def);
       else searchPriorityGroups.wordFullMatchAdditional.push(def);
     } else if (semMatch.length > 0) {
       const match = {
@@ -1389,6 +1413,7 @@ async function sortThem({
     });
     firstMatches = secupra_vreji.concat(
       searchPriorityGroups.wordFullMatch,
+      searchPriorityGroups.wordFullMatchJbo,
       searchPriorityGroups.wordFullMatchAdditional
     );
     secondMatches = ([] as Def[]).concat(
@@ -1420,6 +1445,7 @@ async function sortThem({
   } else if (seskari === "cnano") {
     firstMatches = secupra_vreji.concat(
       searchPriorityGroups.wordFullMatch,
+      searchPriorityGroups.wordFullMatchJbo,
       searchPriorityGroups.zMatch,
       searchPriorityGroups.glossMatch,
       searchPriorityGroups.wordFullMatchAdditional
@@ -1440,6 +1466,7 @@ async function sortThem({
   } else {
     firstMatches = secupra_vreji.concat(
       searchPriorityGroups.wordFullMatch,
+      searchPriorityGroups.wordFullMatchJbo,
       searchPriorityGroups.zMatch,
       searchPriorityGroups.glossMatch,
       searchPriorityGroups.wordFullMatchAdditional
@@ -1463,7 +1490,7 @@ async function sortThem({
 }
 
 async function sisku(searching: Searching) {
-  console.log("sisku", new Date().getTime());
+  log("sisku");
   let { query, seskari, bangu, versio } = searching;
   query = query.trim();
   //connect and do selects
@@ -1479,10 +1506,11 @@ async function sisku(searching: Searching) {
   const queryDecomposition = decompose(query_apos);
 
   if (query.indexOf("^") === 0 || query.slice(-1) === "$") {
+    //regex search
     const regexpedQuery = query.toLowerCase().replace(/'/g, "''");
     // const regexpedQueryPrecise = regexpedQuery.replace(/\^/g, '').replace(/\$/g, '').replace(/^(.*)$/g, '\\b$1\\b')
     let first1000 = await runQuery(
-      `SELECT * FROM valsi where bangu =$bangu and regexp('${regexpedQuery}',w) limit 1000`,
+      `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where regexp('${regexpedQuery}',w) and bangu=$bangu limit 1000`,
       { $bangu: bangu }
     );
 
@@ -1499,8 +1527,10 @@ async function sisku(searching: Searching) {
       ).result[0]
     );
   } else if (seskari === "rimni") {
+    //rimni search
     secupra_vreji.results = await ma_rimni({ query, bangu });
   } else if (bangu !== "muplis" && queryDecomposition.length > 1) {
+    //normal search
     const { result, decomposed, embeddings } = await cnano_sisku({
       mapti_vreji: [],
       multi: true,
@@ -1570,9 +1600,9 @@ async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
   let query_apos: string;
   let queryF: string[];
   let queryR: string[];
-  function cupra_lo_porsi(a: any[]) {
+  function cupra_lo_porsi(a: Dict[]) {
     for (let i = 0; i < a.length; i++) {
-      const def = setca_lotcila(a[i]); // TODO: optimize for phrases
+      const def = setca_lotcila(a[i] as Def); // TODO: optimize for phrases
       if (!def) continue;
       const docw = krulermorna(def.w)
         .replace(/([aeiouḁąęǫy])/g, "$1-")
@@ -1700,12 +1730,16 @@ async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
   let r = /.*([aeiouḁąęǫy])/.exec(queryR[0]);
   if (r === null) return [];
   queryR[0] = r[1];
+  let result: Dict[] = [];
   if (queryR.length === 2) {
-    r = (
-      await runQuery(`SELECT * FROM valsi where bangu=$bangu`, {
-        $bangu: bangu,
-      })
-    ).filter((valsi: Def) => {
+    result = (
+      await runQuery(
+        `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where bangu=$bangu`,
+        {
+          $bangu: bangu,
+        }
+      )
+    ).filter((valsi) => {
       const queryRn = krulermorna(valsi.w)
         .replace(/([aeiouḁąęǫy])/g, "$1-")
         .split("-")
@@ -1714,24 +1748,28 @@ async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
         queryRn.length === 2 &&
         queryRn[0].split("").slice(-1)[0] ===
           queryR[0].split("").slice(-1)[0] &&
-        setca_lotcila(valsi)
+        setca_lotcila(valsi as Def)
       )
         return true;
       return false;
     });
   } else {
     query_apos = regexify((queryR || []).join(""));
-    r = (
-      await runQuery(`SELECT * FROM valsi where bangu = $bangu`, {
-        $bangu: bangu,
-      })
-    ).filter(({ w }: Def) => {
+    result = (
+      await runQuery(
+        `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where bangu = $bangu`,
+        {
+          $bangu: bangu,
+        }
+      )
+    ).filter(({ w }) => {
       if (krulermorna(w).match(`${query_apos.toLowerCase()}$`)) return true;
       return false;
     });
   }
-  return cupra_lo_porsi(r ?? []);
+  return cupra_lo_porsi(result ?? []);
 }
+
 aQueue.enqueue({ action: initSQLDB });
 
 self.postMessage({ kind: "ready" });

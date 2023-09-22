@@ -3,10 +3,10 @@ $arxivoskari2: rgba(211, 172, 34, 1);
 $arxivoskari3: rgba(224, 183, 36, 1);
 $arxivoskari4: rgba(164, 134, 25, 1);
 
-$mupliskari1: rgba(56, 136, 233, 1);
-$mupliskari2: rgba(34, 87, 213, 1);
-$mupliskari3: rgba(38, 99, 224, 1);
-$mupliskari4: rgba(25, 65, 165, 1);
+$mupliskari1: hsl(213, 80%, 57%);
+$mupliskari2: hsl(222, 72%, 48%);
+$mupliskari3: hsl(220, 75%, 51%);
+$mupliskari4: hsl(223, 74%, 37%);
 
 $catniskari1: hsl(220, 80%, 57%);
 $catniskari2: hsl(222, 72%, 48%);
@@ -17,6 +17,11 @@ $fanvaskari1: rgba(210, 58, 233, 1);
 $fanvaskari2: rgba(208, 34, 211, 1);
 $fanvaskari3: rgba(224, 36, 224, 1);
 $fanvaskari4: rgba(164, 25, 164, 1);
+
+$selmahoskari1: hsl(162, 80%, 47%);
+$selmahoskari2: hsl(169, 72%, 38%);
+$selmahoskari3: hsl(170, 75%, 41%);
+$selmahoskari4: hsl(170, 74%, 27%);
 
 $velcusku_skari1: rgba(214, 58, 233, 1);
 $velcusku_skari2: rgba(193, 34, 211, 1);
@@ -101,9 +106,13 @@ blockquote {
 }
 
 .granim-css {
-  background: linear-gradient(90deg, #ffeb00, #ffffff, #fbff00);
+  background: linear-gradient(90deg, hsl(55, 100%, 71%), #ffffff, hsl(61, 100%, 71%));
   background-size: 200% 200%;
   animation: granim 0.725s ease infinite;
+}
+
+.in-fetching {
+  animation: horizontal-shaking 0.58s infinite;
 }
 
 .rotate {
@@ -169,11 +178,11 @@ h4 {
   width: 100%;
 }
 
-#bangu_loading {
+.bangu_loading {
   font-style: italic;
 }
 
-#bangu_loading .cukta {
+.bangu_loading .cukta {
   float: none;
 }
 
@@ -396,7 +405,7 @@ code {
   width: auto;
   padding: 0;
   border-top: 1px solid #707070;
-  text-shadow: 1px 1px #4d4d4d;
+  // text-shadow: 1px 1px #4d4d4d;
 }
 
 .cnano-dasri,
@@ -413,7 +422,7 @@ code {
     #003dd7
   );
   border-top: 1px solid #0831d9;
-  text-shadow: 1px 1px #0f1089;
+  // text-shadow: 1px 1px #0f1089;
 }
 
 // .catni-dasri {
@@ -434,6 +443,17 @@ code {
     $fanvaskari2 $gradpos2,
     $fanvaskari3 $gradpos3,
     $fanvaskari4 $gradpos4
+  );
+  border-top: 1px solid #c808d9;
+}
+
+.selmaho-dasri {
+  background: linear-gradient(
+    to bottom,
+    $selmahoskari1 $gradpos1,
+    $selmahoskari2 $gradpos2,
+    $selmahoskari3 $gradpos3,
+    $selmahoskari4 $gradpos4
   );
   border-top: 1px solid #c808d9;
 }
@@ -478,6 +498,8 @@ code {
 }
 
 #site-title {
+  transform: skewX(-3deg);
+
   // margin-top: -1px;
   font-size: 18px;
   font-weight: bold;
@@ -498,55 +520,61 @@ code {
   width: 32px;
 }
 
-.cnano-search-mode-title-color {
-  background: linear-gradient(
-    to top right,
-    rgba(63, 81, 181, 1) 0,
-    rgba(4, 119, 218, 1) 40%
-  );
-  box-shadow: 1px 1px 30px rgba(2, 119, 189, 1);
+.desktop-mode-title-color {
+  background: $mupliskari3;
+
+  cursor: default;
 }
 
+.cnano-search-mode-title-color,
 .catni-search-mode-title-color {
   background: linear-gradient(
     to top right,
-    rgba(63, 81, 181, 1) 0,
-    rgba(4, 119, 218, 1) 40%
+    // hsl(231, 48%, 48%) 0,
+    // hsl(208, 96%, 44%) 40%,
+    hsl(113, 46%, 45%) 33%,
+    hsl(120, 48%, 51%) 50%,
+    hsl(121, 42%, 51%) 66%
   );
-  box-shadow: 1px 1px 30px rgba(2, 119, 189, 1);
+  box-shadow: 1px 1px 10px hsl(202, 98%, 37%);
+
+  // box-shadow: 0px 5px 10px #79ce71 inset, 4px 0 8px #3f8cf3;
+  // background: radial-gradient(circle, #5eac56 0%, #3c873c 100%) center/cover
+  //   no-repeat;
+  // text-shadow: 1px 1px 1px #333;
+  // border-radius: 0px 0px 7px 15px;
 }
+
+// .catni-search-mode-title-color {
+//   background: linear-gradient(
+//     to top right,
+//     hsl(231, 48%, 48%) 0,
+//     hsl(208, 96%, 44%) 40%
+//   );
+//   box-shadow: 1px 1px 10px rgba(2, 119, 189, 1);
+// }
 
 .fanva-search-mode-title-color {
   background: linear-gradient(
     to top right,
-    rgba(102, 16, 112, 1) 0,
-    rgba(165, 29, 180, 1) 40%
+    hsl(294, 75%, 25%) 0,
+    hsl(294, 72%, 41%) 40%
   );
-  box-shadow: 1px 1px 30px rgba(82, 2, 189, 1);
+  box-shadow: 1px 1px 10px rgba(82, 2, 189, 1);
 }
 
-.arxivo-search-mode-title-color {
-  background: linear-gradient(to top right, $arxivoskari2 0, $arxivoskari3 40%);
-  box-shadow: 1px 1px 30px $arxivoskari4;
-}
-
-.arxivo-search-mode-title-color {
+.selmaho-search-mode-title-color {
   background: linear-gradient(
     to top right,
-    $velcusku_skari2 0,
-    $velcusku_skari3 40%
+    hsl(165, 75%, 25%) 0,
+    hsl(165, 72%, 41%) 40%
   );
-  box-shadow: 1px 1px 30px $velcusku_skari4;
-}
-
-.desktop-mode-title-color {
-  background: $mupliskari3;
-  cursor: default;
+  box-shadow: 1px 1px 10px hsl(189, 98%, 37%);
 }
 
 .rimni-search-mode-title-color {
   background: linear-gradient(to top right, $rimniskari2 0, $rimniskari3 40%);
-  box-shadow: 1px 1px 30px $rimniskari4;
+  box-shadow: 1px 1px 10px $rimniskari4;
 }
 
 .rimni-search-mode-title-color #logo {
@@ -562,7 +590,7 @@ code {
   height: 32px;
   font-size: 120%;
   font-family: Arial, Helvetica, sans-serif;
-  border: 1px solid #777;
+  border: 1px solid #7f9db9;
   padding: 2px 50px 2px 10px;
   transition: background 0.4s;
   // margin-left: auto;
@@ -632,19 +660,8 @@ code {
 #contentWrapper {
   flex: 1;
   overflow-y: auto;
-  // -webkit-box-sizing: border-box;
-  // -moz-box-sizing: border-box;
   box-sizing: border-box;
-  // height: 100%;
-  // padding: 42px 0 0 0;
-  // overflow: hidden;
 }
-
-/* #scrollableContent {
-  height: 100%;
-  width: 100%;
-  overflow: auto;
-} */
 
 @media screen and (min-width: 510px) and (max-width: 710px) {
   #galtu-dasri {
@@ -664,7 +681,7 @@ code {
   }
 
   #se-vasru-lo-galtu-dasri > * {
-    margin-top: -2px;
+    margin-top: -1px;
   }
 
   #se-vasru-lo-galtu-dasri {
@@ -817,6 +834,7 @@ body {
   overflow: auto;
   /*height:100%;*/
   box-sizing: border-box;
+  padding-left: calc(100vw - 100%);
 }
 
 .content-panel {
@@ -878,6 +896,10 @@ a {
 
 .a-selmaho {
   color: hsl(130, 81%, 25%);
+}
+
+.a-cnano {
+  color: hsl(214, 74%, 52%);
 }
 
 .a-catni {
@@ -1565,6 +1587,24 @@ user-select: none; */
   display: none !important;
 }
 
+@keyframes horizontal-shaking {
+  0% {
+    transform: translateX(0) skewX(-5deg);
+  }
+  25% {
+    transform: translateX(1px) skewX(-5deg);
+  }
+  50% {
+    transform: translateX(-1px) skewX(-5deg);
+  }
+  75% {
+    transform: translateX(1px) skewX(-5deg);
+  }
+  100% {
+    transform: translateX(0) skewX(-5deg);
+  }
+}
+
 .spinner,
 .spinner:before,
 .spinner:after {
@@ -1930,4 +1970,9 @@ user-select: none; */
 
 .katex {
   font-size: 100%;
+}
+
+.drata {
+  margin-top: 1rem;
+  text-align: center;
 }

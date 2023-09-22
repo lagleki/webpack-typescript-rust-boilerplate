@@ -1,12 +1,12 @@
 import { component, store, h, s } from "../../../renderer/src";
 import { rows } from "./utils/pronunciation";
 import tejufra from "./worker/template/tejufra.json";
+import { UNICODE_START, lerfu_index } from "./utils/zlm";
+import { getBoxToBoxArrow } from "./libs/arrows";
+import { RecursiveObject } from "../../../renderer/src/common/types";
+import { log } from "./libs/logger";
 
 import katex from "katex";
-
-export function get_mathjax_svg(math: string, span: HTMLElement): void {
-  katex.render(math.replace(/^\$/, "").replace(/\$$/, ""), span);
-}
 
 // import io from "socket.io-client";
 import {
@@ -24,6 +24,8 @@ import {
   regexHyperLink,
   regexTeXQuotation,
   cisn_default,
+  tiles,
+  secondarySeskari,
 } from "./consts";
 import {
   BasnaMemoized,
@@ -33,7 +35,6 @@ import {
   RegexFlavours,
   State,
 } from "./types";
-// import { UNICODE_START, lerfu_index } from "./worker/template/utils/zlm.js";
 
 // //global vars:
 // let resultCount;
@@ -86,10 +87,10 @@ async function onLoad() {
     );
   } else {
     alert("HTTP protocol, la sutysisku won't work.");
-    console.log("http protocol, service worker won't work");
+    log("http protocol, service worker won't work");
   }
   await fetchAndSaveCachedListValues({ mode: "co'a" });
-  console.log({ crossOriginIsolated: window.crossOriginIsolated });
+  log({ crossOriginIsolated: window.crossOriginIsolated });
 
   worker.postMessage({
     kind: "fancu",
@@ -150,7 +151,7 @@ async function fetchAndSaveCachedListValues({ mode }: { mode: string }) {
   for (const key of cachedList) {
     if (!vreji.includes(key.url)) {
       await objCache.delete(key.url, { ignoreMethod: true, ignoreVary: true });
-      console.log({ event: "removing cache", url: key.url });
+      log({ event: "removing cache", url: key.url });
     }
   }
   if (cacheUpdated) {
@@ -161,7 +162,7 @@ async function fetchAndSaveCachedListValues({ mode }: { mode: string }) {
     ]) {
       await objCache.delete(url, { ignoreMethod: true, ignoreVary: true });
       await objCache.add(url);
-      console.log({ event: "adding cache", url });
+      log({ event: "adding cache", url });
     }
   }
   stateLoading.loading = false;
@@ -228,7 +229,8 @@ function postQuery() {
   }
   if (
     state.displaying.query &&
-    !twoJsonsAreEqual(state.displaying, stateOutsideComponents.fetched)
+    !twoJsonsAreEqual(state.displaying, stateOutsideComponents.fetched) &&
+    !twoJsonsAreEqual(state.displaying, stateOutsideComponents.sent)
   ) {
     console.log(
       "posty",
@@ -237,6 +239,7 @@ function postQuery() {
       stateOutsideComponents.fetched.query
     );
     removePlumbs();
+    stateOutsideComponents.sent = cloneObject(state.displaying);
     worker.postMessage({
       kind: "newSearch",
       ...state.displaying,
@@ -525,7 +528,18 @@ worker.onmessage = (ev) => {
   }
 };
 
-function buildURLParams(params: State) {
+function buildURLParams(
+  params: State,
+  options: { retainSeskariFromFallingBack: boolean } = {
+    retainSeskariFromFallingBack: false,
+  }
+) {
+  if (
+    !options.retainSeskariFromFallingBack &&
+    secondarySeskari.includes(params.seskari)
+  )
+    params.seskari = "cnano";
+
   const { query, ...rest } = params;
   return "#" + new URLSearchParams({ ...rest, sisku: query }).toString();
 }
@@ -573,7 +587,6 @@ window.addEventListener("hashchange", () => setStateFromUrl());
 component(
   "#root",
   async () => {
-    console.log("render", new Date().getTime());
     const inFetching = !twoJsonsAreEqual(
       state.displaying,
       stateOutsideComponents.fetched
@@ -591,7 +604,9 @@ component(
         {
           class: [
             "kampu-dasri",
-            `${state.displaying.seskari}-dasri`,
+            `${
+              stateLoading.showDesktop ? "cnano" : state.displaying.seskari
+            }-dasri`,
             "noselect",
           ],
         },
@@ -606,7 +621,7 @@ component(
           h(
             "div",
             h("input#ciska", {
-              class: inFetching ? ["granim-css"] : [],
+              class: inFetching ? ["granim-css", "in-fetching"] : [],
               "aria-label": stateLeijufra.cnano,
               required: true,
               placeholder: stateLeijufra.bangusisku,
@@ -636,29 +651,35 @@ component(
               click: () => {
                 state.displaying.query = "";
               },
-              class: inFetching ? ["pulsate-css"] : [],
+              class: inFetching ? ["pulsate-css", "in-fetching"] : [],
             })
           ),
           h(
             "div#leitutci.xp-btn-list",
-            ...["catni", "cnano", "rimni"].map((el) =>
-              h(`button#${el}`, {
+            ...["cnano", "catni", "rimni"].map((seskari) =>
+              h(`a#${seskari}`, {
+                href: buildURLParams(
+                  {
+                    ...state.displaying,
+                    versio: "masno",
+                    seskari,
+                  },
+                  { retainSeskariFromFallingBack: true }
+                ),
                 click: () => {
-                  state.displaying.seskari = el;
                   stateLoading.showDesktop = false;
-                  postQuery();
                 },
                 class: [
                   // "osx",
                   // "primary",
                   "xp-btn",
                   "ralju-tutci",
-                  ...(state.displaying.seskari === el &&
+                  ...(state.displaying.seskari === seskari &&
                   !stateLoading.showDesktop
                     ? [`${state.displaying.seskari}-tutci-hover`, "tutci-hover"]
                     : []),
                 ],
-                textContent: stateLeijufra[el as "catni" | "cnano" | "rimni"],
+                textContent: stateLeijufra[seskari],
               })
             )
           ),
@@ -730,13 +751,15 @@ component(
           ];
           if (isCurrentQuery)
             return h("span", { innerText: query, class: class_ });
-          if (query.length > 10)
+          if (query.length > 13)
             return h("span", {
               class: class_.concat("pointer"),
               innerText: query,
               click: () => {
                 stateLoading.innerText = query;
-                stateLoading.href = buildURLParams(curState);
+                stateLoading.href = buildURLParams(curState, {
+                  retainSeskariFromFallingBack: true,
+                });
                 stateLoading.hideProgress = true;
                 hideNotificationInAWhile();
               },
@@ -744,7 +767,9 @@ component(
           return h("a", {
             class: class_,
             attributes: {
-              href: buildURLParams(curState),
+              href: buildURLParams(curState, {
+                retainSeskariFromFallingBack: true,
+              }),
             },
             innerText: query,
           });
@@ -835,11 +860,7 @@ component(
               "div#rectu",
               ...(stateLoading.showDesktop
                 ? [
-                    h(
-                      "div#drata",
-                      { style: { "text-align": "center" } },
-                      ...links()
-                    ),
+                    h("div.drata", ...links()),
                     h(
                       "div#descr",
                       // {
@@ -948,60 +969,58 @@ component(
 const outpBlock = async ({ inFetching }: { inFetching: boolean }) => {
   console.log("skicu", new Date().getTime());
 
-  let reses = await skicu_roledovalsi();
+  let results = await skicu_roledovalsi();
   console.log("after skicu", new Date().getTime(), "aft");
 
   setDocumentTitle(state.displaying);
 
+  const messageAlert = (stateLeijufra as any).alerts?.[
+    state.displaying.seskari
+  ];
   return h(
     "div#outp",
     {
       class: stateLoading.showDesktop ? ["d-none"] : ["d-block"],
     },
-    !inFetching && state.displaying.seskari === "cnano" &&
-      (supportedLangs as any)[state.displaying.bangu as any]
-        .semanticSearchPossible &&
+    // !inFetching &&
+      messageAlert &&
       h("div.term.noselect.nasezvafahi", {
-        innerText: stateLeijufra.alerts.semanticSearchAlert,
+        innerText: messageAlert,
       }),
-    !inFetching && state.displaying.seskari === "rimni" &&
-      stateLeijufra.alerts?.rhymesSearchAlert &&
-      h("div.term.noselect.nasezvafahi", {
-        innerText: stateLeijufra.alerts.rhymesSearchAlert,
-      }),
-    h("div", ...reses)
+    h("div", ...results)
   );
 };
 
 const links = () =>
-  getDesktopTiles().map((elem: Dict | string) => {
-    if (typeof elem === "string") return h("div");
-    const name = Object.keys(elem)[0];
-    if (!elem[name].url) {
-      elem[name].url = buildURLParams({
-        seskari:
-          state.displaying.seskari !== "fanva" && name.indexOf("muplis") !== 0
-            ? state.displaying.seskari
-            : "catni",
-        query: state.displaying.query,
-        bangu: name,
-        versio: "masno",
-      });
-    } else {
-      elem[name].url = elem[name].url.replace(
-        /{lastQuery}/g,
-        encodeUrl(state.displaying.query)
-      );
-    }
+  cloneObject(stateLeijufra.custom_links ?? [])
+    .concat(["hr", ...tiles])
+    .map((elem: Dict | string) => {
+      if (typeof elem === "string")
+        return h("div.term.noselect.nasezvafahi.centero", {
+          innerText: stateLeijufra.alerts.bauledrata,
+        });
+      const name = Object.keys(elem)[0];
+      if (!elem[name].url) {
+        elem[name].url = buildURLParams({
+          ...state.displaying,
+          bangu: name,
+          versio: "masno",
+        });
+      } else {
+        elem[name].url = elem[name].url.replace(
+          /{lastQuery}/g,
+          encodeUrl(state.displaying.query)
+        );
+      }
 
-    return tile({
-      ...elem[name],
-      name,
-      isUrl: (elem.url || "").indexOf("http") === 0,
-      height: (elem.height || 1) * cisn_default + "px",
-      width: (elem.width ?? 1) * cisn_default + "px",
+      return tile({
+        ...elem[name],
+        name,
+        isUrl: (elem.url || "").indexOf("http") === 0,
+        height: (elem.height || 1) * cisn_default + "px",
+        width: (elem.width ?? 1) * cisn_default + "px",
+      });
     });
-  });
 
 function tile({
   title,
@@ -1050,7 +1069,6 @@ function tile({
           rel: isUrl ? "noreferrer" : "",
           target: isUrl ? "_blank" : "",
           "aria-label": title.replace(/<[^>]+?>/g, ""),
-          // TODO: update stateleijufra
           click: () => ningau_lepasorcu(url, name),
           href: url,
           class: "A_7",
@@ -1103,61 +1121,6 @@ function getMemoizedBasna(query: string[]): BasnaMemoized {
   } as BasnaMemoized);
 }
 
-function getDesktopTiles() {
-  return cloneObject(stateLeijufra.custom_links ?? []).concat([
-    "hr",
-    {
-      en: {
-        title: "English-Lojban",
-        picture: "/assets/pixra/selsku_lanci_eng.svg",
-      },
-    },
-    {
-      jbo: {
-        title: "fanva fi le'e lojbo ri",
-        picture: "/assets/pixra/lanci_jbo.svg",
-      },
-    },
-    {
-      ja: {
-        title: '日本 - <span style="white-space:pre;">ロジバン</span>',
-        picture: "/assets/pixra/selsku_lanci_jpn.svg",
-      },
-    },
-    {
-      "fr-facile": {
-        title: "français facile - lojban",
-        picture: "/assets/pixra/selsku_lanci_fra.svg",
-      },
-    },
-    {
-      ru: {
-        title: "русский - ложбан",
-        picture: "/assets/pixra/selsku_lanci_rus.svg",
-      },
-    },
-    {
-      eo: {
-        title: "Esperanto - Loĵbano",
-        picture: "/assets/pixra/lanci_epo.svg",
-      },
-    },
-    {
-      es: {
-        title: "español - lojban",
-        picture: "/assets/pixra/selsku_lanci_spa.svg",
-      },
-    },
-    {
-      zh: {
-        title: "中文 - 逻辑语",
-        picture: "/assets/pixra/selsku_lanci_zho.svg",
-      },
-    },
-    { loglan: { title: "Loglan", picture: "/assets/pixra/loglan.png" } },
-  ]);
-}
-
 function basna({
   text,
   query,
@@ -1174,7 +1137,7 @@ function basna({
   return hilite([{ value: text, type: "simple" }], arrQuery).map(
     (el: DefRenderedElement, index: number) => {
       if (el.type === "hilite") {
-        return h("mark", {
+        return h("span", {
           class: ["basna"],
           innerText: el.value,
         });
@@ -1259,11 +1222,6 @@ function getVeljvoString({
     replacement: `\$${replacingPlaceTag}\$`,
   };
 }
-
-import { UNICODE_START, lerfu_index } from "./utils/zlm";
-import { getBoxToBoxArrow } from "./libs/arrows";
-import { RecursiveObject } from "../../../renderer/src/common/types";
-import { clone } from "@tensorflow/tfjs";
 
 function latinToZbalermorna(c: string) {
   if ((c.codePointAt(0) ?? 0) >= 0xed80) {
@@ -1406,7 +1364,7 @@ function convertMathStringToHtml({
       ...moreAttributes,
     },
   });
-  get_mathjax_svg(replacementTag, span);
+  katex.render(replacementTag.replace(/^\$/, "").replace(/\$$/, ""), span);
   return { span, iterTerbricmiId, stringifiedPlaceTags };
 }
 
@@ -1640,7 +1598,8 @@ function melbi_uenzi({
           bangu,
           versio: "masno",
         };
-        return twoJsonsAreEqual(curState, state.displaying)
+        return twoJsonsAreEqual(curState, state.displaying) &&
+          !secondarySeskari.includes(state.displaying.seskari)
           ? h("b", { innerText: intralink })
           : h("a", {
               class: `a-${curSeskari}`,
@@ -1671,7 +1630,7 @@ function melbi_uenzi({
           innerText: url,
         });
       } else if (el.type === "hilite") {
-        return h("mark", {
+        return h("span", {
           class: ["basna"],
           innerText: el.value,
         });
@@ -1741,13 +1700,18 @@ async function skicu_paledovalsi({
       selms = h("div");
       for (const selmaho of selmahos) {
         const inDefSelmahoElement = h(
-          "button",
+          "a",
           {
+            href: buildURLParams(
+              {
+                ...state.displaying,
+                query: selmaho,
+                seskari: "selmaho",
+                versio: "selmaho",
+              },
+              { retainSeskariFromFallingBack: true }
+            ),
             class: "xp-btn tutci tutci-sampu",
-            click: () => {
-              state.displaying.versio = "selmaho";
-              state.displaying.query = selmaho;
-            },
           },
           ...basna({ text: selmaho, query: [query] })
         );
@@ -1769,6 +1733,7 @@ async function skicu_paledovalsi({
       query: [query],
     });
   } else {
+    //TODO what is this?
     children = [
       h(
         "a",
@@ -1776,7 +1741,7 @@ async function skicu_paledovalsi({
           class: "valsi",
           attributes: {
             href: buildURLParams({
-              seskari: seskari === "fanva" ? "catni" : seskari,
+              seskari,
               query: def.w,
               bangu,
               versio: "masno",
@@ -1807,8 +1772,10 @@ async function skicu_paledovalsi({
   if (typeof def.t === "string") {
     def.t = def.t === "bangudecomp" ? stateLeijufra.bangudecomp : def.t;
     const txt = encodeUrl(def.w).replace(/_/g, "%20");
+
+    //TODO  what is this?
     jvs = h("a", {
-      class: "klesi link",
+      class: ["klesi", "link"],
       href: stateLeijufra.judri
         ? stateLeijufra.judri + txt
         : buildURLParams({
@@ -1922,12 +1889,15 @@ async function skicu_paledovalsi({
         arrRenderedFamymaho.push(
           h("a", {
             class: ["selmaho"],
-            href: buildURLParams({
-              bangu,
-              versio: "selmaho",
-              seskari,
-              query: key,
-            }),
+            href: buildURLParams(
+              {
+                bangu,
+                versio: "selmaho",
+                seskari,
+                query: key,
+              },
+              { retainSeskariFromFallingBack: true }
+            ),
             innerText: key,
           })
         );
@@ -1956,12 +1926,17 @@ async function skicu_paledovalsi({
 
   let translateButton;
   if (hasTranslateButton) {
-    translateButton = h("button", {
+    translateButton = h("a", {
       class: ["xp-btn", "tutci", "tutci-pixra"],
       style: { "background-image": "url(/assets/pixra/terdi.svg)" },
-      click: function () {
-        state.displaying.seskari = "fanva";
-      },
+      href: buildURLParams(
+        {
+          ...state.displaying,
+          seskari: "fanva",
+          versio: "masno",
+        },
+        { retainSeskariFromFallingBack: true }
+      ),
     });
   }
 
@@ -2288,7 +2263,7 @@ function generateStateFromUrl(href?: string) {
     newSearch = decodeUrl(search.get("focus") || "");
     if (newSearch) params = { sisku: newSearch, seskari: "cnano" };
   }
-  if (["velcusku", "cnano", "catni", "rimni", "fanva"].includes(params.seskari))
+  if (["cnano", "catni", "rimni", "fanva", "selmaho"].includes(params.seskari))
     newState.seskari = params["seskari"];
 
   if (["selmaho"].includes(params.versio)) newState.versio = params.versio;

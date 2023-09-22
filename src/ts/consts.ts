@@ -3,7 +3,8 @@ import { RegexFlavours, Searching, State } from "./types";
 
 export const modes = ["velcusku", "arxivo", "cnano", "rimni", "catni", "fanva"];
 export const supportedLangs = {
-  en: { n: "English", zbalermorna_defined: true, semanticSearchPossible: true },
+  "en-embeddings": { n: "English word embeddings" },
+  en: { n: "English", zbalermorna_defined: true },
   muplis: { n: "la muplis" },
   "en-cll": { n: "The Book" },
   "en-pixra": { n: "🎨🖼️📸", pictureDictionary: true },
@@ -17,6 +18,58 @@ export const supportedLangs = {
   zh: { n: "中文" },
   loglan: { n: "Loglan" },
 };
+
+export const tiles = [
+  {
+    en: {
+      title: "English-Lojban",
+      picture: "/assets/pixra/selsku_lanci_eng.svg",
+    },
+  },
+  {
+    jbo: {
+      title: "fanva fi le'e lojbo ri",
+      picture: "/assets/pixra/lanci_jbo.svg",
+    },
+  },
+  {
+    ja: {
+      title: '日本 - <span style="white-space:pre;">ロジバン</span>',
+      picture: "/assets/pixra/selsku_lanci_jpn.svg",
+    },
+  },
+  {
+    "fr-facile": {
+      title: "français facile - lojban",
+      picture: "/assets/pixra/selsku_lanci_fra.svg",
+    },
+  },
+  {
+    ru: {
+      title: "русский - ложбан",
+      picture: "/assets/pixra/selsku_lanci_rus.svg",
+    },
+  },
+  {
+    eo: {
+      title: "Esperanto - Loĵbano",
+      picture: "/assets/pixra/lanci_epo.svg",
+    },
+  },
+  {
+    es: {
+      title: "español - lojban",
+      picture: "/assets/pixra/selsku_lanci_spa.svg",
+    },
+  },
+  {
+    zh: {
+      title: "中文 - 逻辑语",
+      picture: "/assets/pixra/selsku_lanci_zho.svg",
+    },
+  },
+  { loglan: { title: "Loglan", picture: "/assets/pixra/loglan.png" } },
+];
 
 export const listFamymaho = {
   GA: "gi",
@@ -85,6 +138,12 @@ export const initStateOutsideComponents = {
     query: "",
     bangu: "en",
   } as State,
+  sent: {
+    seskari: "cnano",
+    versio: "masno",
+    query: "",
+    bangu: "en",
+  } as State,
 };
 
 export const initStateLoading = {
@@ -103,7 +162,7 @@ export const initStateLoading = {
     versio: "masno",
     query: "",
     bangu: "en",
-  } as State
+  } as State,
 };
 
 export const positionScrollTopToggleBtn = 200;
@@ -139,4 +198,6 @@ export const regexTeXQuotation: RegexFlavours = {
 
 export const blobChunkLength = 5;
 
-export const cisn_default = 100
+export const cisn_default = 100;
+
+export const secondarySeskari = ["fanva", "selmaho"];

@@ -53,3 +53,9 @@ export type DefRenderedElement = {
 export type BasnaMemoized = { arrQuery: string[]; regex: string };
 
 export type RegexFlavours = { full: RegExp; partial: RegExp; tagName: string };
+
+export type EmbeddingsFile = {
+  vocabulary: string[];
+  centroids: string;
+  codes: string;
+};

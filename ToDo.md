@@ -1,33 +1,66 @@
-* tts stopped working
-* show language flags in history line
+* huggingface lojban-tts stopped working
+* restore socket.io
+* restore corpus-downloader
+    * muplis with voy embeddings
+    * normal langs
+* bundle size & speed
+    * https://www.npmjs.com/package/brotli-unicode
+    * remove second query when no results
+* dont send results to console in prod mode
+* how to separate official prefer vs semantic scales
+* not every tile should fire an update
+    * separate tiles by size
+* show language+mode flags in history line
 * restore feedback
-* preload embeddings
-* embeddings pregeneration script for all muplis and english sentences into z
-* merge muplis results into english
-* loading bar improve embeddings and initial preload messaging
-
 * check resize window handling
+* skicu before loading - optimize app loading speed
+* embeddings
+    * use sentence embeddings for fasstext
+    * new generator for fasttext without lz compression
+    * preload embeddings unwrapped
+    * preload embeddings
+    * embeddings pregeneration script for all muplis and english sentences into z
+    * loading bar improve embeddings and initial preload messaging
+* simplify sql query
+    * merge with muplis
+    * RAM search: or from similarity to encoding of input
+        * vector search
+            * load in ram
+            * fetch by id from sql
+            * sort accordingly
+    * show muplis sentences from encoding of input
+    * merge muplis results into english
+        * we have phrases mode for english only
+        * the second result are top 10 results from muplis. lazy loading
+        * on click switch to phrases mode
+
 * pregeneration script
+    * sisku=now script must take into account
     * audio file generation script 
         * add audio links
     * muplis generation
-* search too slow
+
 * coi.js, Cache: files to cache
     * cross origin isolated is a must
         * implement reload
 * dasri - rework
+    mobile:
+    search line
+    buttons: language normal semsearch rimni selmaho
+    comment: additional links in this.language
+    comment: use regexp
+    history: 
 
-mobile:
-search line
-buttons: language normal semsearch rimni selmaho
-comment: additional links in this.language
-comment: use regexp
-history: 
 
-
-desktop: search + buttons
+    desktop: search + buttons
 
 ## test
+* better message for semantic/+/catni/rimni/fanva/selmaho search
+* search too slow
+* localize alert messages
+* simple coi leads to two queries in db!
+* selmaho search not working
+* second precise result is always in lojban - only sql change
 * tooltips for long words must show load line
 * on language change load more dicts
 * language not changed on click from desktop
