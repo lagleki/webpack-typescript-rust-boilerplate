@@ -112,7 +112,7 @@ function ningau_lepasorcu(url: string, bangu: string) {
 }
 
 async function getCachedListKeys() {
-  return await (await getCacheObject(cacheObj)).keys();
+  return await (await getCacheStore(cacheObj)).keys();
 }
 
 async function fetchAndSaveCachedListValues({ mode }: { mode: string }) {
@@ -132,7 +132,7 @@ async function fetchAndSaveCachedListValues({ mode }: { mode: string }) {
       new URL(v, window.location.origin + window.location.pathname).href
   );
   let cacheUpdated = false;
-  const objCache = await getCacheObject(cacheObj);
+  const objCache = await getCacheStore(cacheObj);
   for (let i = 0; i < vreji.length; i++) {
     const url = vreji[i];
     if (mode === "co'a" && !/((\.(js|wasm|html|css))|\/)$/.test(url)) continue;
@@ -627,7 +627,7 @@ component(
               placeholder: stateLeijufra.bangusisku,
               spellcheck: "false",
               autocapitalize: "off",
-              autocomplete: "false",
+              autocomplete: "off",
               type: "text",
               name: "focus",
               value: state.displaying.query,
@@ -657,79 +657,72 @@ component(
           h(
             "div#leitutci.xp-btn-list",
             ...["cnano", "catni", "rimni"].map((seskari) =>
-              h(`a#${seskari}`, {
-                href: buildURLParams(
-                  {
-                    ...state.displaying,
-                    versio: "masno",
-                    seskari,
+              h(
+                `a#${seskari}`,
+                {
+                  href: buildURLParams(
+                    {
+                      ...state.displaying,
+                      versio: "masno",
+                      seskari,
+                    },
+                    { retainSeskariFromFallingBack: true }
+                  ),
+                  click: () => {
+                    stateLoading.showDesktop = false;
                   },
-                  { retainSeskariFromFallingBack: true }
-                ),
-                click: () => {
-                  stateLoading.showDesktop = false;
+                  class: [
+                    // "osx",
+                    // "primary",
+                    "xp-btn",
+                    "ralju-tutci",
+                    `${seskari}-ralju-tutci`,
+                    ...(state.displaying.seskari === seskari &&
+                    !stateLoading.showDesktop
+                      ? ["tutci-hover"]
+                      : []),
+                  ],
                 },
-                class: [
-                  // "osx",
-                  // "primary",
-                  "xp-btn",
-                  "ralju-tutci",
-                  ...(state.displaying.seskari === seskari &&
-                  !stateLoading.showDesktop
-                    ? [`${state.displaying.seskari}-tutci-hover`, "tutci-hover"]
-                    : []),
-                ],
-                textContent: stateLeijufra[seskari],
-              })
+                h("span", { textContent: stateLeijufra[seskari] })
+              )
             )
           ),
           h(
-            "div",
+            "span#site-title",
             {
               click: () => {
                 stateLoading.showDesktop = true;
                 stateOutsideComponents.focused = 0;
                 removePlumbs();
               },
+              "aria-label": "la sutysisku",
+              class: [
+                `${
+                  stateLoading.showDesktop
+                    ? `desktop`
+                    : `${state.displaying.seskari}-search`
+                }-mode-title-color`,
+              ],
             },
-            h(
-              "div#title",
-              {
-                "aria-label": "la sutysisku",
-              },
-              h(
-                "span#site-title",
-                {
-                  class: [
-                    `${
-                      stateLoading.showDesktop
-                        ? `desktop`
-                        : `${state.displaying.seskari}-search`
-                    }-mode-title-color`,
-                  ],
-                },
-                h("img", {
-                  src: "/assets/pixra/bangu.svg",
-                  class: inFetching ? ["rotate"] : ["rotate", "stopRotate"],
-                  style:
-                    state.displaying.seskari === "rimni"
-                      ? { filter: "sepia(1.0)" }
-                      : {},
-                  alt: "language-switch",
-                })
-                // h("span", {
-                //   style: { color: "#fff" },
-                //   "data-jufra": "titlelogo-inner",
-                //   textContent: "la sutysisku",
-                // })
-              )
-            )
+            h("img", {
+              src: "/assets/pixra/bangu.svg",
+              class: inFetching ? ["rotate"] : ["rotate", "stopRotate"],
+              style:
+                state.displaying.seskari === "rimni"
+                  ? { filter: "sepia(1.0)" }
+                  : {},
+              alt: "language-switch",
+            })
+            // h("span", {
+            //   style: { color: "#fff" },
+            //   "data-jufra": "titlelogo-inner",
+            //   textContent: "la sutysisku",
+            // })
           )
         )
       ),
       h(
         "div.loading.noselect",
-        { class: ["d-inline-flex"] },
         h("span", {
           class: "romoi_lehiseciska",
           innerText: state.citri.length > 0 ? stateLeijufra.purc : null,
@@ -777,7 +770,7 @@ component(
       ),
       h(
         "div#loading.loading.noselect",
-        { class: stateLoading.loading ? ["d-inline-flex"] : ["d-none"] },
+        { class: stateLoading.loading ? [] : ["d-none"] },
         stateLoading.href
           ? h("a.bangu_loading.loading_elems", {
               innerText: stateLoading.innerText,
@@ -983,7 +976,7 @@ const outpBlock = async ({ inFetching }: { inFetching: boolean }) => {
       class: stateLoading.showDesktop ? ["d-none"] : ["d-block"],
     },
     // !inFetching &&
-      messageAlert &&
+    messageAlert &&
       h("div.term.noselect.nasezvafahi", {
         innerText: messageAlert,
       }),
@@ -1082,14 +1075,14 @@ function tile({
   );
 }
 
-async function getCacheObject(cacheObj: Cache): Promise<Cache> {
+async function getCacheStore(cacheObj: Cache): Promise<Cache> {
   if (!cacheObj) cacheObj = await caches.open("sutysisku");
 
   return cacheObj;
 }
 
 async function getOrFetchResource(url: string) {
-  const match = await (await getCacheObject(cacheObj)).match(url);
+  const match = await (await getCacheStore(cacheObj)).match(url);
   if (match) return true;
   const response = await fetch(url);
   if (!response.ok) return false;
@@ -1635,7 +1628,7 @@ function melbi_uenzi({
           innerText: el.value,
         });
       } else {
-        return h("span", { innerText: el.value });
+        return h("span", { innerText: el.value.replace(/\//g, " / ") });
       }
     });
 
@@ -2163,7 +2156,7 @@ async function skicu_paledovalsi({
       "div",
       { class: "rafsi noselect hue_rotate" },
       h("div", {
-        class: "tanxe zunle_tanxe kurfa_tanxe",
+        class: "tanxe zunle_tanxe",
         innerText: "BAI",
       }),
       h(
@@ -2200,19 +2193,21 @@ async function skicu_paledovalsi({
     out.appendChild(tanxe_leirafsi);
   }
 
-  const subDefs = h("div", {
-    class: ["definition", "subdefinitions"],
-  });
-  for (const [i, subdef] of (def.rfs || []).entries()) {
-    const htmlElement = await skicu_paledovalsi({
-      def: subdef,
-      inner: true,
-      index: `${index}_${i}`,
-      stringifiedPlaceTags,
+  if ((def.rfs || []).length > 0) {
+    const subDefs = h("div", {
+      class: ["definition", "subdefinitions"],
     });
-    if (htmlElement) subDefs.appendChild(htmlElement);
+    for (const [i, subdef] of (def.rfs || []).entries()) {
+      const htmlElement = await skicu_paledovalsi({
+        def: subdef,
+        inner: true,
+        index: `${index}_${i}`,
+        stringifiedPlaceTags,
+      });
+      if (htmlElement) subDefs.appendChild(htmlElement);
+    }
+    out.appendChild(subDefs);
   }
-  out.appendChild(subDefs);
 
   out.addEventListener("click", clicked);
   return out;

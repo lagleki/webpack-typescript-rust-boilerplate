@@ -15,6 +15,9 @@ import { Def, Dict, EmbeddingsFile, Searching } from "../types/index.js";
 import { blobChunkLength } from "../consts";
 import { log } from "../libs/logger";
 
+import { FeatureExtractionModel, ModelType } from "../libs/inference/text";
+import { SimpleTextModel } from "../libs/inference/text/simpleTextModel";
+
 self.postMessage({ kind: "loading" });
 
 let sql_buffer_mode: string, production: string;
@@ -131,13 +134,11 @@ async function initSQLDB() {
     cmene: "startLanguageDirectionUpdate",
     completedRows: 1,
     totalRows: 3,
-    bangu: 'en-embeddings',
+    bangu: "en-embeddings",
   });
   log("loading embeddings");
   //embeddings
-  const response = await getOrFetchResource(
-    `/data/embeddings-en.json.bin`
-  );
+  const response = await getOrFetchResource(`/data/embeddings-en.json.bin`);
   // const response = await fetch(`/data/embeddings-en.json.bin?sisku=${new Date().getTime()}`);
 
   wordEmbeddings = await loadModel(response as EmbeddingsFile);
@@ -146,22 +147,53 @@ async function initSQLDB() {
     cmene: "startLanguageDirectionUpdate",
     completedRows: 3,
     totalRows: 3,
-    bangu: 'en-embeddings',
-    banguRaw: 'en-embeddings',
+    bangu: "en-embeddings",
+    banguRaw: "en-embeddings",
   });
   log("processed embeddings");
+  const result = await SimpleTextModel.create({
+    id: "mini-lm-v2-quant",
+    title: "Quantized mini model for sentence embeddings",
+    description: "",
+    memEstimateMB: 100,
+    type: ModelType.FeatureExtraction,
+    sizeMB: 15,
+    modelPaths: new Map<string, string>([
+      [
+        "encoder",
+        "https://web-ai-models.org/text/feature-extraction/miniLM-v2/model-quant.onnx.gz",
+      ],
+    ]),
+    outputNames: new Map<string, string>([["encoder", "last_hidden_state"]]),
+    tokenizerPath:
+      "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json",
+    tokenizerParams: {
+      bosTokenID: 0,
+      eosTokenID: 1,
+      padTokenID: 0,
+    },
+    tags: ["feature-extraction", "t5"],
+    referenceURL:
+      "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
+  });
+  log(
+    await (result.model as FeatureExtractionModel).process([
+      "I eat apple",
+      "I consume fruit",
+    ])
+  );
 }
 
 let cacheObj: Cache;
 
-async function getCacheObject(): Promise<Cache> {
+async function getCacheStore(): Promise<Cache> {
   if (!cacheObj) cacheObj = await caches.open("sutysisku");
 
   return cacheObj;
 }
 
 async function getOrFetchResource(url: string) {
-  const match = await (await getCacheObject()).match(url);
+  const match = await (await getCacheStore()).match(url);
   if (match) return match.json();
   const response = await fetch(url);
   if (response.ok) {

@@ -1,8 +1,5 @@
 * huggingface lojban-tts stopped working
 * restore socket.io
-* restore corpus-downloader
-    * muplis with voy embeddings
-    * normal langs
 * bundle size & speed
     * https://www.npmjs.com/package/brotli-unicode
     * remove second query when no results
@@ -12,14 +9,33 @@
     * separate tiles by size
 * show language+mode flags in history line
 * restore feedback
-* check resize window handling
 * skicu before loading - optimize app loading speed
+* restore corpus-downloader
+    * muplis with sentence embeddings
+        * embeddings pregeneration script for all muplis and english sentences into z
+    * normal langs
+    * pregeneration script
+    * package lojban-corpus-downloader
+        * need api keys in config.json
+        * download muplis
+        * download uncll sentences db
+        * download DwE
+        * download jvs
+        * download propbank
+        * special command yarn update_db
+    * sisku=now script must take into account
+    * audio file generation script 
+        * add audio links
 * embeddings
-    * use sentence embeddings for fasstext
-    * new generator for fasttext without lz compression
+    * add embeddings to muplis generation
+    * add embeddingsto normal dict generation
+        * replace $$, {} to <MASK>
+    * input -> to using embedding
+    * comment out fasttext
+    * (?) use sentence embeddings for fasttext
+    * (?) new generator for fasttext without lz compression
     * preload embeddings unwrapped
     * preload embeddings
-    * embeddings pregeneration script for all muplis and english sentences into z
     * loading bar improve embeddings and initial preload messaging
 * simplify sql query
     * merge with muplis
@@ -34,27 +50,24 @@
         * the second result are top 10 results from muplis. lazy loading
         * on click switch to phrases mode
 
-* pregeneration script
-    * sisku=now script must take into account
-    * audio file generation script 
-        * add audio links
-    * muplis generation
-
 * coi.js, Cache: files to cache
     * cross origin isolated is a must
         * implement reload
-* dasri - rework
-    mobile:
-    search line
-    buttons: language normal semsearch rimni selmaho
-    comment: additional links in this.language
-    comment: use regexp
-    history: 
-
-
-    desktop: search + buttons
+* rotation animation on search
+    * should gracefully stop rotating
 
 ## test
+* dasri - rework
+    * mobile:
+        search line
+        buttons: language normal semsearch rimni selmaho
+        comment: additional links in this.language
+        comment: use regexp
+        history: 
+    * desktop: search + buttons
+* mobile view fixes
+    * mobile only top bar not nice
+    * check resize window handling
 * better message for semantic/+/catni/rimni/fanva/selmaho search
 * search too slow
 * localize alert messages
@@ -73,7 +86,6 @@
 * on word change it is reset too early
 * from desktop to searching mode - what if empty search
 * clear button not working
-* rotation animation on search
 
 ## other
 
@@ -86,11 +98,3 @@
     * TODO: how to store config.json ?
     * for css files: use scss hardcoded variables
     * for js files import from json
-* package lojban-corpus-downloader
-    * need api keys in config.json
-    * download muplis
-    * download uncll sentences db
-    * download DwE
-    * download jvs
-    * download propbank
-    * special command yarn update_db
