@@ -11,6 +11,8 @@ const ImageMinimizerPlugin = require('image-minimizer-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const WasmPackPlugin = require('@wasm-tool/wasm-pack-plugin');
+const Dotenv = require('dotenv-webpack');
+
 const { PuppeteerPrerenderPlugin } = require('puppeteer-prerender-plugin');
 const prettier = require('prettier');
 
@@ -215,6 +217,7 @@ module.exports = (env, argv) => ({
       production: false,
       sql_buffer_mode: 'memory',
     }),
+    new Dotenv(),
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
     }),

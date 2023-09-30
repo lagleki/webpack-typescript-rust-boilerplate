@@ -10,9 +10,11 @@ import { parse } from "./template/cmaxes.js";
 import { WordEmbeddings, loadModel } from "./template/w2v/embeddings";
 import jsonTeJufra from "./template/tejufra.json";
 
-import decompress from "brotli/decompress";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { decompress } from "brotli-compress/js";
 import { Def, Dict, EmbeddingsFile, Searching } from "../types/index.js";
-import { blobChunkLength } from "../consts";
+import { blobChunkDefaultLength } from "../consts";
 import { log } from "../libs/logger";
 
 import { FeatureExtractionModel, ModelType } from "../libs/inference/text";
@@ -21,7 +23,6 @@ import { SimpleTextModel } from "../libs/inference/text/simpleTextModel";
 self.postMessage({ kind: "loading" });
 
 let sql_buffer_mode: string, production: string;
-
 const aQueue = new AutoQueue();
 
 self.onmessage = function (ev) {
@@ -200,9 +201,7 @@ async function getOrFetchResource(url: string) {
     const blob = await response.arrayBuffer();
     log("loaded embeddings");
 
-    const decompressedData = Buffer.from(
-      decompress(Buffer.from(blob))
-    ).toString();
+    const decompressedData = new TextDecoder().decode(await decompress(Buffer.from(blob)));
     log("decompressed embeddings");
     const newResponse = new Response(decompressedData);
     cacheObj.put(url, newResponse);
@@ -214,7 +213,7 @@ async function getOrFetchResource(url: string) {
 async function runMigrations() {
   log("sql migrations");
   await sql(
-    `CREATE TABLE IF NOT EXISTS valsi (d text,n text,w text,r text,bangu text,s text,t text,g text,cache text,b text,z text);`
+    `CREATE TABLE IF NOT EXISTS valsi (d text,n text,w text,r text,bangu text,s text,t text,g text,cache text,b text,v text,z text);`
   );
   await sql(
     `CREATE TABLE IF NOT EXISTS langs_ready (bangu TEXT, timestamp TEXT)`
@@ -404,7 +403,7 @@ const fancu = {
         let response;
         try {
           response = await fetch(
-            `/data/versio.json?sisku=${new Date().getTime()}`
+            `${process.env.DUMPS_URL_ROOT}/versio.json?sisku=${new Date().getTime()}`
           );
         } catch (error) {
           log(
@@ -416,18 +415,20 @@ const fancu = {
           return;
         }
 
-        let json: Dict = {};
+        let jsonVersio: Dict = {};
         if (response?.ok) {
-          json = await response.json();
+          jsonVersio = await response.json();
 
           for (const lang of sufficientLangs(searching)) {
+            const langHash = jsonVersio[lang];
+            if (!langHash) continue;
             let count = 0;
             if (!forceAll) {
               count =
                 (
                   await sql(
                     `SELECT count(*) as klani FROM langs_ready where bangu=? and timestamp=?`,
-                    [lang, json[lang]]
+                    [lang, langHash]
                   )
                 )?.[0]?.klani ?? 0;
             }
@@ -443,7 +444,7 @@ const fancu = {
               cb,
               langsToUpdate,
               searching,
-              json
+              jsonVersio
             );
             log({
               event: "Database updated",
@@ -465,7 +466,7 @@ const fancu = {
         const lang = searching.bangu || "en";
         let json: Dict = {};
         const response = await fetch(
-          `/data/versio.json?sisku=${new Date().getTime()}`
+          `${process.env.DUMPS_URL_ROOT}/versio.json?sisku=${new Date().getTime()}`
         );
         if (response.ok) {
           json = await response.json();
@@ -598,7 +599,7 @@ async function cnino_sorcu(
   cb: any,
   langsToUpdate: string[],
   searching: Searching,
-  json: Dict
+  jsonVersio: Dict
 ) {
   langsToUpdate = [...new Set(langsToUpdate)];
   await jufra({ bapli: true });
@@ -644,21 +645,23 @@ async function cnino_sorcu(
       totalRows: 100,
       bangu: lang,
     });
-    for (let i = 0; i < blobChunkLength; i++) {
+    const langHash = jsonVersio[lang];
+    if (!langHash) continue;
+    const lenLangChunks = langHash.split("-")[1] ?? blobChunkDefaultLength;
+
+    for (let i = 0; i < lenLangChunks; i++) {
       cb(`downloading ${lang}-${i}.bin dump`);
-      const url = `/data/parsed-${lang}-${i}.bin?sisku=${new Date().getTime()}`;
+      const url = `${process.env.DUMPS_URL_ROOT}/parsed/parsed-${lang}-${i}.bin?sisku=${new Date().getTime()}`;
       const response = await fetch(url);
       let json;
       if (response.ok) {
         const blob = await response.arrayBuffer();
 
-        const decompressedData = Buffer.from(
-          decompress(Buffer.from(blob))
-        ).toString();
+        const decompressedData = new TextDecoder().decode(await decompress(Buffer.from(blob)));
         json = JSON.parse(decompressedData);
 
         let rows = json.data.data[0].rows;
-        const totalRows = json.data.tables[0].rowCount * blobChunkLength;
+        const totalRows = json.data.tables[0].rowCount * lenLangChunks;
 
         const chunkSize = 1000;
         const all_rows = rows.length;
@@ -710,14 +713,14 @@ async function cnino_sorcu(
     const savedLang = (
       await sql(
         `SELECT count(*) as klani FROM langs_ready where bangu=? and timestamp=?`,
-        [lang, json[lang]]
+        [lang, langHash]
       )
     )?.[0]?.klani;
 
     if (!savedLang) {
       await sql(`insert into langs_ready (bangu,timestamp) values(?,?)`, [
         lang,
-        json[lang],
+        langHash,
       ]);
     }
     cb(`imported ${lang}-*.bin files at ${new Date().toISOString()}`);

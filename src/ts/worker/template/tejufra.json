@@ -115,7 +115,7 @@
         "valsr": {
           "url": "https://la-lojban.github.io/valsr/",
           "title": "«Guess the word» game",
-          "picture": "/assets/pixra/valsr.png"
+          "picture": "/assets/pixra/valsr.svg"
         }
       },
       {
@@ -137,7 +137,7 @@
     "Live chat for your questions": "Live chat for your questions",
     "la muplis": "la muplis - useful phrases",
     "alerts": {
-      "cnano": "Search for words similar in meaning (uses word embeddings)",
+      "cnano": "Search for words similar in meaning (use word vector embeddings)",
       "rimni": "Search for rhymes to the given query",
       "catni": "Search for words and their parts, prioritize official words",
       "fanva": "Show definitions of the word in all fetched languages",
@@ -170,7 +170,7 @@
   },
   "ru": {
     "alerts": {
-      "cnano-smuni": "Поиск слов с похожим значением (использует векторные представления слов)",
+      "cnano-smuni": "Поиск слов с похожим значением (используя векторные представления слов)",
       "cnano": "Поиск с равным приоритетом официальных и неофициальных слов",
       "rimni": "Поиск рифм к данному запросу",
       "catni": "Поиск слов и их частей, с приоритетом официальных слов",
@@ -244,7 +244,7 @@
         "valsr": {
           "url": "https://la-lojban.github.io/valsr/",
           "title": "Jeu « Devinez le mot »",
-          "picture": "/assets/pixra/valsr.png"
+          "picture": "/assets/pixra/valsr.svg"
         }
       },
       {
@@ -258,7 +258,7 @@
   },
   "eo": {
     "alerts": {
-      "cnano-smuni": "Serĉi vortojn similan en signifo (uzas vorto-emfazadojn)",
+      "cnano-smuni": "Serĉi vortojn similan en signifo (uzante vorto-emfazadojn)",
       "cnano": "Serĉi kun egala prioritato de neoficialaj kaj oficialaj vortoj",
       "rimni": "Serĉi rimojn al la donita peto",
       "catni": "Serĉi vortojn kaj iliajn partojn, doni prioritaton al oficialaj vortoj",
@@ -285,7 +285,7 @@
   },
   "es": {
     "alerts": {
-      "cnano-smuni": "Buscar palabras similares en significado (utiliza incrustaciones de palabras)",
+      "cnano-smuni": "Buscar palabras similares en significado (utilizar incrustaciones de palabras)",
       "cnano": "Búsqueda con igual prioridad de palabras no oficiales y oficiales",
       "rimni": "Buscar rimas para la consulta dada",
       "catni": "Buscar palabras y sus partes, priorizando palabras oficiales",

@@ -394,6 +394,7 @@ async function checkScrolledNearBottom({ target }: Event) {
 }
 
 function addJvoPlumbs() {
+  clearTimeout(stateOutsideComponents.scrollJvoTimer);
   removePlumbs();
   stateOutsideComponents.scrollJvoTimer = setTimeout(() => {
     window.requestAnimationFrame(() => {
@@ -412,7 +413,7 @@ function addJvoPlumbs() {
         const targetIdComponents = target.id.split("_");
         const targetFinalIndex = targetIdComponents.slice(0, -1);
         const WeCanSeeThisElement = kahe_sezgana(target);
-        targetedEls.filter((startElement) => {
+        targetedEls.forEach((startElement) => {
           const startElIdComponents = startElement.id.split("_");
           const startElFinalIndexes = startElIdComponents.slice(0, -2);
           const startElVeljvoElements =
@@ -582,6 +583,9 @@ function setStateFromInput(event: Event): void {
 }
 
 window.addEventListener("hashchange", () => setStateFromUrl());
+window.addEventListener('resize', ()=> {
+  addJvoPlumbs();
+});
 
 //always show dasri thats all
 component(
@@ -774,12 +778,12 @@ component(
         stateLoading.href
           ? h("a.bangu_loading.loading_elems", {
               innerText: stateLoading.innerText,
-              class: stateLoading.hideProgress ? ["simple"] : [],
+              // class: stateLoading.hideProgress ? ["simple"] : [],
               href: stateLoading.href,
             })
           : h("div.bangu_loading.loading_elems", {
               innerText: stateLoading.innerText,
-              class: stateLoading.hideProgress ? ["simple"] : [],
+              // class: stateLoading.hideProgress ? ["simple"] : [],
             }),
         h(
           "div#cpacu.loading_elems",
@@ -949,8 +953,8 @@ component(
       ) {
         const content = document.getElementById("contentWrapper");
         if (content) content.scrollTop = 0;
-        addJvoPlumbs();
       }
+      addJvoPlumbs();
 
       document
         .getElementById("ciska")
@@ -977,7 +981,7 @@ const outpBlock = async ({ inFetching }: { inFetching: boolean }) => {
     },
     // !inFetching &&
     messageAlert &&
-      h("div.term.noselect.nasezvafahi", {
+      h(`div.term.noselect.nasezvafahi.alert-${state.displaying.seskari}.alert-block`, {
         innerText: messageAlert,
       }),
     h("div", ...results)
@@ -1301,6 +1305,7 @@ function convertMathStringToHtml({
   placeTag,
   dataArrAdded,
   stringifiedPlaceTags,
+  stringifiedSubDefPlaceTags,
   moreAttributes,
 }: {
   iterTerbricmiId: number;
@@ -1311,15 +1316,17 @@ function convertMathStringToHtml({
   placeTag: string;
   dataArrAdded: string[];
   stringifiedPlaceTags: string[];
+  stringifiedSubDefPlaceTags: string[];
   moreAttributes?: Dict;
 }): {
   span: HTMLSpanElement;
   stringifiedPlaceTags: string[];
+  stringifiedSubDefPlaceTags: string[];
   iterTerbricmiId: number;
 } {
   iterTerbricmiId++;
   const combInd = `${index}_${iterTerbricmiId}`;
-
+  const level = combInd.split("_").length;
   if (type === "d") jsonIds.push({ [placeTag]: combInd });
   const clearedPlaceTag = placeTag.replace(/[^a-zA-Z0-9]/g, "");
   const isHead = (fullDef.rfs || []).length > 0;
@@ -1332,8 +1339,16 @@ function convertMathStringToHtml({
     clearedPlaceTag,
   });
   const stringifiedPlaceTag = objectVeljvoReplacement.stringifiedPlaceTag;
-  if (!stringifiedPlaceTags.includes(stringifiedPlaceTag))
+  let newPlacetagType = false;
+  let newSubPlacetagType = false;
+  if (!stringifiedPlaceTags.includes(stringifiedPlaceTag)) {
     stringifiedPlaceTags.push(stringifiedPlaceTag);
+    newPlacetagType = true;
+  }
+  if (level > 2 && !stringifiedSubDefPlaceTags.includes(stringifiedPlaceTag)) {
+    stringifiedSubDefPlaceTags.push(stringifiedPlaceTag);
+    newSubPlacetagType = true;
+  }
   const number = stringifiedPlaceTags.indexOf(stringifiedPlaceTag);
   const replacementTag = isHead
     ? objectVeljvoReplacement.replacement
@@ -1350,7 +1365,9 @@ function convertMathStringToHtml({
     },
     attributes: {
       "data-arr":
-        objectVeljvoReplacement.dataArr && type === "d"
+        objectVeljvoReplacement.dataArr &&
+        type === "d" &&
+        (newPlacetagType || newSubPlacetagType)
           ? stringifiedPlaceTag
           : null,
       "data-color": !isHead ? number2ColorHue(number) : null,
@@ -1358,7 +1375,12 @@ function convertMathStringToHtml({
     },
   });
   katex.render(replacementTag.replace(/^\$/, "").replace(/\$$/, ""), span);
-  return { span, iterTerbricmiId, stringifiedPlaceTags };
+  return {
+    span,
+    iterTerbricmiId,
+    stringifiedPlaceTags,
+    stringifiedSubDefPlaceTags,
+  };
 }
 
 function textToTaggedArray(
@@ -1409,6 +1431,7 @@ function melbi_uenzi({
   query,
   index,
   stringifiedPlaceTags,
+  stringifiedSubDefPlaceTags,
 }: {
   text: string | Dict;
   fullDef: Def;
@@ -1416,10 +1439,12 @@ function melbi_uenzi({
   type: string;
   index: string;
   stringifiedPlaceTags: string[];
+  stringifiedSubDefPlaceTags: string[];
 }): {
   tergeha: HTMLElement;
   hasExpansion: boolean;
   stringifiedPlaceTags?: string[];
+  stringifiedSubDefPlaceTags?: string[];
 } {
   const { bangu, seskari } = state.displaying;
   let hasExpansion = false;
@@ -1573,11 +1598,13 @@ function melbi_uenzi({
           jsonIds,
           placeTag: el.value,
           stringifiedPlaceTags,
+          stringifiedSubDefPlaceTags,
           type,
           moreAttributes,
         });
         iterTerbricmiId = convertedChunk.iterTerbricmiId;
         stringifiedPlaceTags = convertedChunk.stringifiedPlaceTags;
+        stringifiedSubDefPlaceTags = convertedChunk.stringifiedSubDefPlaceTags;
         return convertedChunk.span;
       } else if (el.type === regexTeXQuotation.tagName) {
         return h("code", { innerText: el.value.replace(/``(.*?)''/g, "$1") });
@@ -1632,24 +1659,12 @@ function melbi_uenzi({
       }
     });
 
-  // TODO
-  // .replace(
-  //   /(<span [^<>]+?>[^\(\)<>]+?<\/span>) \([^\(\)<>]*?\bproperty of <span .*?id="([^\(\)<>]+?)"[^<>]+?>([^\(\)<>]+?)<\/span>\)/g,
-  //   (c, _, id, t) => {
-  //     if (type === 'd') {
-  //       const a = jsonIds.filter((e) => e[t] !== id && e[t])
-  //       if (a[0] && a[0][t])
-  //         c = c.replace(/^<span /, `<span data-target="${a[0][t]}" `)
-  //     }
-  //     return c
-  //   }
-  // )
-
   // TODO: list of placetags
   return {
     tergeha: h("div", ...structuredDefinition),
     hasExpansion,
     stringifiedPlaceTags,
+    stringifiedSubDefPlaceTags,
   };
 }
 
@@ -1658,11 +1673,13 @@ async function skicu_paledovalsi({
   inner,
   index,
   stringifiedPlaceTags = [],
+  stringifiedSubDefPlaceTags = [],
 }: {
   def: Def;
   inner: boolean;
   index: string;
   stringifiedPlaceTags: string[];
+  stringifiedSubDefPlaceTags: string[];
 }) {
   if (
     def.bangu === "en-pixra" &&
@@ -1809,6 +1826,7 @@ async function skicu_paledovalsi({
     tergeha: HTMLElement;
     hasExpansion: boolean;
     stringifiedPlaceTags: string[];
+    stringifiedSubDefPlaceTags: string[];
   }> = {};
   if (def.d && !def.nasezvafahi)
     if (
@@ -1822,6 +1840,7 @@ async function skicu_paledovalsi({
         type: "d",
         index,
         stringifiedPlaceTags,
+        stringifiedSubDefPlaceTags,
       });
     } else {
       prettifiedDefinition = {
@@ -1835,10 +1854,14 @@ async function skicu_paledovalsi({
         }),
         hasExpansion: false,
         stringifiedPlaceTags,
+        stringifiedSubDefPlaceTags,
       };
     }
   if (prettifiedDefinition?.stringifiedPlaceTags)
     stringifiedPlaceTags = prettifiedDefinition.stringifiedPlaceTags;
+  if (prettifiedDefinition?.stringifiedSubDefPlaceTags)
+    stringifiedSubDefPlaceTags =
+      prettifiedDefinition.stringifiedSubDefPlaceTags;
 
   //<xuzganalojudri|lojbo>
   let zbalermorna;
@@ -1921,7 +1944,7 @@ async function skicu_paledovalsi({
   if (hasTranslateButton) {
     translateButton = h("a", {
       class: ["xp-btn", "tutci", "tutci-pixra"],
-      style: { "background-image": "url(/assets/pixra/terdi.svg)" },
+      style: { "background-image": "url(/assets/pixra/seskari/fanva.svg)" },
       href: buildURLParams(
         {
           ...state.displaying,
@@ -2119,6 +2142,7 @@ async function skicu_paledovalsi({
           type: "n",
           index,
           stringifiedPlaceTags,
+          stringifiedSubDefPlaceTags,
         }).tergeha
       )
     );
@@ -2203,6 +2227,7 @@ async function skicu_paledovalsi({
         inner: true,
         index: `${index}_${i}`,
         stringifiedPlaceTags,
+        stringifiedSubDefPlaceTags,
       });
       if (htmlElement) subDefs.appendChild(htmlElement);
     }
@@ -2321,6 +2346,7 @@ async function skicu_roledovalsi(): Promise<(HTMLDivElement | undefined)[]> {
           // length: state.results.length,
           inner: false,
           stringifiedPlaceTags: [],
+          stringifiedSubDefPlaceTags: [],
           index: index.toString(),
         });
         if (htmlTermBlock) acc.push(htmlTermBlock);

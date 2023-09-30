@@ -68,7 +68,7 @@ export const tiles = [
       picture: "/assets/pixra/selsku_lanci_zho.svg",
     },
   },
-  { loglan: { title: "Loglan", picture: "/assets/pixra/loglan.png" } },
+  { loglan: { title: "Loglan", picture: "/assets/pixra/loglan.svg" } },
 ];
 
 export const listFamymaho = {
@@ -196,7 +196,7 @@ export const regexTeXQuotation: RegexFlavours = {
   tagName: "TeX-quote",
 };
 
-export const blobChunkLength = 5;
+export const blobChunkDefaultLength = 5;
 
 export const cisn_default = 100;
 

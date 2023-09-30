@@ -1474,19 +1474,19 @@ user-select: none; */
 
 @keyframes horizontal-shaking {
   0% {
-    transform: translateX(0) skewX(-5deg);
+    transform: translateX(0) skewX(0deg);
   }
   25% {
-    transform: translateX(1px) skewX(-5deg);
+    transform: translateX(1px) skewX(3deg);
   }
   50% {
-    transform: translateX(-1px) skewX(-5deg);
+    transform: translateX(-1px) skewX(0deg);
   }
   75% {
-    transform: translateX(1px) skewX(-5deg);
+    transform: translateX(1px) skewX(-3deg);
   }
   100% {
-    transform: translateX(0) skewX(-5deg);
+    transform: translateX(0) skewX(0deg);
   }
 }
 
@@ -1872,7 +1872,7 @@ user-select: none; */
   }
 
   .catni-ralju-tutci {
-    display: none;
+    background: white url("../assets/pixra/seskari/catni.svg") no-repeat center;
   }
 
   .rimni-ralju-tutci {
@@ -1994,6 +1994,58 @@ user-select: none; */
     border-top: 0;
     height: 29px;
     margin: 5px 0 0 5px;
+  }
+
+  // .cnano-ralju-tutci {
+  //   background:
+  //     linear-gradient(
+  //       180deg,
+  //       rgba(205, 202, 195, 0.618) 0,
+  //       rgba(227, 227, 219, 0.618) 8%,
+  //       rgba(229, 229, 222, 0.618) 94%,
+  //       rgba(242, 242, 241, 0.618) 100%
+  //     ),
+  //     white url("../assets/pixra/seskari/cnano.svg") no-repeat right;
+  // }
+  // .tutci-hover.cnano-ralju-tutci {
+  //   background:
+  //     linear-gradient(rgba(255, 255, 255, 0.618), rgba(255, 255, 255, 0.618)),
+  //     white url("../assets/pixra/seskari/cnano.svg") no-repeat right;
+  // }
+
+  // .catni-ralju-tutci {
+  //   background: linear-gradient( rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5) ), white url("../assets/pixra/seskari/catni.svg") no-repeat right;
+  // }
+
+  // .rimni-ralju-tutci {
+  //   background: linear-gradient( rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5) ), white url("../assets/pixra/seskari/rimni.svg") no-repeat right;
+  // }
+
+  .alert-block {
+    padding-left: 3rem;
+  }
+  .alert-cnano {
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.618), rgba(255, 255, 255, 0.618)),
+      white url("../assets/pixra/seskari/cnano.svg") no-repeat 0.5rem/2rem;
+  }
+
+  .alert-catni {
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.382), rgba(255, 255, 255, 0.382)),
+      white url("../assets/pixra/seskari/catni.svg") no-repeat 0.5rem/2rem;
+  }
+
+  .alert-rimni {
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.382), rgba(255, 255, 255, 0.382)),
+      white url("../assets/pixra/seskari/rimni.svg") no-repeat 0.5rem/2rem;
+  }
+
+  .alert-fanva {
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.382), rgba(255, 255, 255, 0.382)),
+      white url("../assets/pixra/seskari/fanva.svg") no-repeat 0.5rem/2rem;
   }
 
   #clear {
