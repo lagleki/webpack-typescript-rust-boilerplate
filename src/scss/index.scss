@@ -116,7 +116,7 @@ blockquote {
   animation: granim 0.725s ease infinite;
 }
 
-.rotate {
+.carna {
   animation-duration: 1.45s;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
@@ -124,8 +124,10 @@ blockquote {
   animation-name: rotation;
 }
 
-.rotate.stopRotate {
-  animation-iteration-count: 1;
+.terdi.deha,
+.carna.deha {
+  animation-play-state: paused;
+  // animation-iteration-count: 1;
 }
 
 .pulsate-css {
@@ -798,43 +800,56 @@ a {
 }
 
 .loading {
-  display: flex;
-  flex-wrap: wrap;
   font-size: 90%;
   text-align: center;
   margin: 0;
-  // display: none;
-  justify-content: center;
-  align-items: center;
-  padding: 4px;
-  // height: 24px;
   width: 100%;
   top: 42px;
-  /* bottom: 0; */
   left: 0;
-  // position: relative;
   background: white;
   z-index: 199;
-  // border-bottom: 4px solid black;
   box-shadow:
     0 0px 0 1px $mupliskari1,
     0 1px 0 1px $mupliskari2,
     0 2px 0 1px $mupliskari3,
     0 3px 0 1px $mupliskari4;
+  padding-top: 4px;
+}
+
+.loading + .loading {
+  padding: 4px 0 4px 0;
+}
+
+.loading_container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  margin: auto;
+  max-width: min(700px, calc(100% - 10px));
+}
+
+.loading_container > div {
+  flex-grow: 0;
+}
+
+.loading_container > div:not(:first-child) {
+  margin-left: 5px;
+}
+
+.loading_container > div:last-child {
+  flex-grow: 1;
 }
 
 .loading_elems {
-  margin: 0 5px;
-  text-overflow: ellipsis;
-}
-
-.loading_elems.simple {
-  width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .bangu_loading {
   font-style: italic;
-  width: 48%;
+}
+
+.bangu_loading:not(:last-child) {
   text-align: right;
 }
 
@@ -1002,10 +1017,11 @@ sub {
 }
 
 .romoi_lehiseciska {
+  display: inline-block;
+  overflow: hidden;
   margin: 0 8px 0 0;
   font-style: italic;
   color: #888;
-  display: inline-block;
 }
 
 .tanxe {
@@ -1216,7 +1232,7 @@ user-select: none; */
 }
 
 #cpacu {
-  width: 48%;
+  // width: 48%;
   position: relative;
   display: block;
   background-color: #eee;
@@ -2060,5 +2076,33 @@ user-select: none; */
 
   #ciska {
     border-radius: 5px;
+  }
+}
+
+.terdi {
+  transform: rotate(-3.5deg);
+  width: 32px;
+  height: 32px;
+  background: url("../assets/pixra/ter.png");
+  border-radius: 50%;
+  background-size: 64px;
+  box-shadow:
+    inset 1px 2px 5px 0px rgb(0, 0, 0, 0.5),
+    inset -8px 0 13px 2px rgba(255, 255, 255, 0.3);
+
+  animation-name: carna_terdi;
+  animation-duration: 2.9s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+
+  animation-play-state: running;
+}
+
+@keyframes carna_terdi {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 64px 0;
   }
 }

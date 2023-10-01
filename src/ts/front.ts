@@ -583,7 +583,7 @@ function setStateFromInput(event: Event): void {
 }
 
 window.addEventListener("hashchange", () => setStateFromUrl());
-window.addEventListener('resize', ()=> {
+window.addEventListener("resize", () => {
   addJvoPlumbs();
 });
 
@@ -626,7 +626,7 @@ component(
             "div",
             h("input#ciska", {
               class: inFetching ? ["granim-css", "in-fetching"] : [],
-              "aria-label": stateLeijufra.cnano,
+              "aria-label": stateLeijufra.seskari.cnano,
               required: true,
               placeholder: stateLeijufra.bangusisku,
               spellcheck: "false",
@@ -687,7 +687,7 @@ component(
                       : []),
                   ],
                 },
-                h("span", { textContent: stateLeijufra[seskari] })
+                h("span", { textContent: stateLeijufra.seskari[seskari] })
               )
             )
           ),
@@ -708,9 +708,9 @@ component(
                 }-mode-title-color`,
               ],
             },
-            h("img", {
-              src: "/assets/pixra/bangu.svg",
-              class: inFetching ? ["rotate"] : ["rotate", "stopRotate"],
+            h("div.terdi", {
+              // src: "/assets/pixra/bangu.svg",
+              class: inFetching ? [] : ["deha"],
               style:
                 state.displaying.seskari === "rimni"
                   ? { filter: "sepia(1.0)" }
@@ -772,33 +772,33 @@ component(
           });
         })
       ),
-      h(
+      stateLoading.loading && h(
         "div#loading.loading.noselect",
-        { class: stateLoading.loading ? [] : ["d-none"] },
-        stateLoading.href
-          ? h("a.bangu_loading.loading_elems", {
-              innerText: stateLoading.innerText,
-              // class: stateLoading.hideProgress ? ["simple"] : [],
-              href: stateLoading.href,
-            })
-          : h("div.bangu_loading.loading_elems", {
-              innerText: stateLoading.innerText,
-              // class: stateLoading.hideProgress ? ["simple"] : [],
-            }),
         h(
-          "div#cpacu.loading_elems",
-          { class: stateLoading.hideProgress ? ["d-none"] : ["d-block"] },
-          h("span#kernelo_lo_cpacu", {
-            style: {
-              width: `${Math.min(
-                100,
-                Math.max(
-                  10,
-                  (stateLoading.completedRows * 100) / stateLoading.totalRows
-                )
-              )}%`,
-            },
-          })
+          "div.loading_container",
+          stateLoading.innerText &&
+            (stateLoading.href
+              ? h("a.bangu_loading.loading_elems", {
+                  innerText: stateLoading.innerText,
+                  href: stateLoading.href,
+                })
+              : h("div.bangu_loading.loading_elems", {
+                  innerText: stateLoading.innerText,
+                })),
+          !stateLoading.hideProgress && h(
+            "div#cpacu.loading_elems",
+            h("span#kernelo_lo_cpacu", {
+              style: {
+                width: `${Math.min(
+                  100,
+                  Math.max(
+                    10,
+                    (stateLoading.completedRows * 100) / stateLoading.totalRows
+                  )
+                )}%`,
+              },
+            })
+          )
         )
       ),
       // stateLoading.loading === false &&
@@ -981,9 +981,12 @@ const outpBlock = async ({ inFetching }: { inFetching: boolean }) => {
     },
     // !inFetching &&
     messageAlert &&
-      h(`div.term.noselect.nasezvafahi.alert-${state.displaying.seskari}.alert-block`, {
-        innerText: messageAlert,
-      }),
+      h(
+        `div.term.noselect.nasezvafahi.alert-${state.displaying.seskari}.alert-block`,
+        {
+          innerText: messageAlert,
+        }
+      ),
     h("div", ...results)
   );
 };
