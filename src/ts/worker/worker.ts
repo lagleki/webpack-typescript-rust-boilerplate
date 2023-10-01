@@ -167,7 +167,7 @@ async function initSQLDB() {
     ]),
     outputNames: new Map<string, string>([["encoder", "last_hidden_state"]]),
     tokenizerPath:
-      "/data/mini-lm-v2-quant.tokenizer.brotli",
+      "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json",
     tokenizerParams: {
       bosTokenID: 0,
       eosTokenID: 1,

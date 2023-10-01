@@ -34,7 +34,7 @@ export class Session {
     const extension = modelPath.split(".").pop();
     let blob = await fetch(modelPath).then((resp) => resp.arrayBuffer());
     if (extension === "brotli") {
-      return await decompress(Buffer.from(blob));
+      return Buffer.from(await decompress(Buffer.from(blob)));
     }
     return blob;
   };
