@@ -91,6 +91,7 @@
     "> 5%"
   ],
   "dependencies": {
+<<<<<<< Updated upstream
     "@sutysisku/renderer": "^1.0.8",
     "@tensorflow/tfjs": "^3.21.0",
     "@tensorflow/tfjs-backend-wasm": "^3.21.0",
@@ -103,5 +104,8 @@
     "onnxruntime-web": "^1.16.0",
     "socket.io-client": "^4.7.2",
     "webpack-merge": "^5.9.0"
+=======
+    "@sutysisku/renderer": "^1.0.4"
+>>>>>>> Stashed changes
   }
 }

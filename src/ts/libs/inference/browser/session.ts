@@ -2,6 +2,7 @@ import * as ort from "onnxruntime-web";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { decompress } from "brotli-compress/js";
+import * as pako from "pako";
 import { SessionParameters } from "../common";
 
 export class Session {
@@ -35,6 +36,8 @@ export class Session {
     let blob = await fetch(modelPath).then((resp) => resp.arrayBuffer());
     if (extension === "brotli") {
       return Buffer.from(await decompress(Buffer.from(blob)));
+    }else if (extension==='gz'){
+      return pako.inflate(blob);
     }
     return blob;
   };
