@@ -143,8 +143,8 @@
       "bauledrata": "la sutysisku in other languages:"
     },
     "seskari": {
-      "catni": "search+",
-      "cnano": "precise",
+      "catni": "precise",
+      "cnano": "search+",
       "velcusku": "chat",
       "arxivo": "archive",
       "rimni": "rhymes"
@@ -193,8 +193,8 @@
     "lojbo": true,
     "kunti": "Очистить",
     "seskari": {
-      "catni": "поиск",
-      "cnano": "точный",
+      "cnano": "поиск",
+      "catni": "точный",
       "velcusku": "чат",
       "arxivo": "архив",
       "rimni": "рифмы"
@@ -310,8 +310,8 @@
       "bauledrata": "la sutysisku en otros idiomas:"
     },
     "seskari": {
-      "catni": "búsqueda+",
-      "cnano": "preciso",
+      "cnano": "búsqueda+",
+      "catni": "preciso",
       "velcusku": "charla",
       "arxivo": "archivo",
       "rimni": "rimas"
@@ -343,8 +343,8 @@
       "bauledrata": "他の言語で la sutysisku：を表示します"
     },
     "seskari": {
-      "catni": "検索+",
-      "cnano": "探す",
+      "cnano": "検索+",
+      "catni": "探す",
       "velcusku": "チャット",
       "arxivo": "アーカイブ",
       "rimni": "韻探索"
@@ -368,8 +368,8 @@
   "jbo": {
     "alerts": {},
     "seskari": {
-      "catni": "satci",
-      "cnano": "sisku",
+      "cnano": "satci",
+      "catni": "sisku",
       "velcusku": "ve cusku",
       "arxivo": "arxivo",
       "rimni": "rimni"
@@ -382,12 +382,10 @@
     "bangu": "lojban",
     "xuzganalojudri": "true",
     "lojbo": true,
-    "catni": "sisku",
     "kunti": "jai gau kunti",
     "pron_guide": "tadji le nu bacru le lance",
     "la muplis": "xamgu jufra do'e la muplis",
     "nasezvafahi": ".i no da se zvafa'i",
-    "rimni": "rimni",
     "bangubuild": "ca'o zbasu lo indice",
     "bangudecomp": "te katna",
     "judri": "http://jbovlaste.lojban.org/dict/",
@@ -413,7 +411,6 @@
     "gradpos3": "51%",
     "gradpos4": "100%",
     "lojbo": true,
-    "catni": "sisku",
     "favicon": "/assets/pixra/plise.svg",
     "icon16": "/assets/pixra/plise.svg",
     "icon32": "/assets/pixra/plise.svg",
@@ -446,8 +443,8 @@
       "bauledrata": "在其他语言中显示la sutysisku："
     },
     "seskari": {
-      "catni": "搜索+",
-      "cnano": "精确",
+      "cnano": "搜索+",
+      "catni": "精确",
       "velcusku": "聊天",
       "arxivo": "存档",
       "rimni": "押韵"

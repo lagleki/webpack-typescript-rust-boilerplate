@@ -1,5 +1,6 @@
+* check all TODO
 * the CLL in markdown
-* versio.json: restore corpus-downloader
+* restore corpus-downloader
     * pack it to a ci/cd app, run every week
     * muplis with sentence embeddings
         * embeddings pregeneration script for all muplis and english sentences into z
@@ -12,7 +13,7 @@
         * add audio links
 * versio.json is used to check which files from dumps need to be updated
 * tcini.json is used to check which files from sutysisku need to be updated
- * two renders of same word when switching between words
+* two renders of same word when switching between words
 * huggingface lojban-tts stopped working
 * restore socket.io
 * bundle size & speed
@@ -48,7 +49,6 @@
         * we have phrases mode for english only
         * the second result are top 10 results from muplis. lazy loading
         * on click switch to phrases mode
-
 * coi.js, Cache: files to cache
     * cross origin isolated is a must
         * implement reload

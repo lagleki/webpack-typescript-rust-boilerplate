@@ -1,5 +1,7 @@
 import * as ort from "onnxruntime-web";
-import * as pako from "pako";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { decompress } from "brotli-compress/js";
 import { SessionParameters } from "../common";
 
 export class Session {
@@ -18,8 +20,8 @@ export class Session {
     ort.env.wasm.wasmPaths = this.params.wasmRoot;
     let modelData: ArrayBuffer = new ArrayBuffer(0);
     //TODO: add add cache handling
-      modelData = await this.fetchData(modelPath);
-    
+    modelData = await this.fetchData(modelPath);
+
     const session = await ort.InferenceSession.create(modelData, {
       executionProviders: this.params.executionProviders,
       graphOptimizationLevel: "all",
@@ -30,11 +32,11 @@ export class Session {
 
   fetchData = async (modelPath: string): Promise<ArrayBuffer> => {
     const extension = modelPath.split(".").pop();
-    let modelData = await fetch(modelPath).then((resp) => resp.arrayBuffer());
-    if (extension === "gz") {
-      modelData = pako.inflate(modelData);
+    let blob = await fetch(modelPath).then((resp) => resp.arrayBuffer());
+    if (extension === "brotli") {
+      return await decompress(Buffer.from(blob));
     }
-    return modelData;
+    return blob;
   };
 
   run = async (

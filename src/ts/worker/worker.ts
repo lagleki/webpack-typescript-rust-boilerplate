@@ -162,12 +162,12 @@ async function initSQLDB() {
     modelPaths: new Map<string, string>([
       [
         "encoder",
-        "https://web-ai-models.org/text/feature-extraction/miniLM-v2/model-quant.onnx.gz",
+        "/data/mini-lm-v2-quant.brotli",
       ],
     ]),
     outputNames: new Map<string, string>([["encoder", "last_hidden_state"]]),
     tokenizerPath:
-      "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json",
+      "/data/mini-lm-v2-quant.tokenizer.brotli",
     tokenizerParams: {
       bosTokenID: 0,
       eosTokenID: 1,

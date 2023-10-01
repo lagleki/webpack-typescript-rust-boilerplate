@@ -1,11 +1,5 @@
 import { TextMetadata } from "./metadata";
-import {
-  Tensor,
-  Session,
-  Encoder,
-  GeneratorType,
-  Tokenizer,
-} from "../common";
+import { Tensor, Session, Encoder, GeneratorType } from "../common";
 import * as ort from "onnxruntime-common";
 import { TextProcessingResult } from "./interfaces";
 import { BaseTextModel } from "./base";
