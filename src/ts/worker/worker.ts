@@ -162,7 +162,7 @@ async function initSQLDB() {
     modelPaths: new Map<string, string>([
       [
         "encoder",
-        "/data/mini-lm-v2-quant.brotli",
+        "/data/mini-lm-v2-quant.gz",
       ],
     ]),
     outputNames: new Map<string, string>([["encoder", "last_hidden_state"]]),

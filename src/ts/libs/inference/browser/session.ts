@@ -36,7 +36,7 @@ export class Session {
     let blob = await fetch(modelPath).then((resp) => resp.arrayBuffer());
     if (extension === "brotli") {
       return Buffer.from(await decompress(Buffer.from(blob)));
-    }else if (extension==='gz'){
+    } else if (extension==='gz') {
       return pako.inflate(blob);
     }
     return blob;
