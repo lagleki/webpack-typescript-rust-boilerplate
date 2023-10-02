@@ -475,6 +475,7 @@ code {
 
 #se-vasru-lo-galtu-dasri {
   max-width: 700px;
+  width: 100%;
   margin-left: auto;
   margin-right: auto;
   position: relative;
@@ -485,11 +486,11 @@ code {
   align-items: center;
 }
 
-#se-vasru-lo-galtu-dasri > * {
-  margin-top: -1px;
-}
+// #se-vasru-lo-galtu-dasri > * {
+//   margin-top: -1px;
+// }
 
-#site-title img {
+.hat-button img {
   height: 32px;
   width: 32px;
 }
@@ -506,10 +507,13 @@ code {
     to top right,
     // hsl(231, 48%, 48%) 0,
     // hsl(208, 96%, 44%) 40%,
-    hsl(123, 46%, 45%) 33%,
-    hsl(130, 48%, 51%) 50%,
-    hsl(131, 42%, 51%) 66%
+    hsl(123, 46%, 65%) 33%,
+    hsl(130, 48%, 71%) 50%,
+    hsl(131, 42%, 71%) 66%
   );
+  // background: rgb(210, 210, 255);
+  // background: rgb(1, 1, 74);
+
   box-shadow: 1px 1px 10px hsl(202, 98%, 37%);
 
   // box-shadow: 0px 5px 10px #79ce71 inset, 4px 0 8px #3f8cf3;
@@ -557,6 +561,44 @@ code {
 
 .velcusku-search-mode-title-color #logo {
   filter: hue-rotate(45deg);
+}
+
+.terdi {
+  transform: rotate(-3.5deg);
+  width: 32px;
+  height: 32px;
+  background: url("../assets/pixra/ter.png");
+  border-radius: 50%;
+  background-size: 64px;
+  box-shadow:
+    inset 1px 2px 5px 0px rgb(0, 0, 0, 0.5),
+    inset -8px 0 13px 2px rgba(255, 255, 255, 0.3) // 0 0 3px 2px #000
+;
+
+  animation-name: carna_terdi;
+  animation-duration: 2.9s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+
+  animation-play-state: running;
+}
+
+@keyframes carna_terdi {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 64px 0;
+  }
+}
+
+.velcusku-search-mode-title-color .terdi,
+.rimni-search-mode-title-color .terdi,
+.selmaho-search-mode-title-color .terdi,
+.fanva-search-mode-title-color .terdi,
+.cnano-search-mode-title-color .terdi,
+.catni-search-mode-title-color .terdi {
+  outline: #333 solid 1px;
 }
 
 #ciska {
@@ -616,7 +658,7 @@ code {
 }
 
 #galtu-dasri {
-  flex: none;
+  display: flex;
   z-index: 200;
 }
 
@@ -1926,7 +1968,7 @@ user-select: none; */
     line-height: 150%;
   }
 
-  #title > #site-title > img:nth-child(1) ~ img {
+  #title > .hat-button > img:nth-child(1) ~ img {
     display: none;
   }
 
@@ -1945,18 +1987,18 @@ user-select: none; */
     padding-right: 22px;
   }
 
-  #site-title {
-    transform: skewX(3deg);
+  .hat-button {
+    // transform: skewX(3deg);
     // margin-top: -1px;
     font-size: 18px;
     font-weight: bold;
     // float: left;
-    border-radius: 0.5em 0 0 0.5em;
+    border-radius: 10.5em 0 0 10.5em;
     border-color: #333;
     border-width: 1px 0 1px 1px;
     border-style: solid;
     height: 16px;
-    padding: 12px 12px 14px 10px;
+    padding: 13px 12px 13px 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1966,8 +2008,8 @@ user-select: none; */
 
 //510+
 @media screen and (min-width: 610px) {
-  #site-title {
-    transform: skewX(-3deg);
+  .hat-button {
+    // transform: skewX(-3deg);
 
     // margin-top: -1px;
     font-size: 18px;
@@ -1978,7 +2020,7 @@ user-select: none; */
     border-width: 0 1px 1px 1px;
     border-style: solid;
     height: 19px;
-    padding: 12px 10px 14px 10px;
+    padding: 13px 10px 13px 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -2079,30 +2121,3 @@ user-select: none; */
   }
 }
 
-.terdi {
-  transform: rotate(-3.5deg);
-  width: 32px;
-  height: 32px;
-  background: url("../assets/pixra/ter.png");
-  border-radius: 50%;
-  background-size: 64px;
-  box-shadow:
-    inset 1px 2px 5px 0px rgb(0, 0, 0, 0.5),
-    inset -8px 0 13px 2px rgba(255, 255, 255, 0.3);
-
-  animation-name: carna_terdi;
-  animation-duration: 2.9s;
-  animation-iteration-count: infinite;
-  animation-timing-function: linear;
-
-  animation-play-state: running;
-}
-
-@keyframes carna_terdi {
-  from {
-    background-position: 0 0;
-  }
-  to {
-    background-position: 64px 0;
-  }
-}

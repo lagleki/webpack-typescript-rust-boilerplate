@@ -1,6 +1,8 @@
 import * as ort from "onnxruntime-web";
-import * as pako from "pako";
 import { SessionParameters } from "../common";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { decompress } from "brotli-compress/js";
 
 export class Session {
   ortSession: ort.InferenceSession | undefined;
@@ -18,8 +20,8 @@ export class Session {
     ort.env.wasm.wasmPaths = this.params.wasmRoot;
     let modelData: ArrayBuffer = new ArrayBuffer(0);
     //TODO: add add cache handling
-      modelData = await this.fetchData(modelPath);
-    
+    modelData = await this.fetchData(modelPath);
+
     const session = await ort.InferenceSession.create(modelData, {
       executionProviders: this.params.executionProviders,
       graphOptimizationLevel: "all",
@@ -30,11 +32,8 @@ export class Session {
 
   fetchData = async (modelPath: string): Promise<ArrayBuffer> => {
     const extension = modelPath.split(".").pop();
-    let modelData = await fetch(modelPath).then((resp) => resp.arrayBuffer());
-    if (extension === "gz") {
-      modelData = pako.inflate(modelData);
-    }
-    return modelData;
+    let blob = await fetch(modelPath).then((resp) => resp.arrayBuffer());
+    return Buffer.from(await decompress(Buffer.from(blob)));
   };
 
   run = async (

@@ -692,7 +692,7 @@ component(
             )
           ),
           h(
-            "span#site-title",
+            "span.hat-button",
             {
               click: () => {
                 stateLoading.showDesktop = true;

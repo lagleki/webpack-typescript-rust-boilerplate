@@ -1,5 +1,15 @@
 import init, { WasmTokenizer } from "@visheratin/tokenizers";
 import { SessionParams } from "./sessionParams";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { decompress } from "brotli-compress/js";
+
+function typedArrayToBuffer(array: Uint8Array): ArrayBuffer {
+  return array.buffer.slice(
+    array.byteOffset,
+    array.byteLength + array.byteOffset
+  );
+}
 
 export class Tokenizer {
   instance: WasmTokenizer | undefined;
@@ -9,10 +19,19 @@ export class Tokenizer {
     this.tokenizerPath = tokenizerPath;
   }
 
+  fetchData = async (modelPath: string): Promise<any> => {
+    let blob: any = await fetch(modelPath).then((resp) => resp.arrayBuffer());
+    blob = await decompress(Buffer.from(blob));
+    blob = Buffer.from(typedArrayToBuffer(blob));
+    blob = JSON.parse(blob);
+    blob = JSON.parse(blob);
+
+    return blob;
+  };
+
   async init() {
     await init(SessionParams.tokenizersPath);
-    const response = await fetch(this.tokenizerPath);
-    const tokenizerData = await response.json();
+    const tokenizerData = await this.fetchData(this.tokenizerPath);
     tokenizerData["padding"] = null;
     this.instance = new WasmTokenizer(JSON.stringify(tokenizerData));
   }
