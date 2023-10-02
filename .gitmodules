@@ -1,0 +1,3 @@
+[submodule "src/ts/libs/wa-sqlite"]
+	path = src/ts/libs/wa-sqlite
+	url = https://github.com/rhashimoto/wa-sqlite.git
