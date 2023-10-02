@@ -35,7 +35,7 @@
     "comlink": "^4.4.1",
     "katex": "^0.16.8",
     "lz-string": "^1.5.0",
-    "onnxruntime-web": "^1.15.1",
+    "onnxruntime-web": "^1.16.0",
     "socket.io-client": "^4.7.2"
   },
   "devDependencies": {
