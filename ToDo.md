@@ -1,5 +1,6 @@
 * check all TODO
 * the CLL in markdown
+* cannot change query word while still loading
 * restore corpus-downloader
     * pack it to a ci/cd app, run every week
     * muplis with sentence embeddings
@@ -11,6 +12,7 @@
         * download propbank
     * audio file generation script 
         * add audio links
+            * ci/cd should first download from vreji/polly in itself, otherwise from Amazon polly
 * versio.json is used to check which files from dumps need to be updated
 * tcini.json is used to check which files from sutysisku need to be updated
 * two renders of same word when switching between words
@@ -29,7 +31,7 @@
 * embeddings
     * add embeddings to muplis generation
     * add embeddings to normal dict generation
-        * replace $$, {} to <MASK>
+        * replace $$, {} to [UNK]
     * input -> to using embedding
     * comment out fasttext
     * (?) use sentence embeddings for fasttext

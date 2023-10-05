@@ -4,7 +4,6 @@ import {
   Session,
   Encoder,
   GeneratorType,
-  Tokenizer,
 } from "../common";
 import * as ort from "onnxruntime-common";
 import { TextProcessingResult } from "./interfaces";
@@ -26,7 +25,7 @@ export class FeatureExtractionModel extends BaseTextModel {
     this.cache = new Map<string, number[]>();
   }
 
-  init = async (proxy = true): Promise<number> => {
+  init = async (): Promise<number> => {
     const start = new Date();
     const modelPath = this.metadata.modelPaths.get("encoder");
     if (!modelPath) {
@@ -36,11 +35,11 @@ export class FeatureExtractionModel extends BaseTextModel {
     if (!outputName) {
       throw new Error("output names do not have the 'encoder' path");
     }
-    const encoderSession = await createSession(modelPath, proxy);
+    const encoderSession = await createSession(modelPath);
     this.model = new Encoder(encoderSession, outputName, GeneratorType.Seq2Seq);
     const densePath = this.metadata.modelPaths.get("dense");
     if (densePath) {
-      this.dense = await createSession(densePath, proxy);
+      this.dense = await createSession(densePath);
     }
     this.tokenizer = await loadTokenizer(this.metadata.tokenizerPath);
     const end = new Date();

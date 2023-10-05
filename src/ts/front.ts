@@ -709,7 +709,6 @@ component(
               ],
             },
             h("div.terdi", {
-              // src: "/assets/pixra/bangu.svg",
               class: inFetching ? [] : ["deha"],
               style:
                 state.displaying.seskari === "rimni"

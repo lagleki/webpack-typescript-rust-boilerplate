@@ -9,11 +9,10 @@ export interface InitTextModelResult {
 
 export class SimpleTextModel {
   static create = async (
-    modelMetadata: TextMetadata,
-    proxy = true
+    modelMetadata: TextMetadata
   ): Promise<InitTextModelResult> => {
     const model = new FeatureExtractionModel(modelMetadata);
-    const elapsed = await model.init(proxy);
+    const elapsed = await model.init();
     return {
       model: model,
       elapsed: elapsed,

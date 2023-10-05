@@ -13,7 +13,13 @@ import jsonTeJufra from "./template/tejufra.json";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { decompress } from "brotli-compress/js";
-import { Def, Dict, EmbeddingsFile, Searching } from "../types/index.js";
+import {
+  Def,
+  Dict,
+  DumpRow,
+  EmbeddingsFile,
+  Searching,
+} from "../types/index.js";
 import { blobChunkDefaultLength } from "../consts";
 import { log } from "../libs/logger";
 
@@ -160,14 +166,10 @@ async function initSQLDB() {
     type: ModelType.FeatureExtraction,
     sizeMB: 15,
     modelPaths: new Map<string, string>([
-      [
-        "encoder",
-        "/data/mini-lm-v2-quant.brotli",
-      ],
+      ["encoder", "/data/mini-lm-v2-quant.brotli"],
     ]),
     outputNames: new Map<string, string>([["encoder", "last_hidden_state"]]),
-    tokenizerPath:
-      "/data/mini-lm-v2-quant.tokenizer.brotli",
+    tokenizerPath: "/data/mini-lm-v2-quant.tokenizer.brotli",
     tokenizerParams: {
       bosTokenID: 0,
       eosTokenID: 1,
@@ -201,7 +203,9 @@ async function getOrFetchResource(url: string) {
     const blob = await response.arrayBuffer();
     log("loaded embeddings");
 
-    const decompressedData = new TextDecoder().decode(await decompress(Buffer.from(blob)));
+    const decompressedData = new TextDecoder().decode(
+      await decompress(Buffer.from(blob))
+    );
     log("decompressed embeddings");
     const newResponse = new Response(decompressedData);
     cacheObj.put(url, newResponse);
@@ -403,7 +407,9 @@ const fancu = {
         let response;
         try {
           response = await fetch(
-            `${process.env.DUMPS_URL_ROOT}/versio.json?sisku=${new Date().getTime()}`
+            `${
+              process.env.DUMPS_URL_ROOT
+            }/versio.json?sisku=${new Date().getTime()}`
           );
         } catch (error) {
           log(
@@ -466,7 +472,9 @@ const fancu = {
         const lang = searching.bangu || "en";
         let json: Dict = {};
         const response = await fetch(
-          `${process.env.DUMPS_URL_ROOT}/versio.json?sisku=${new Date().getTime()}`
+          `${
+            process.env.DUMPS_URL_ROOT
+          }/versio.json?sisku=${new Date().getTime()}`
         );
         if (response.ok) {
           json = await response.json();
@@ -511,26 +519,47 @@ async function jufra({ bapli }: { bapli: boolean }) {
     },
   });
 }
-function chunkArray(myArray: any[], chunk_size: number, lang: string) {
-  let index = 0;
-  const arrayLength = myArray.length;
-  let tempArray = [];
+function chunkArray(
+  rows: DumpRow[],
+  columns: string[],
+  chunk_size: number,
+  lang: string
+) {
+  const arrayLength = rows.length;
+  let tempArray: { dict: Dict; columns: string[] }[][] = [];
 
-  for (index = 0; index < arrayLength; index += chunk_size) {
-    const myChunk = myArray.slice(index, index + chunk_size);
-    tempArray.push(myChunk.map((def) => addCache(def, lang)));
+  for (let index = 0; index < arrayLength; index += chunk_size) {
+    const myChunk = rows.slice(index, index + chunk_size);
+    tempArray.push(myChunk.map((def) => addCache(def, columns, lang)));
   }
 
   return tempArray;
 }
 
-function addCache(def: Dict, tegerna: string) {
+function arrayToObject(def: DumpRow, columns: string[]): Dict {
+  const json: any = {};
+  columns.forEach((column, index) => {
+    if (def[index] !== "" && def[index] !== undefined)
+      json[column] = def[index];
+  });
+  return json;
+}
+
+function addCache(
+  _def: DumpRow,
+  columns: string[],
+  tegerna: string
+): { dict: Dict; columns: string[] } {
   const cacheSeparator = RegExp(
     /[ \u2000-\u206F\u2E00-\u2E7F\\!"#$%&()*+,\-.\/:<=>?@\[\]^`{|}~：？。，《》「」『』；_－／（）々仝ヽヾゝゞ〃〱〲〳〵〴〵「」『』（）〔〕［］｛｝｟｠〈〉《》【】〖〗〘〙〚〛ッー゛゜。、・゠＝〆〜…‥ヶ•◦﹅﹆※＊〽〓♪♫♬♩〇〒〶〠〄再⃝ⓍⓁⓎ]/,
     "g"
   );
+  const def = arrayToObject(_def, columns);
+
   if (def.g) {
-    if (!Array.isArray(def.g)) def.g = [def.g];
+    if (!Array.isArray(def.g)) {
+      def.g = [def.g];
+    }
     def.g = def.g
       .map((i: string) =>
         i.replace(cacheSeparator, " ").trim().replace(/ {2,}/g, " ")
@@ -538,63 +567,58 @@ function addCache(def: Dict, tegerna: string) {
       .join(";");
   }
 
-  if (supportedLangs[tegerna].simpleCache)
-    return { bangu: tegerna, ...def, cache: def.w };
-  if (def.cache) {
-    if (def.w) def.cache = def.cache.join(";");
-    return { bangu: tegerna, ...def };
+  if (supportedLangs[tegerna].simpleCache) {
+    def.bangu = tegerna;
+  } else if (def.cache) {
+    if (def.w) {
+      def.cache = def.cache.join(";");
+    }
+    def.bangu = tegerna;
+    def.cache = def.cache;
+  } else {
+    let cache;
+
+    cache = [def.w, def.s, def.g, def.d, def.n]
+      .concat(def.r || [])
+      .filter(Boolean)
+      .map((i) => i.replace(/\$[a-z]+_\{.*?\}\$/g, ""))
+      .join(";")
+      .toLowerCase();
+    const cache2 = cache.replace(cacheSeparator, ";").split(";");
+    cache = cache.replace(
+      /[ \u2000-\u206F\u2E00-\u2E7F\\!"#$%&()*+,\-.\/:<=>?@\[\]^`{|}~：？。，《》「」『』；_－（）]/g,
+      ";"
+    );
+    cache = `${cache};${cache.replace(/h/g, "'")}`.split(";");
+
+    if (def.z) cache.push(def.z);
+
+    cache = [...new Set(cache.concat(cache2))].filter(Boolean).join(";");
+    def.bangu = tegerna;
+    def.cache = cache;
   }
-  let cache;
 
-  cache = [def.w, def.s, def.g, def.d, def.n]
-    .concat(def.r || [])
-    .filter(Boolean)
-    .map((i) => i.replace(/\$[a-z]+_\{.*?\}\$/g, ""))
-    .join(";")
-    .toLowerCase();
-  const cache2 = cache.replace(cacheSeparator, ";").split(";");
-  cache = cache.replace(
-    /[ \u2000-\u206F\u2E00-\u2E7F\\!"#$%&()*+,\-.\/:<=>?@\[\]^`{|}~：？。，《》「」『』；_－（）]/g,
-    ";"
-  );
-  cache = `${cache};${cache.replace(/h/g, "'")}`.split(";");
-
-  if (def.z) cache.push(def.z);
-
-  cache = [...new Set(cache.concat(cache2))].filter(Boolean).join(";");
-  return { bangu: tegerna, ...def, cache };
+  return prepareFields(def);
 }
 
-const getRec2 = () => ({
-  $d: "",
-  $n: "",
-  $w: "",
-  $r: "",
-  $bangu: "",
-  $s: "",
-  $t: "",
-  $g: "",
-  $cache: "",
-  $b: "",
-  $z: "",
-  $v: "",
-});
 function prepareFields(rec: Dict) {
-  //TODO merged with addcache
-  let rec2: Dict = getRec2();
-  Object.keys(rec).map((key) => {
-    const key2 = `$${key}`;
+  let columns: string[] = [];
+  const dict: Dict = {};
+  Object.keys(rec).map((key, index) => {
+    columns.push(key);
     const val = rec[key];
     if (key === "z" && !val) {
-      rec2[key2] = [""];
+      rec[key] = JSON.stringify([""]);
     } else if (typeof val == "object") {
-      rec2[key2] = JSON.stringify(val || "");
+      rec[key] = JSON.stringify(val || "");
     } else {
-      rec2[key2] = val || "";
+      rec[key] = val || "";
     }
+    dict[`$${key}`] = rec[key];
   });
-  return rec2;
+  return { dict, columns };
 }
+
 async function cnino_sorcu(
   cb: any,
   langsToUpdate: string[],
@@ -651,22 +675,27 @@ async function cnino_sorcu(
 
     for (let i = 0; i < lenLangChunks; i++) {
       cb(`downloading ${lang}-${i}.bin dump`);
-      const url = `${process.env.DUMPS_URL_ROOT}/parsed/parsed-${lang}-${i}.bin?sisku=${new Date().getTime()}`;
+      const url = `${
+        process.env.DUMPS_URL_ROOT
+      }/parsed/parsed-${lang}-${i}.bin?sisku=${new Date().getTime()}`;
       const response = await fetch(url);
       let json;
       if (response.ok) {
         const blob = await response.arrayBuffer();
 
-        const decompressedData = new TextDecoder().decode(await decompress(Buffer.from(blob)));
+        const decompressedData = new TextDecoder().decode(
+          await decompress(Buffer.from(blob))
+        );
         json = JSON.parse(decompressedData);
 
-        let rows = json.data.data[0].rows;
-        const totalRows = json.data.tables[0].rowCount * lenLangChunks;
+        let rows: DumpRow[] = json.rows;
+        const totalRows = json.rowCount * lenLangChunks;
+        const columns = [...new Set((json.keys as string[]).concat(["cache"]))];
 
         const chunkSize = 1000;
         const all_rows = rows.length;
 
-        rows = chunkArray(rows, chunkSize, lang);
+        const groupedRows = chunkArray(rows, columns, chunkSize, lang);
         const time = new Date().getTime();
         if (i === 0) {
           await sql(`delete from valsi where bangu=$bangu`, { $bangu: lang });
@@ -674,15 +703,19 @@ async function cnino_sorcu(
             $bangu: lang,
           });
         }
-        for (const toAdd of rows) {
+        for (const toAdd of groupedRows) {
           await sqlite3.exec(db, `BEGIN;`);
           for (let rec of toAdd) {
+            const { columns, dict } = rec;
             await sql(
-              `INSERT INTO valsi (d,n,w,r,bangu,s,t,g,cache,b,z,v) VALUES ($d,$n,$w,$r,$bangu,$s,$t,$g,$cache,$b,$z,$v)`,
-              prepareFields(rec)
+              `INSERT INTO valsi (${columns.join(",")}) VALUES (${columns.map(
+                (col) => `$${col}`
+              )})`,
+              dict
             );
           }
           await sqlite3.exec(db, `COMMIT;`);
+
           completedRows += chunkSize;
           self.postMessage({
             kind: "loader",
@@ -964,6 +997,7 @@ async function cnano_sisku({
             ot: "vlaza'umei",
             w: query,
             rfs: vlazahumei,
+            bangu,
           },
         ],
         allMatches[2]
@@ -981,7 +1015,7 @@ async function cnano_sisku({
         `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=$rafsi and valsi.bangu=$bangu limit 1`,
         { $rafsi: rafsi, $bangu: bangu }
       );
-      allMatches[0][0].rfs = selrafsi;
+      allMatches[0][0].rfs = selrafsi as Def[];
     }
   }
 
@@ -1259,11 +1293,15 @@ function defaultPriorityGroups() {
   } as { [key: string]: Def[] };
 }
 
-function includes(arrOuter: any[], inner: string | any[], fn?: any) {
-  arrOuter = [arrOuter].flat();
-  if (fn) return arrOuter.some((elemOuter) => fn(elemOuter, inner));
-  inner = [inner].flat();
-  return arrOuter.some((i) => inner.includes(i));
+function includes<T extends string | string[], Y extends string | string[]>(
+  arrOuter: T,
+  inner: Y,
+  fn?: (arg0: string, arg1: Y) => boolean
+) {
+  const _arrOuter = [arrOuter].flat() as string[];
+  if (fn) return _arrOuter.some((elemOuter) => fn(elemOuter, inner));
+  const _inner = [inner].flat() as string[];
+  return _arrOuter.some((i) => _inner.includes(i));
 }
 
 function semFilter(arrEmbeddingsObject: any[], arrGloss: string | any[]) {
@@ -1281,7 +1319,15 @@ async function sortThem({
   seskari,
   secupra_vreji,
   embeddings,
-}: any) {
+}: {
+  mapti_vreji: Def[];
+  query: string;
+  bangu: string;
+  query_apos: string;
+  seskari?: string;
+  secupra_vreji: Def[];
+  embeddings?: any[];
+}) {
   let decomposed = false;
   let searchPriorityGroups = defaultPriorityGroups();
   const arrCombinedQuery = [...new Set([query, query_apos])];
@@ -1361,7 +1407,7 @@ async function sortThem({
       includes(
         query,
         def.s,
-        (q_el: any, def_s: string | any[]) => def_s.indexOf(q_el) === 0
+        (q_el: string, def_s: string) => def_s.indexOf(q_el) === 0
       )
     ) {
       searchPriorityGroups.selmahoSemiMatch.push(def);
@@ -1369,7 +1415,7 @@ async function sortThem({
       searchPriorityGroups.oneOfSelmahosFullMatch.push(def);
     } else if (
       Array.isArray(def.s) &&
-      includes(query, def.s, (q_el: any, defs_s: any[]) =>
+      includes(query, def.s, (q_el: string, defs_s: string[]) =>
         defs_s.some((i) => i.indexOf(q_el) === 0)
       )
     ) {
@@ -1377,8 +1423,8 @@ async function sortThem({
     } else if (
       includes(
         arrCombinedQuery,
-        [def.g, def.w].flat(),
-        (q_el: any, defs: any[]) =>
+        [def.g, def.w].filter(Boolean).flat() as string[],
+        (q_el: string, defs: string[]) =>
           defs.some(
             (i) => i.search(RegExp(`(${nonLetter}(${q_el})${nonLetter})`)) >= 0
           )
@@ -1391,7 +1437,7 @@ async function sortThem({
       includes(
         query,
         def.d,
-        (q_el: any, def_d: string) =>
+        (q_el: string, def_d: string) =>
           def_d.toLowerCase().search(RegExp(`^${q_el}${nonLetter}`)) >= 0
       )
     ) {
@@ -1401,7 +1447,7 @@ async function sortThem({
       includes(
         query,
         def.d,
-        (q_el: any, def_d: string) =>
+        (q_el: string, def_d: string) =>
           def_d
             .toLowerCase()
             .search(RegExp(`${nonLetter}${q_el}${nonLetter}`)) >= 0
@@ -1409,11 +1455,11 @@ async function sortThem({
     ) {
       searchPriorityGroups.defInsideMatch.push(def);
     } else if (
-      typeof def.n !== "undefined" &&
+      def.n &&
       includes(
         query,
         def.n,
-        (q_el: any, def_n: string) =>
+        (q_el: string, def_n: string) =>
           def_n
             .toLowerCase()
             .search(RegExp(`${nonLetter}${q_el}${nonLetter}`)) >= 0
@@ -1555,7 +1601,7 @@ async function sisku(searching: Searching) {
           query_apos,
           query,
           bangu,
-          mapti_vreji: first1000,
+          mapti_vreji: first1000 as Def[],
           seskari,
           secupra_vreji: [],
         })
