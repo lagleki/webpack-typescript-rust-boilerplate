@@ -46,8 +46,8 @@ const htmlPluginEntries = (env, argv) => templateFiles
       templateParameters: htmlJson(),
       favicon: path.resolve(
         environment.paths.source,
-        'images',
-        'favicon.svg',
+        'assets/pixra',
+        'snime-1.svg',
       ),
     }),
     argv.mode !== 'production'

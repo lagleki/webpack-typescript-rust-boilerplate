@@ -1,7 +1,7 @@
 import { component, store, h, s } from "../../../renderer/src";
 import { rows } from "./utils/pronunciation";
 import tejufra from "./worker/template/tejufra.json";
-import { UNICODE_START, lerfu_index } from "./utils/zlm";
+import * as ceha from "./utils/ceha";
 import { getBoxToBoxArrow } from "./libs/arrows";
 import { RecursiveObject } from "../../../renderer/src/common/types";
 import { log } from "./libs/logger";
@@ -26,6 +26,7 @@ import {
   cisn_default,
   tiles,
   secondarySeskari,
+  lei_morna,
 } from "./consts";
 import {
   BasnaMemoized,
@@ -35,6 +36,7 @@ import {
   RegexFlavours,
   State,
 } from "./types";
+import { getRandomValueFromArray } from "./utils/fns";
 
 // //global vars:
 // let resultCount;
@@ -69,15 +71,7 @@ const stateLeijufra = store(tejufraCustom ?? { ...tejufra.en, name: "en" }, {
 
 // //worker
 const worker = new Worker(new URL("./worker/worker", import.meta.url));
-// window.addEventListener("load", () => {
 onLoad();
-// });
-// worker.postMessage({
-//   kind: "parse",
-//   operation: "audioLink",
-//   tegerna: "coi",
-//   queryLanguage: "en",
-// });
 
 async function onLoad() {
   if ("serviceWorker" in navigator) {
@@ -96,6 +90,7 @@ async function onLoad() {
     kind: "fancu",
     cmene: "ningau_lesorcu",
     ...state.displaying,
+    leijufra: cloneObject(stateLeijufra),
   });
 }
 
@@ -108,6 +103,7 @@ function ningau_lepasorcu(url: string, bangu: string) {
     cmene: "ningau_lepasorcu",
     ...state.displaying,
     bangu,
+    leijufra: cloneObject(stateLeijufra),
   });
 }
 
@@ -243,6 +239,7 @@ function postQuery() {
     worker.postMessage({
       kind: "newSearch",
       ...state.displaying,
+      leijufra: cloneObject(stateLeijufra),
     });
     dispatchCitri();
   }
@@ -394,9 +391,9 @@ async function checkScrolledNearBottom({ target }: Event) {
 }
 
 function addJvoPlumbs() {
-  clearTimeout(stateOutsideComponents.scrollJvoTimer);
+  clearTimeout(stateOutsideComponents.timers.scrollJvoTimer);
   removePlumbs();
-  stateOutsideComponents.scrollJvoTimer = setTimeout(() => {
+  stateOutsideComponents.timers.scrollJvoTimer = setTimeout(() => {
     window.requestAnimationFrame(() => {
       if (!state.jvoPlumbsOn) return;
       addPlumbs();
@@ -460,7 +457,6 @@ worker.onmessage = (ev) => {
 
   const { data } = ev;
   const { kind, cmene } = data;
-  // if (kind == "parse" && data?.req?.operation == "audioLink")
   if (kind == "searchResults") {
     state.jimte = initState.jimte;
     stateOutsideComponents.results = data.results;
@@ -472,6 +468,7 @@ worker.onmessage = (ev) => {
       new Date().getTime()
     );
     stateOutsideComponents.fetched = structuredClone(data.req);
+    stateOutsideComponents.morna = getRandomValueFromArray(lei_morna);
     state.embeddings = data.embeddings ?? [];
     stateLoading.showDesktop = false;
     console.log("res+state", new Date().getTime());
@@ -644,7 +641,7 @@ component(
                 debounce(
                   setStateFromInput,
                   1000,
-                  stateOutsideComponents,
+                  stateOutsideComponents.timers,
                   "typing"
                 )(event);
               },
@@ -751,13 +748,17 @@ component(
             return h("span", {
               class: class_.concat("pointer"),
               innerText: query,
+              attributes: {
+                "data-id": `citrycmi_coclani_${query}`,
+              },
               click: () => {
-                stateLoading.innerText = query;
-                stateLoading.href = buildURLParams(curState, {
-                  retainSeskariFromFallingBack: true,
+                hideNotificationInAWhile(() => {
+                  stateLoading.innerText = query;
+                  stateLoading.href = buildURLParams(curState, {
+                    retainSeskariFromFallingBack: true,
+                  });
+                  stateLoading.hideProgress = true;
                 });
-                stateLoading.hideProgress = true;
-                hideNotificationInAWhile();
               },
             });
           return h("a", {
@@ -771,35 +772,41 @@ component(
           });
         })
       ),
-      stateLoading.loading && h(
-        "div#loading.loading.noselect",
+      stateLoading.loading &&
         h(
-          "div.loading_container",
-          stateLoading.innerText &&
-            (stateLoading.href
-              ? h("a.bangu_loading.loading_elems", {
-                  innerText: stateLoading.innerText,
-                  href: stateLoading.href,
+          "div#loading.loading.noselect",
+          h(
+            "div.loading_container",
+            stateLoading.innerText &&
+              (stateLoading.href
+                ? h("a.bangu_loading.loading_elems", {
+                    innerText: stateLoading.innerText,
+                    href: stateLoading.href,
+                    click: () => {
+                      stateLoading.loading = false;
+                    },
+                  })
+                : h("div.bangu_loading.loading_elems", {
+                    innerText: stateLoading.innerText,
+                  })),
+            !stateLoading.hideProgress &&
+              h(
+                "div#cpacu.loading_elems",
+                h("span#kernelo_lo_cpacu", {
+                  style: {
+                    width: `${Math.min(
+                      100,
+                      Math.max(
+                        10,
+                        (stateLoading.completedRows * 100) /
+                          stateLoading.totalRows
+                      )
+                    )}%`,
+                  },
                 })
-              : h("div.bangu_loading.loading_elems", {
-                  innerText: stateLoading.innerText,
-                })),
-          !stateLoading.hideProgress && h(
-            "div#cpacu.loading_elems",
-            h("span#kernelo_lo_cpacu", {
-              style: {
-                width: `${Math.min(
-                  100,
-                  Math.max(
-                    10,
-                    (stateLoading.completedRows * 100) / stateLoading.totalRows
-                  )
-                )}%`,
-              },
-            })
+              )
           )
-        )
-      ),
+        ),
       // stateLoading.loading === false &&
       //   state.displaying.seskari === "cnano" &&
       //   (supportedLangs as any)[state.displaying.bangu as any]
@@ -832,7 +839,7 @@ component(
             debounce(
               checkScrolledNearBottom,
               250,
-              stateOutsideComponents,
+              stateOutsideComponents.timers,
               "scroll"
             )(event);
           },
@@ -1129,12 +1136,12 @@ function basna({
 }): HTMLElement[] {
   if (query.length === 0 || (query.length === 1 && query[0].length <= 2))
     return [h("span", { innerText: text })];
-  const { arrQuery, regex } = getMemoizedBasna(query);
+  const { arrQuery } = getMemoizedBasna(query);
 
   if ((arrQuery ?? []).length === 0) return [h("span", { innerText: text })];
 
   return hilite([{ value: text, type: "simple" }], arrQuery).map(
-    (el: DefRenderedElement, index: number) => {
+    (el: DefRenderedElement) => {
       if (el.type === "hilite") {
         return h("span", {
           class: ["basna"],
@@ -1220,60 +1227,6 @@ function getVeljvoString({
     dataArr: !dataArrAdded.includes(clearedPlaceTag),
     replacement: `\$${replacingPlaceTag}\$`,
   };
-}
-
-function latinToZbalermorna(c: string) {
-  if ((c.codePointAt(0) ?? 0) >= 0xed80) {
-    return c;
-  }
-  if (c == " ") return " ";
-  if (c == "h" || c == "H") c = "'";
-  if (lerfu_index.includes(c))
-    return String.fromCodePoint(UNICODE_START + lerfu_index.indexOf(c));
-  else if (lerfu_index.includes(c.toLowerCase()))
-    return String.fromCodePoint(
-      UNICODE_START + lerfu_index.indexOf(c.toLowerCase())
-    );
-  if (c == "\n") return "\n";
-  if (c == "\t") return "\t";
-  return c;
-}
-
-function krulermorna(text: string) {
-  return text
-    .replace(/\./g, "")
-    .replace(/^/, ".")
-    .toLowerCase()
-    .replace(/([aeiou\.])u([aeiou])/g, "$1w$2")
-    .replace(/([aeiou\.])i([aeiou])/g, "$1ɩ$2")
-    .replace(/au/g, "ḁ")
-    .replace(/ai/g, "ą")
-    .replace(/ei/g, "ę")
-    .replace(/oi/g, "ǫ")
-    .replace(/\./g, "");
-}
-function cohukrulermorna(text: string) {
-  return text
-    .replace(/w/g, "u")
-    .replace(/ɩ/g, "i")
-    .replace(/ḁ/g, "au")
-    .replace(/ą/g, "ai")
-    .replace(/ę/g, "ei")
-    .replace(/ǫ/g, "oi");
-}
-
-function zbalermornaize({ w, ot, rfs }: Def) {
-  let word = krulermorna(w);
-  word = word
-    .split(/(?=[ɩw])/)
-    .map((spisa) =>
-      cohukrulermorna(spisa)
-        .split("")
-        .map((lerfu) => latinToZbalermorna(lerfu))
-        .join("")
-    )
-    .join("");
-  return word.replace(/,/g, "");
 }
 
 function getStringifiedPlacetag({
@@ -1768,6 +1721,45 @@ async function skicu_paledovalsi({
     ];
   }
 
+  let zbalermorna;
+  if (
+    stateLeijufra.lojbo &&
+    !(typeof def.t === "object" && def.t.k === 0) &&
+    (seskari !== "fanva" || index === "0")
+  ) {
+    const textContent = (ceha as any)[stateOutsideComponents.morna.fancu](
+      def.w
+    );
+    zbalermorna = (supportedLangs[bangu as keyof typeof supportedLangs] as any)
+      .zbalermorna_defined
+      ? h("a", {
+          attributes: {
+            href: buildURLParams({
+              seskari,
+              query: stateOutsideComponents.morna.valsi,
+              bangu,
+              versio,
+            }),
+          },
+          innerText: textContent,
+          class: [
+            "valsi",
+            stateOutsideComponents.morna.valsi,
+            "segerna",
+            "sampu",
+          ],
+        })
+      : h("span", {
+          class: [
+            "valsi",
+            stateOutsideComponents.morna.valsi,
+            "segerna",
+            "sampu",
+          ],
+          textContent,
+        });
+  }
+
   const word = h(
     "h4",
     {
@@ -1777,7 +1769,8 @@ async function skicu_paledovalsi({
           ? { "data-valsi": encodeValsiForWeb(def.w) }
           : {},
     },
-    ...children
+    ...children,
+    zbalermorna
   );
 
   let jvs;
@@ -1864,35 +1857,6 @@ async function skicu_paledovalsi({
   if (prettifiedDefinition?.stringifiedSubDefPlaceTags)
     stringifiedSubDefPlaceTags =
       prettifiedDefinition.stringifiedSubDefPlaceTags;
-
-  //<xuzganalojudri|lojbo>
-  let zbalermorna;
-  if (
-    stateLeijufra.lojbo &&
-    !(typeof def.t === "object" && def.t.k === 0) &&
-    (seskari !== "fanva" || index === "0")
-  ) {
-    const textContent = zbalermornaize(def);
-    zbalermorna = h(
-      "h4",
-      (supportedLangs[bangu as keyof typeof supportedLangs] as any)
-        .zbalermorna_defined
-        ? h("a", {
-            attributes: {
-              href: buildURLParams({
-                seskari,
-                query: "zbalermorna",
-                bangu,
-                versio,
-              }),
-            },
-            innerText: textContent,
-            class: ["valsi", "zbalermorna", "segerna", "sampu"],
-          })
-        : { class: ["valsi", "zbalermorna", "segerna", "sampu"], textContent }
-    );
-  }
-  //</xuzganalojudri|lojbo>
 
   const heading = h("heading", { class: "heading" });
 
@@ -2025,12 +1989,7 @@ async function skicu_paledovalsi({
 
   let whoIsFirstLine = [];
 
-  if (zbalermorna && !selms && def.w.length < 10 && !jvo) {
-    whoIsFirstLine.push("zbalermorna");
-    heading.appendChild(zbalermorna);
-  }
-
-  heading.appendChild(h("heading", { style: { flex: 1 } }));
+  heading.appendChild(h("div", { style: { flex: 1 } }));
 
   if (!selms) {
     heading.appendChild(banguEl);
@@ -2071,11 +2030,12 @@ async function skicu_paledovalsi({
         innerText,
         class: ["tutci", "tutci-sampu", "xp-btn", "klesi", "noselect"],
         click: () => {
-          stateLoading.innerText = interpolate(stateLeijufra.distance, {
-            distance: innerText,
+          hideNotificationInAWhile(() => {
+            stateLoading.innerText = interpolate(stateLeijufra.distance, {
+              distance: innerText,
+            });
+            stateLoading.hideProgress = true;
           });
-          stateLoading.hideProgress = true;
-          hideNotificationInAWhile();
         },
       })
     );
@@ -2085,8 +2045,8 @@ async function skicu_paledovalsi({
   //new line buttons
   const heading2 = h("heading", { class: "heading heading2" });
   //<xuzganalojudri|lojbo>
-  if (zbalermorna && !whoIsFirstLine.includes("zbalermorna"))
-    heading2.appendChild(zbalermorna);
+  // if (zbalermorna && !whoIsFirstLine.includes("zbalermorna"))
+  //   heading2.appendChild(zbalermorna);
   //</xuzganalojudri|lojbo>
   heading2.appendChild(h("heading", { style: { flex: 1 } }));
   if (!whoIsFirstLine.includes("banguEl")) heading2.appendChild(banguEl);
@@ -2240,12 +2200,15 @@ async function skicu_paledovalsi({
   return out;
 }
 
-function hideNotificationInAWhile(timeout = 4000) {
+function hideNotificationInAWhile(fn = () => {}, timeout = 4000) {
+  fn();
   stateLoading.loading = true;
-  setTimeout(() => {
+  clearTimeout(stateOutsideComponents.timers.notification);
+  stateOutsideComponents.timers.notification = setTimeout(() => {
     stateLoading.loading = false;
-  }, timeout);
+  }, timeout) as unknown as number;
 }
+
 function copyToClipboard(value: string) {
   navigator.clipboard.writeText(value);
   stateLoading.innerText = stateLeijufra.copied;

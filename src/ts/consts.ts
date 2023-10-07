@@ -1,5 +1,6 @@
 import { RecursiveObject } from "../../../renderer/src/common/types";
-import { RegexFlavours, Searching, State } from "./types";
+import { Morna, RegexFlavours, Searching, State } from "./types";
+import { getRandomValueFromArray } from "./utils/fns";
 
 export const modes = ["velcusku", "arxivo", "cnano", "rimni", "catni", "fanva"];
 export const supportedLangs = {
@@ -17,58 +18,60 @@ export const supportedLangs = {
   ja: { n: "日本語" },
   zh: { n: "中文" },
   loglan: { n: "Loglan" },
+  'art-toki': { n: "toki pona" },
 };
 
 export const tiles = [
   {
     en: {
       title: "English-Lojban",
-      picture: "/assets/pixra/selsku_lanci_eng.svg",
+      picture: "/assets/pixra/bangu/selsku_lanci_eng.svg",
     },
   },
   {
     jbo: {
       title: "fanva fi le'e lojbo ri",
-      picture: "/assets/pixra/lanci_jbo.svg",
+      picture: "/assets/pixra/bangu/lanci_jbo.svg",
     },
   },
   {
     ja: {
       title: '日本 - <span style="white-space:pre;">ロジバン</span>',
-      picture: "/assets/pixra/selsku_lanci_jpn.svg",
+      picture: "/assets/pixra/bangu/selsku_lanci_jpn.svg",
     },
   },
   {
     "fr-facile": {
       title: "français facile - lojban",
-      picture: "/assets/pixra/selsku_lanci_fra.svg",
+      picture: "/assets/pixra/bangu/selsku_lanci_fra.svg",
     },
   },
   {
     ru: {
       title: "русский - ложбан",
-      picture: "/assets/pixra/selsku_lanci_rus.svg",
+      picture: "/assets/pixra/bangu/selsku_lanci_rus.svg",
     },
   },
   {
     eo: {
       title: "Esperanto - Loĵbano",
-      picture: "/assets/pixra/lanci_epo.svg",
+      picture: "/assets/pixra/bangu/lanci_epo.svg",
     },
   },
   {
     es: {
       title: "español - lojban",
-      picture: "/assets/pixra/selsku_lanci_spa.svg",
+      picture: "/assets/pixra/bangu/selsku_lanci_spa.svg",
     },
   },
   {
     zh: {
       title: "中文 - 逻辑语",
-      picture: "/assets/pixra/selsku_lanci_zho.svg",
+      picture: "/assets/pixra/bangu/selsku_lanci_zho.svg",
     },
   },
-  { loglan: { title: "Loglan", picture: "/assets/pixra/loglan.svg" } },
+  { loglan: { title: "Loglan", picture: "/assets/pixra/bangu/loglan.svg" } },
+  { "art-toki": { title: "toki pona", picture: "/assets/pixra/bangu/toki_pona.svg" } },
 ];
 
 export const listFamymaho = {
@@ -125,13 +128,21 @@ export const initState = {
   jimte: 100,
 };
 
+export const lei_morna: Morna[] = [
+  { valsi: "zbalermorna", fancu: "zbalermornaize" },
+  { valsi: "utco zei morna", fancu: "tibetan" },
+];
+
 export const initStateOutsideComponents = {
   results: [] as RecursiveObject[],
   focused: 1,
   scrollTop: 0,
-  scrollJvoTimer: 0,
-  typing: 0,
-  scroll: 0,
+  timers: {
+    scrollJvoTimer: 0,
+    typing: 0,
+    scroll: 0,
+    notification: 0,
+  },
   fetched: {
     seskari: "cnano",
     versio: "masno",
@@ -144,6 +155,7 @@ export const initStateOutsideComponents = {
     query: "",
     bangu: "en",
   } as State,
+  morna: getRandomValueFromArray(lei_morna),
 };
 
 export const initStateLoading = {
@@ -201,3 +213,4 @@ export const blobChunkDefaultLength = 5;
 export const cisn_default = 100;
 
 export const secondarySeskari = ["fanva", "selmaho"];
+

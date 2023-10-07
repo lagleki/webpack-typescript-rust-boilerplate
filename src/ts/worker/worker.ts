@@ -25,6 +25,7 @@ import { log } from "../libs/logger";
 
 import { FeatureExtractionModel, ModelType } from "../libs/inference/text";
 import { SimpleTextModel } from "../libs/inference/text/simpleTextModel";
+import { krulermorna } from "../utils/ceha";
 
 self.postMessage({ kind: "loading" });
 
@@ -772,12 +773,6 @@ async function cnino_sorcu(
 
 //sisku
 
-let leijufra: Dict = {
-  xuzganalojudri: "",
-  bangudecomp: "",
-  bangu: null,
-};
-
 async function getCachedDefinitions({
   query,
   bangu,
@@ -837,6 +832,7 @@ async function cnano_sisku({
   seskari,
   secupra_vreji,
   queryDecomposition,
+  leijufra,
 }: any) {
   const splitQuery_apos = query_apos.split(" ").filter(Boolean);
   const arrayQuery = [
@@ -871,7 +867,7 @@ async function cnano_sisku({
       ).filter(
         (valsi: Dict) =>
           typeof valsi.s === "string" &&
-          new RegExp(`^${query}[0-9]*[a-z]*$`).test(valsi.s)
+          new RegExp(`^${query}[0-9]*[a-z]*`).test(valsi.s)
       );
     }
   } else if (seskari === "fanva") {
@@ -952,13 +948,14 @@ async function cnano_sisku({
     seskari,
     secupra_vreji,
     embeddings: embeddings.results,
+    lojbo: leijufra.lojbo,
   });
 
   const allMatches = result;
   if (multi)
     return { result: allMatches[0], decomposed, embeddings: embeddings.words };
   if (allMatches[0].length === 0) {
-    allMatches[0] = (await jmina_ro_cmima_be_lehivalsi({ query, bangu })) || [];
+    allMatches[0] = (await jmina_ro_cmima_be_lehivalsi({ query, bangu, lojbo: leijufra.lojbo })) || [];
   }
   if (allMatches[0].length === 0 || allMatches[0][0].w !== query_apos) {
     let vlazahumei = [];
@@ -975,10 +972,12 @@ async function cnano_sisku({
           secupra: [],
           bangu,
           cachedDefinitions,
-        })
+          lojbo: leijufra.lojbo,
+        }),
+        leijufra.lojbo
       );
     }
-    if (bangu === "muplis" || !leijufra.xuzganalojudri) {
+    if (bangu === "muplis" || !leijufra.lojbo) {
       vlazahumei = vlazahumei.filter(
         ({ d, nasezvafahi }: Def) => !d || !nasezvafahi
       );
@@ -1008,7 +1007,10 @@ async function cnano_sisku({
   }
   if (allMatches[0][0].w === query_apos) {
     //full match
-    const [type, parsedWord] = maklesi_levalsi(allMatches[0][0].w);
+    const [type, parsedWord] = maklesi_levalsi(
+      allMatches[0][0].w,
+      leijufra.lojbo
+    );
     if (type.indexOf("fu'ivla") >= 0 && parsedWord.indexOf("-") >= 0) {
       const rafsi = parsedWord.split("-")[0];
       const selrafsi = await runQuery(
@@ -1049,10 +1051,9 @@ function reconcatenate(selsku: string) {
   return { parsed: [], reconcatenated: selsku };
 }
 
-function maklesi_levalsi(selsku: string) {
+function maklesi_levalsi(selsku: string, lojbo: boolean) {
   let reconcatenated = selsku;
-  if (!leijufra.xuzganalojudri || selsku.search(/[^aeiouyAEIOY]'/) > -1)
-    return ["", selsku];
+  if (!lojbo || selsku.search(/[^aeiouyAEIOY]'/) > -1) return ["", selsku];
   try {
     const { parsed: parsedString, reconcatenated } = reconcatenate(selsku);
     const oddEls = parsedString.filter(
@@ -1071,12 +1072,12 @@ function maklesi_levalsi(selsku: string) {
   return ["", reconcatenated];
 }
 
-function ma_veljvo(tegerna: string): any[] {
-  if (!leijufra.xuzganalojudri) return [];
+function ma_veljvo(tegerna: string, lojbo: boolean): any[] {
+  if (!lojbo) return [];
   if (tegerna.includes(" zei "))
     return tegerna
       .split(" ")
-      .map((veljvocmi) => ma_veljvo(veljvocmi))
+      .map((veljvocmi) => ma_veljvo(veljvocmi, lojbo))
       .flat()
       .filter(Boolean);
   let text;
@@ -1086,23 +1087,23 @@ function ma_veljvo(tegerna: string): any[] {
     return [];
   }
   if (!["lujvo"].includes(text[0]) || text.length !== 2) return [];
-  return text[1].split("-").filter(Boolean);
+  return text[1].split("-").filter((i: string) => i.length > 1);
 }
 
-function setca_lotcila(seskicu_be_le_valsi: Def) {
+function setca_lotcila(seskicu_be_le_valsi: Def, lojbo: boolean) {
   if (
     typeof seskicu_be_le_valsi.t === "string" &&
     [undefined, ""].includes(seskicu_be_le_valsi.t)
   )
     seskicu_be_le_valsi.t =
-      seskicu_be_le_valsi.bangu !== "muplis" && leijufra.xuzganalojudri
-        ? maklesi_levalsi(seskicu_be_le_valsi.w)[0]
+      seskicu_be_le_valsi.bangu !== "muplis" && lojbo
+        ? maklesi_levalsi(seskicu_be_le_valsi.w, lojbo)[0]
         : "";
   return seskicu_be_le_valsi;
 }
 
-function decompose(selsku: string) {
-  return leijufra.xuzganalojudri
+function decompose(selsku: string, lojbo: boolean) {
+  return lojbo
     ? reconcatenate(selsku)
         .reconcatenated.replace(/ zei /g, "_zei_")
         .split(" ")
@@ -1110,18 +1111,21 @@ function decompose(selsku: string) {
     : selsku.split(" ");
 }
 
-function julne_setca_lotcila(porsi_fi_le_seskicu_be_le_valsi: any[]) {
+function julne_setca_lotcila(
+  porsi_fi_le_seskicu_be_le_valsi: any[],
+  lojbo: boolean
+) {
   return porsi_fi_le_seskicu_be_le_valsi.reduce(
     (cnino_porsi, seskicu_be_le_valsi) => {
       if (seskicu_be_le_valsi)
-        cnino_porsi.push(setca_lotcila(seskicu_be_le_valsi));
+        cnino_porsi.push(setca_lotcila(seskicu_be_le_valsi, lojbo));
       return cnino_porsi;
     },
     []
   );
 }
 
-async function sohivalsi({ decomposed, bangu, mapti_vreji }: any) {
+async function sohivalsi({ decomposed, bangu, mapti_vreji, lojbo }: any) {
   let secupra = [];
   for (let valsi_index = 0; valsi_index < decomposed.length; valsi_index++) {
     for (
@@ -1135,13 +1139,19 @@ async function sohivalsi({ decomposed, bangu, mapti_vreji }: any) {
         mapti_vreji,
         query: o,
       });
-      secupra = await shortget({ valsi: o, secupra, bangu, cachedDefinitions });
+      secupra = await shortget({
+        valsi: o,
+        secupra,
+        bangu,
+        cachedDefinitions,
+        lojbo,
+      });
     }
   }
   return secupra;
 }
 
-async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu }: any) {
+async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu, lojbo }: any) {
   let porsi_fi_le_seskicu_be_le_veljvocmi = [];
   if (def?.v?.length > 1) {
     for (const veljvocmi of def.v) {
@@ -1157,7 +1167,7 @@ async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu }: any) {
       }
     }
   } else {
-    let porsi_le_veljvocmi = ma_veljvo(query);
+    let porsi_le_veljvocmi = ma_veljvo(query, lojbo);
     if (porsi_le_veljvocmi.length === 0) return def ? [def] : [];
     for (const veljvocmi of porsi_le_veljvocmi) {
       const se_skicu_le_veljvocmi = (
@@ -1171,14 +1181,15 @@ async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu }: any) {
     }
   }
   porsi_fi_le_seskicu_be_le_veljvocmi = julne_setca_lotcila(
-    porsi_fi_le_seskicu_be_le_veljvocmi
+    porsi_fi_le_seskicu_be_le_veljvocmi,
+    lojbo
   ); // .filter(function(i){return !i.nasezvafahi});
   return [
     {
       t:
         porsi_fi_le_seskicu_be_le_veljvocmi.length > 0
           ? "lujvo"
-          : maklesi_levalsi(query)[0],
+          : maklesi_levalsi(query, lojbo)[0],
       w: query,
       nasezvafahi: true,
       rfs: porsi_fi_le_seskicu_be_le_veljvocmi,
@@ -1192,12 +1203,13 @@ async function shortget({
   nasisku_filohipagbu,
   bangu,
   cachedDefinitions,
+  lojbo,
 }: any) {
   const definitions = cachedDefinitions;
   if (definitions.length > 0) return secupra.concat(definitions);
   if (!nasisku_filohipagbu) {
     if (valsi.replace(/ zei /g, "-zei-").split(" ").length === 1) {
-      const valsi_giheklesi = maklesi_levalsi(valsi);
+      const valsi_giheklesi = maklesi_levalsi(valsi, lojbo);
       if (
         valsi_giheklesi[0] === "cmavo-compound" ||
         valsi_giheklesi[0] === "zei-lujvo"
@@ -1210,6 +1222,7 @@ async function shortget({
             nasisku_filohipagbu: true,
             bangu,
             cachedDefinitions,
+            lojbo,
           });
         }
       } else if (valsi_giheklesi[0] !== "") {
@@ -1222,12 +1235,13 @@ async function shortget({
             nasisku_filohipagbu: true,
             bangu,
             cachedDefinitions,
+            lojbo,
           });
         }
       }
     } else {
       //several words
-      let vuhilevelujvo = ma_veljvo(valsi);
+      let vuhilevelujvo = ma_veljvo(valsi, lojbo);
       if (vuhilevelujvo[0] === "@") {
         vuhilevelujvo = vuhilevelujvo.slice(1);
 
@@ -1259,7 +1273,7 @@ async function shortget({
       }
     }
   } else {
-    let ff = await jmina_ro_cmima_be_lehivalsi({ query: valsi, bangu });
+    let ff = await jmina_ro_cmima_be_lehivalsi({ query: valsi, bangu, lojbo });
     ff = ff[0] && ff[0].rfs ? ff[0].rfs : undefined;
     secupra = secupra.concat([{ t: "", nasezvafahi: true, w: valsi, rfs: ff }]);
   }
@@ -1319,6 +1333,7 @@ async function sortThem({
   seskari,
   secupra_vreji,
   embeddings,
+  lojbo,
 }: {
   mapti_vreji: Def[];
   query: string;
@@ -1327,12 +1342,13 @@ async function sortThem({
   seskari?: string;
   secupra_vreji: Def[];
   embeddings?: any[];
+  lojbo: boolean;
 }) {
   let decomposed = false;
   let searchPriorityGroups = defaultPriorityGroups();
   const arrCombinedQuery = [...new Set([query, query_apos])];
   for (let el of mapti_vreji) {
-    const def = setca_lotcila(el); // TODO: optimize for phrases
+    const def = setca_lotcila(el, lojbo); // TODO: optimize for phrases
     if (!def) continue;
     const semMatch = !def.z || !embeddings ? [] : semFilter(embeddings, def.z);
     const semMatchGlosses =
@@ -1343,10 +1359,12 @@ async function sortThem({
           JSON.stringify(
             julne_setca_lotcila(
               await sohivalsi({
-                decomposed: decompose(def.w),
+                lojbo,
+                decomposed: decompose(def.w, lojbo),
                 bangu,
                 mapti_vreji,
-              })
+              }),
+              lojbo
             )
           )
         ).filter(({ w }: { w: string }) => w !== def.w);
@@ -1357,6 +1375,7 @@ async function sortThem({
               query: def.w,
               def: def,
               bangu,
+              lojbo,
             })
           )[0].rfs;
         }
@@ -1584,7 +1603,7 @@ async function sisku(searching: Searching) {
     bangu === "loglan"
       ? query.replace(/[‘]/g, "'").toLowerCase()
       : query.replace(/[h‘]/g, "'").toLowerCase();
-  const queryDecomposition = decompose(query_apos);
+  const queryDecomposition = decompose(query_apos, searching.leijufra?.lojbo);
 
   if (query.indexOf("^") === 0 || query.slice(-1) === "$") {
     //regex search
@@ -1604,12 +1623,17 @@ async function sisku(searching: Searching) {
           mapti_vreji: first1000 as Def[],
           seskari,
           secupra_vreji: [],
+          lojbo: searching.leijufra?.lojbo,
         })
-      ).result[0]
+      ).result[0],
+      searching.leijufra?.lojbo
     );
   } else if (seskari === "rimni") {
     //rimni search
-    secupra_vreji.results = await ma_rimni({ query, bangu });
+    secupra_vreji.results = await ma_rimni(
+      { query, bangu },
+      searching.leijufra?.lojbo
+    );
   } else if (bangu !== "muplis" && queryDecomposition.length > 1) {
     //normal search
     const { result, decomposed, embeddings } = await cnano_sisku({
@@ -1621,6 +1645,7 @@ async function sisku(searching: Searching) {
       seskari,
       secupra_vreji: secupra_vreji.results,
       queryDecomposition,
+      leijufra: searching.leijufra,
     });
     secupra_vreji = { results: result, embeddings };
     if (!decomposed) {
@@ -1630,12 +1655,18 @@ async function sisku(searching: Searching) {
         bangu,
         w: query,
         rfs: julne_setca_lotcila(
-          await sohivalsi({ decomposed: queryDecomposition, bangu })
+          await sohivalsi({
+            decomposed: queryDecomposition,
+            bangu,
+            lojbo: searching?.leijufra?.lojbo,
+          }),
+          searching?.leijufra?.lojbo
         ),
       });
     }
   } else {
     const { result, embeddings } = await cnano_sisku({
+      leijufra: searching.leijufra,
       mapti_vreji: [],
       multi: false,
       query,
@@ -1660,22 +1691,14 @@ async function sisku(searching: Searching) {
   });
 }
 
-function krulermorna(t: string) {
-  return `.${t
-    .replace(/\./g, "")
-    .replace(/^/, ".")
-    .replace(/h/g, "'")
-    .toLowerCase()
-    .replace(/([aeiouy\.])u([aeiouy])/g, "$1w$2")
-    .replace(/([aeiouy\.])i([aeiouy])/g, "$1ɩ$2")
-    .replace(/au/g, "ḁ")
-    .replace(/ai/g, "ą")
-    .replace(/ei/g, "ę")
-    .replace(/oi/g, "ǫ")
-    .replace(/\./g, "")}`;
+function krulermornaize(t: string) {
+  return `.${krulermorna(t)}`;
 }
 
-async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
+async function ma_rimni(
+  { query, bangu }: Searching,
+  lojbo: boolean
+): Promise<Def[]> {
   if (query.length === 0) return [];
   const rimni = [[], [], [], [], [], [], [], [], []] as Def[][];
   let query_apos: string;
@@ -1683,9 +1706,9 @@ async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
   let queryR: string[];
   function cupra_lo_porsi(a: Dict[]) {
     for (let i = 0; i < a.length; i++) {
-      const def = setca_lotcila(a[i] as Def); // TODO: optimize for phrases
+      const def = setca_lotcila(a[i] as Def, lojbo); // TODO: optimize for phrases
       if (!def) continue;
-      const docw = krulermorna(def.w)
+      const docw = krulermornaize(def.w)
         .replace(/([aeiouḁąęǫy])/g, "$1-")
         .split("-")
         .slice(-3);
@@ -1705,7 +1728,7 @@ async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
       ) {
         sli = true;
       }
-      if (krulermorna(def.w) === query) {
+      if (krulermornaize(def.w) === query) {
         rimni[0].push(def);
         continue;
       } else if (docw[2] || "" === queryR[2] || "") {
@@ -1800,7 +1823,7 @@ async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
       .replace(/x/g, "[xk]");
   }
 
-  queryR = krulermorna(query)
+  queryR = krulermornaize(query)
     .replace(/([aeiouḁąęǫy])/g, "$1-")
     .split("-")
     .slice(-3);
@@ -1821,7 +1844,7 @@ async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
         }
       )
     ).filter((valsi) => {
-      const queryRn = krulermorna(valsi.w)
+      const queryRn = krulermornaize(valsi.w)
         .replace(/([aeiouḁąęǫy])/g, "$1-")
         .split("-")
         .slice(-3);
@@ -1829,7 +1852,7 @@ async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
         queryRn.length === 2 &&
         queryRn[0].split("").slice(-1)[0] ===
           queryR[0].split("").slice(-1)[0] &&
-        setca_lotcila(valsi as Def)
+        setca_lotcila(valsi as Def, lojbo)
       )
         return true;
       return false;
@@ -1844,7 +1867,7 @@ async function ma_rimni({ query, bangu }: Searching): Promise<Def[]> {
         }
       )
     ).filter(({ w }) => {
-      if (krulermorna(w).match(`${query_apos.toLowerCase()}$`)) return true;
+      if (krulermornaize(w).match(`${query_apos.toLowerCase()}$`)) return true;
       return false;
     });
   }

@@ -1,4 +1,4 @@
-import '../scss/app.scss';
+import '../scss/index.scss';
 // import './worker-controller';
 // import './rust';
 // import './ssr';
