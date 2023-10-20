@@ -2,7 +2,7 @@ export type Dict = { [x: string]: any };
 
 export type DumpRow = (string | string[])[];
 
-export type Morna = { valsi: string; fancu: string; };
+export type Morna = { valsi: string; fancu: string };
 export type Def = {
   semMaxDistance?: number;
   n?: string;

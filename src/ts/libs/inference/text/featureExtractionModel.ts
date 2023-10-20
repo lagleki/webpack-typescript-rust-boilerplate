@@ -49,13 +49,10 @@ export class FeatureExtractionModel extends BaseTextModel {
   };
 
   process = async (
-    inputs: string | string[]
+    inputs: string[]
   ): Promise<FeatureExtractionResult> => {
     if (!this.initialized || !this.model || !this.tokenizer) {
       throw Error("the model is not initialized");
-    }
-    if (typeof inputs === "string") {
-      inputs = [inputs];
     }
     const textTensors = await prepareTextTensors(
       inputs,

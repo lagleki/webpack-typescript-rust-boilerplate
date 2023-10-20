@@ -60,14 +60,14 @@ export const tibetan = (text: string) => {
   text = krulermorna(" " + text);
 
   //words
-  text = text.replace(/\b(?<!')i(?!')\b/g, "།");
-  text = text.replace(/\bce'o(?!')\b/g, "༉");
-  text = text.replace(/\bni'o(?!')\b/g, "༈");
-  text = text.replace(/\bsei(?!')\b/g, "༓");
-  text = text.replace(/\bto(?!')\b/g, "༺");
-  text = text.replace(/\btoi(?!')\b/g, "༻");
-  text = text.replace(/\ble\b(?!')/g, "༼");
-  text = text.replace(/\bku\b(?!')/g, "༽");
+  text = text.replace(/\\b(?<!')i(?!')\\b/g, "།");
+  text = text.replace(/\\bce'o(?!')\\b/g, "༉");
+  text = text.replace(/\\bni'o(?!')\\b/g, "༈");
+  text = text.replace(/\\bsei(?!')\\b/g, "༓");
+  text = text.replace(/\\bto(?!')\\\b/g, "༺");
+  text = text.replace(/\\btoi(?!')\\b/g, "༻");
+  text = text.replace(/\\ble\b(?!')/g, "༼");
+  text = text.replace(/\\bku\b(?!')/g, "༽");
   
   //avoid clusters of more than 2 consonants
   text = text.replace(/([bdgjvzcfkpstxlmnr][bdgjvzcfkpstxlmnr])([bdgjvzcfkpstxlmnr])/g, "$1-$2");

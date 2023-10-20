@@ -62,7 +62,9 @@ let state = store(
   },
   { eventKey: "sutysisku-state", localCacheKey: "sutysisku-state" }
 );
+
 const stateLoading = store(initStateLoading, { eventKey: "sutysisku-loading" });
+ninynaha();
 
 const tejufraCustom = getTejufra();
 const stateLeijufra = store(tejufraCustom ?? { ...tejufra.en, name: "en" }, {
@@ -272,6 +274,16 @@ function kahe_sezgana(el: Element) {
   );
 }
 
+function cahojapuhosezgana(el: Element) {
+  const rect = el.getBoundingClientRect();
+  const height = window.innerHeight || document.documentElement.clientHeight;
+  return (
+    rect.top >= height * -1 &&
+    rect.left >= 0 &&
+    rect.bottom <= height * 2 &&
+    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+  );
+}
 function addPlumbs(root = document.body) {
   //plumbs for in-terbri interactions
   root.querySelectorAll("[data-from]").forEach((target) => {
@@ -356,7 +368,7 @@ function generateArrow({
   );
 }
 
-async function checkScrolledNearBottom({ target }: Event) {
+async function scrollNearBottom({ target }: Event) {
   const content = target as HTMLElement;
   const btnScrollToTop = document.getElementById("scrollToTop") as HTMLElement;
   btnScrollToTop.className =
@@ -371,6 +383,9 @@ async function checkScrolledNearBottom({ target }: Event) {
   //   clearTimeout(stateRAM.scrollJvoTimer)
   // }
   addJvoPlumbs();
+  setTimeout(() => {
+    addAudioLinks();
+  }, 250);
   const element = target as HTMLElement;
 
   const scrollTop = element.scrollTop;
@@ -382,12 +397,91 @@ async function checkScrolledNearBottom({ target }: Event) {
   if (scrollPercentage >= 90) {
     if (stateOutsideComponents.results.length > state.jimte) state.jimte += 10;
   }
-  // } else {
-  //   window.requestAnimationFrame(() => {
-  //     addJvoPlumbs(true)
-  //   })
-  //   addAudioLinks()
-  // }
+}
+
+type AudioCache = { [key: string]: { audio: string; date: number } };
+
+function retainLatestRecords(obj: AudioCache, trimUpTo = 10): AudioCache {
+  // Convert the object to an array of tuples
+  const entries = Object.entries(obj);
+
+  // Sort the tuples by the `date` field in descending order
+  const sorted = entries.sort((a, b) => b[1].date - a[1].date);
+
+  // Take the first 10 tuples
+  const latest = sorted.slice(0, trimUpTo);
+
+  // Convert the tuples back to an object
+  const result: AudioCache = {};
+  for (const [key, value] of latest) {
+    result[key] = value;
+  }
+
+  return result;
+}
+
+function encodeValsiForWeb(v: string) {
+  return encodeURIComponent(v).replace(/ /g, "_");
+}
+
+function setAudio(text: string, audio: string) {
+  const cache: AudioCache = JSON.parse(
+    localStorage.getItem("cachedAudio") ?? "{}"
+  );
+
+  cache[text] = { audio, date: new Date().getTime() };
+  const trimmedCache = retainLatestRecords(cache, 50);
+  localStorage.setItem("cachedAudio", JSON.stringify(trimmedCache));
+}
+
+function extractFromJson(jsonObj: Dict, keys: string[]): Dict {
+  return Object.keys(jsonObj)
+    .filter((key) => keys.includes(key))
+    .reduce((obj: Dict, key) => {
+      obj[key] = jsonObj[key];
+      return obj;
+    }, {});
+}
+
+async function getAudio(valsis: string[]): Promise<Dict> {
+  const audios: Dict = JSON.parse(localStorage.getItem("cachedAudio") ?? "{}");
+  return extractFromJson(audios, valsis);
+}
+
+async function addAudioLinks() {
+  const els = Array.from(
+    document.querySelectorAll(":not(.na_eisesance)[data-valsi]")
+  );
+
+  let valsis = [];
+  for (let el of els) {
+    if (!cahojapuhosezgana(el)) continue;
+    const valsi = el.getAttribute("data-valsi");
+    if (valsi) valsis.push(valsi);
+  }
+
+  const sanceDict = await getAudio(valsis);
+
+  for (const valsi of valsis) {
+    if (sanceDict[valsi]) continue;
+    const urli = `${process.env.DUMPS_URL_ROOT}/data/sance/${encodeValsiForWeb(
+      valsi
+    )}.ogg`;
+    const res = await fetch(urli, { cache: "no-store" });
+    if (!res.ok) continue;
+    const blob = await res.blob();
+    const base64: string = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = function () {
+        const base64data = reader.result;
+        resolve(base64data as string);
+      };
+    });
+    sanceDict[valsi] = base64;
+    setAudio(valsi, base64);
+  }
+  state.lei_sance = sanceDict;
 }
 
 function addJvoPlumbs() {
@@ -468,7 +562,10 @@ worker.onmessage = (ev) => {
       new Date().getTime()
     );
     stateOutsideComponents.fetched = structuredClone(data.req);
-    stateOutsideComponents.morna = getRandomValueFromArray(lei_morna);
+    stateOutsideComponents.morna = stateLoading.loading
+      ? lei_morna[0]
+      : getRandomValueFromArray(lei_morna);
+
     state.embeddings = data.embeddings ?? [];
     stateLoading.showDesktop = false;
     console.log("res+state", new Date().getTime());
@@ -514,6 +611,7 @@ worker.onmessage = (ev) => {
       stateLoading.innerText =
         "🗃️ " + ((supportedLangs as any)[data.bangu]?.n ?? data.bangu);
     } else if (cmene === "loaded") {
+      stateLoading.dbUpdated = true;
       fetchAndSaveCachedListValues({ mode: "ca'o" });
       postQuery();
     } else if (cmene === "bootingDb") {
@@ -521,8 +619,6 @@ worker.onmessage = (ev) => {
       stateLoading.totalRows = 3;
       stateLoading.innerText = "🗃️ " + stateLeijufra.booting;
     }
-    //todo: resize
-    // calcVH();
   }
 };
 
@@ -582,16 +678,16 @@ function setStateFromInput(event: Event): void {
 window.addEventListener("hashchange", () => setStateFromUrl());
 window.addEventListener("resize", () => {
   addJvoPlumbs();
+  addAudioLinks();
 });
 
 //always show dasri thats all
 component(
   "#root",
   async () => {
-    const inFetching = !twoJsonsAreEqual(
-      state.displaying,
-      stateOutsideComponents.fetched
-    );
+    const inFetching =
+      !twoJsonsAreEqual(state.displaying, stateOutsideComponents.fetched) &&
+      state.displaying.query !== "";
     return h(
       "div",
       {
@@ -671,6 +767,7 @@ component(
                   ),
                   click: () => {
                     stateLoading.showDesktop = false;
+                    addPyro();
                   },
                   class: [
                     // "osx",
@@ -688,6 +785,7 @@ component(
               )
             )
           ),
+          stateLoading.pyro && h("div", { class: ["pyro"] }),
           h(
             "span.hat-button",
             {
@@ -695,6 +793,7 @@ component(
                 stateLoading.showDesktop = true;
                 stateOutsideComponents.focused = 0;
                 removePlumbs();
+                addPyro();
               },
               "aria-label": "la sutysisku",
               class: [
@@ -718,7 +817,8 @@ component(
             //   "data-jufra": "titlelogo-inner",
             //   textContent: "la sutysisku",
             // })
-          )
+          ),
+          stateLoading.pyro && h("div", { class: ["pyro"] })
         )
       ),
       h(
@@ -837,7 +937,7 @@ component(
           scroll: (event: Event) => {
             removePlumbs();
             debounce(
-              checkScrolledNearBottom,
+              scrollNearBottom,
               250,
               stateOutsideComponents.timers,
               "scroll"
@@ -865,7 +965,7 @@ component(
                 ? [
                     h("div.drata", ...links()),
                     h(
-                      "div#descr",
+                      "div.descr",
                       // {
                       //   class: stateLoading.showDesktop ? ["d-block"] : ["d-none"],
                       // },
@@ -940,13 +1040,20 @@ component(
             textContent: stateLeijufra["Live chat for your questions"],
           })
         )
-      )
+      ),
+      sihesle()
     );
   },
   {
     eventKeys: ["sutysisku-state", "sutysisku-loading", "sutysisku-jufra"],
     afterRender: ({ newStateAmendments, previousState, eventKey }) => {
       // console.warn("afterrr", { newStateAmendments, previousState, eventKey });
+      if (
+        Object.keys(newStateAmendments ?? {}).length === 1 &&
+        newStateAmendments.lei_sance
+      )
+        return;
+
       if (
         eventKey === "sutysisku-state" &&
         newStateAmendments?.displaying !== undefined &&
@@ -960,7 +1067,10 @@ component(
         const content = document.getElementById("contentWrapper");
         if (content) content.scrollTop = 0;
       }
-      addJvoPlumbs();
+      if (stateLoading.dbUpdated) {
+        addJvoPlumbs();
+        addAudioLinks();
+      }
 
       document
         .getElementById("ciska")
@@ -968,6 +1078,61 @@ component(
     },
   }
 );
+
+async function ninynaha() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  const day = Math.floor(diff / oneDay);
+  if (day >= 340 || day < 10) {
+    stateLoading.ninynaha = true;
+  } else {
+    stateLoading.ninynaha = false;
+  }
+}
+
+const rnd = (max: number, min = 1) => ((Math.random() * max) / min).toFixed(2);
+
+function addPyro() {
+  if (stateLoading.ninynaha && Math.random() > 0.618) {
+    stateLoading.pyro = true;
+    setTimeout(() => {
+      stateLoading.pyro = false;
+    }, 2900);
+  }
+}
+
+function sihesle() {
+  if (!stateLoading.ninynaha) return;
+  return h(
+    "div",
+    h(
+      "div",
+      {
+        class: ["leisihesle"],
+        attributes: {
+          "aria-hidden": true,
+        },
+      },
+      ...Array(3)
+        .fill(["❅", "❆"])
+        .flat()
+        .map((_) => {
+          const rnd40 = rnd(30);
+          const rnd3 = rnd(3);
+          return h("div", {
+            class: ["sihesle"],
+            style: {
+              left: `${rnd(100)}%`,
+              "animation-delay": `${rnd40}s, ${rnd3}s`,
+            },
+            innerText: _,
+          });
+        })
+    )
+  );
+}
 
 const outpBlock = async ({ inFetching }: { inFetching: boolean }) => {
   console.log("skicu", new Date().getTime());
@@ -1152,10 +1317,6 @@ function basna({
       }
     }
   );
-}
-
-function encodeValsiForWeb(v: string) {
-  return encodeURIComponent(v).replace(/'/g, "h");
 }
 
 function plukaquery(query: string) {
@@ -1575,7 +1736,7 @@ function melbi_uenzi({
         };
         return twoJsonsAreEqual(curState, state.displaying) &&
           !secondarySeskari.includes(state.displaying.seskari)
-          ? h("b", { innerText: intralink })
+          ? h("b", { class: ["deitegerna"], innerText: intralink })
           : h("a", {
               class: `a-${curSeskari}`,
               href: buildURLParams(curState),
@@ -1764,12 +1925,20 @@ async function skicu_paledovalsi({
     "h4",
     {
       class: ["valsi"],
-      attributes:
-        def.d && !def.nasezvafahi
-          ? { "data-valsi": encodeValsiForWeb(def.w) }
-          : {},
+      attributes: def.d && !def.nasezvafahi ? { "data-valsi": def.w } : {},
     },
     ...children,
+    state.lei_sance[def.w as string]?.audio &&
+      h("button", {
+        class: ["sance"],
+        click: () => {
+          const audioNode: HTMLAudioElement = new Audio();
+          audioNode.src = state.lei_sance[def.w as string].audio;
+          audioNode.crossOrigin = "anonymous";
+          audioNode.play();
+        },
+        innerText: "▶",
+      }),
     zbalermorna
   );
 

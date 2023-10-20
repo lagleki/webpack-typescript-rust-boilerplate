@@ -1,5 +1,5 @@
 import { RecursiveObject } from "../../../renderer/src/common/types";
-import { Morna, RegexFlavours, Searching, State } from "./types";
+import { Dict, Morna, RegexFlavours, Searching, State } from "./types";
 import { getRandomValueFromArray } from "./utils/fns";
 
 export const modes = ["velcusku", "arxivo", "cnano", "rimni", "catni", "fanva"];
@@ -126,6 +126,7 @@ export const initState = {
   embeddings: [],
   memoizedValues: {} as RecursiveObject,
   jimte: 100,
+  lei_sance: {} as Dict,
 };
 
 export const lei_morna: Morna[] = [
@@ -159,6 +160,9 @@ export const initStateOutsideComponents = {
 };
 
 export const initStateLoading = {
+  dbUpdated: false as boolean,
+  ninynaha: false as boolean,
+  pyro: false as boolean,
   showDesktop: true as boolean,
   loading: true,
   completedRows: 37,

@@ -29,7 +29,7 @@ import { krulermorna } from "../utils/ceha";
 
 self.postMessage({ kind: "loading" });
 
-let sql_buffer_mode: string, production: string;
+let sql_buffer_mode: string;
 const aQueue = new AutoQueue();
 
 self.onmessage = function (ev) {
@@ -73,15 +73,29 @@ let db: number,
   check on clean startup fix all errors
   test on old android browsers if opfs gets disabled
 */
-async function initSQLDB() {
+let dbMode: string | null = null;
+
+async function initSQLDB(flush = false) {
+  console.log("init", flush);
   const module = await SQLiteAsyncESMFactory();
   sqlite3 = SQLite.Factory(module);
+
   if ("storage" in navigator && "getDirectory" in navigator.storage) {
+    dbMode = "opfs";
+
     // OPFS is supported
     log("OPFS is supported");
 
+    if (flush) {
+      const root = await navigator.storage.getDirectory();
+      try {
+        // @ts-ignore
+        await root.removeEntry("sutysisku", { recursive: true });
+      } catch (error) {}
+    }
+
     sqlite3.vfs_register(new VFS2(), true);
-    const DB_NAME = "file:///benchmark?foo=bar";
+    const DB_NAME = "file:///sutysisku?foo=bar";
     db = await sqlite3.open_v2(
       DB_NAME,
       SQLite.SQLITE_OPEN_CREATE |
@@ -92,6 +106,7 @@ async function initSQLDB() {
   } else {
     // OPFS is not supported
     log("OPFS is not supported");
+    dbMode = "idb";
     sqlite3.vfs_register(new VFS("sutysisku"));
 
     db = await sqlite3.open_v2("sutysisku", undefined, "sutysisku");
@@ -111,7 +126,8 @@ async function initSQLDB() {
   );
 
   //todo: memory/delete mode
-  await sqlite3.exec(db, `pragma cache_size = 6000;`);
+  //breaks opfs storage when updating an existing db:
+  // await sqlite3.exec(db, `pragma cache_size = 6000;`);
   await sqlite3.exec(db, `pragma page_size = 8192;`);
   await sqlite3.exec(db, `PRAGMA journal_mode=memory;`);
   // db.run(`
@@ -130,62 +146,65 @@ async function initSQLDB() {
     });
 
     //TODO: restore?
-    // await sql(`select w from valsi where bangu='en'`)
+    // console.log({ok: await sql(`select w from valsi where bangu='en'`)});
+
     // self.postMessage({
     //   kind: "loader",
     //   cmene: "loaded",
     // });
   }
 
-  self.postMessage({
-    kind: "loader",
-    cmene: "startLanguageDirectionUpdate",
-    completedRows: 1,
-    totalRows: 3,
-    bangu: "en-embeddings",
-  });
-  log("loading embeddings");
-  //embeddings
-  const response = await getOrFetchResource(`/data/embeddings-en.json.bin`);
-  // const response = await fetch(`/data/embeddings-en.json.bin?sisku=${new Date().getTime()}`);
+  if (!flush) {
+    self.postMessage({
+      kind: "loader",
+      cmene: "startLanguageDirectionUpdate",
+      completedRows: 1,
+      totalRows: 3,
+      bangu: "en-embeddings",
+    });
+    log("loading embeddings");
+    //embeddings
+    const response = await getOrFetchResource(`/data/embeddings-en.json.bin`);
+    // const response = await fetch(`/data/embeddings-en.json.bin?sisku=${new Date().getTime()}`);
 
-  wordEmbeddings = await loadModel(response as EmbeddingsFile);
-  self.postMessage({
-    kind: "loader",
-    cmene: "startLanguageDirectionUpdate",
-    completedRows: 3,
-    totalRows: 3,
-    bangu: "en-embeddings",
-    banguRaw: "en-embeddings",
-  });
-  log("processed embeddings");
-  const result = await SimpleTextModel.create({
-    id: "mini-lm-v2-quant",
-    title: "Quantized mini model for sentence embeddings",
-    description: "",
-    memEstimateMB: 100,
-    type: ModelType.FeatureExtraction,
-    sizeMB: 15,
-    modelPaths: new Map<string, string>([
-      ["encoder", "/data/mini-lm-v2-quant.brotli"],
-    ]),
-    outputNames: new Map<string, string>([["encoder", "last_hidden_state"]]),
-    tokenizerPath: "/data/mini-lm-v2-quant.tokenizer.brotli",
-    tokenizerParams: {
-      bosTokenID: 0,
-      eosTokenID: 1,
-      padTokenID: 0,
-    },
-    tags: ["feature-extraction", "t5"],
-    referenceURL:
-      "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
-  });
-  log(
-    await (result.model as FeatureExtractionModel).process([
-      "I eat apple",
-      "I consume fruit",
-    ])
-  );
+    wordEmbeddings = await loadModel(response as EmbeddingsFile);
+    self.postMessage({
+      kind: "loader",
+      cmene: "startLanguageDirectionUpdate",
+      completedRows: 3,
+      totalRows: 3,
+      bangu: "en-embeddings",
+      banguRaw: "en-embeddings",
+    });
+    log("processed embeddings");
+    const result = await SimpleTextModel.create({
+      id: "mini-lm-v2-quant",
+      title: "Quantized mini model for sentence embeddings",
+      description: "",
+      memEstimateMB: 100,
+      type: ModelType.FeatureExtraction,
+      sizeMB: 15,
+      modelPaths: new Map<string, string>([
+        ["encoder", "/data/mini-lm-v2-quant.brotli"],
+      ]),
+      outputNames: new Map<string, string>([["encoder", "last_hidden_state"]]),
+      tokenizerPath: "/data/mini-lm-v2-quant.tokenizer.brotli",
+      tokenizerParams: {
+        bosTokenID: 0,
+        eosTokenID: 1,
+        padTokenID: 0,
+      },
+      tags: ["feature-extraction", "t5"],
+      referenceURL:
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
+    });
+    log(
+      await (result.model as FeatureExtractionModel).process([
+        "I eat apple",
+        "I consume fruit",
+      ])
+    );
+  }
 }
 
 let cacheObj: Cache;
@@ -284,7 +303,7 @@ function prettifySqlQuery(query: string) {
 async function runQuery(sqlQuery: string, params = {}) {
   const start = new Date().getTime();
   const rows = await sql(sqlQuery, params);
-  if (production !== "production")
+  if (process.env.DEV === "true")
     log({
       startedAt: start,
       endedAt: new Date().getTime(),
@@ -410,7 +429,7 @@ const fancu = {
           response = await fetch(
             `${
               process.env.DUMPS_URL_ROOT
-            }/versio.json?sisku=${new Date().getTime()}`
+            }/data/versio.json?sisku=${new Date().getTime()}`
           );
         } catch (error) {
           log(
@@ -425,8 +444,8 @@ const fancu = {
         let jsonVersio: Dict = {};
         if (response?.ok) {
           jsonVersio = await response.json();
-
-          for (const lang of sufficientLangs(searching)) {
+          const sufLangs = sufficientLangs(searching);
+          for (const lang of sufLangs) {
             const langHash = jsonVersio[lang];
             if (!langHash) continue;
             let count = 0;
@@ -443,6 +462,16 @@ const fancu = {
           }
 
           if (langsToUpdate.length > 0) {
+            // if (dbMode === "opfs") {
+            //   langsToUpdate = [
+            //     ...new Set(
+            //       (await sql(`SELECT distinct bangu FROM langs_ready`))
+            //         .map(({ bangu }) => bangu)
+            //         .concat(sufLangs)
+            //     ),
+            //   ];
+            //   await initSQLDB(true);
+            // }
             for (const lang of arrSupportedLangs())
               if (langsToUpdate.includes(supportedLangs[lang].bangu))
                 langsToUpdate.push(lang);
@@ -475,7 +504,7 @@ const fancu = {
         const response = await fetch(
           `${
             process.env.DUMPS_URL_ROOT
-          }/versio.json?sisku=${new Date().getTime()}`
+          }/data/versio.json?sisku=${new Date().getTime()}`
         );
         if (response.ok) {
           json = await response.json();
@@ -502,20 +531,26 @@ const fancu = {
 async function jufra({ bapli }: { bapli: boolean }) {
   aQueue.enqueue({
     action: async () => {
-      if (bapli) await sql(`delete from tejufra`);
-      //tejufra
-      const nitejufra = (
-        await sql(`SELECT count(jufra) as klani FROM tejufra`)
-      )?.[0]?.klani;
-      if (nitejufra === 0 || bapli) {
-        //todo: transaction
-        for (const key of Object.keys(jsonTeJufra)) {
-          await sql(`insert into tejufra (bangu, jufra) values(?,?)`, [
-            key,
-            JSON.stringify((jsonTeJufra as any)[key]),
-          ]);
+      try {
+        await sqlite3.exec(db, `BEGIN;`);
+        if (bapli) await sql(`delete from tejufra`);
+        //tejufra
+        const nitejufra = (
+          await sql(`SELECT count(jufra) as klani FROM tejufra`)
+        )?.[0]?.klani;
+        if (nitejufra === 0 || bapli) {
+          //todo: transaction
+          for (const key of Object.keys(jsonTeJufra)) {
+            await sql(`insert into tejufra (bangu, jufra) values(?,?)`, [
+              key,
+              JSON.stringify((jsonTeJufra as any)[key]),
+            ]);
+          }
+          log({ event: "Locales fully updated" });
         }
-        log({ event: "Locales fully updated" });
+        await sqlite3.exec(db, `COMMIT;`);
+      } catch (error) {
+        await sqlite3.exec(db, `ROLLBACK;`);
       }
     },
   });
@@ -676,9 +711,10 @@ async function cnino_sorcu(
 
     for (let i = 0; i < lenLangChunks; i++) {
       cb(`downloading ${lang}-${i}.bin dump`);
+
       const url = `${
         process.env.DUMPS_URL_ROOT
-      }/parsed/parsed-${lang}-${i}.bin?sisku=${new Date().getTime()}`;
+      }/data/parsed/parsed-${lang}-${i}.bin?sisku=${new Date().getTime()}`;
       const response = await fetch(url);
       let json;
       if (response.ok) {
@@ -698,6 +734,7 @@ async function cnino_sorcu(
 
         const groupedRows = chunkArray(rows, columns, chunkSize, lang);
         const time = new Date().getTime();
+
         if (i === 0) {
           await sql(`delete from valsi where bangu=$bangu`, { $bangu: lang });
           await sql(`delete from langs_ready where bangu=$bangu`, {
@@ -705,17 +742,22 @@ async function cnino_sorcu(
           });
         }
         for (const toAdd of groupedRows) {
-          await sqlite3.exec(db, `BEGIN;`);
-          for (let rec of toAdd) {
-            const { columns, dict } = rec;
-            await sql(
-              `INSERT INTO valsi (${columns.join(",")}) VALUES (${columns.map(
-                (col) => `$${col}`
-              )})`,
-              dict
-            );
+          try {
+            await sqlite3.exec(db, `BEGIN;`);
+            for (let rec of toAdd) {
+              const { columns, dict } = rec;
+              await sql(
+                `INSERT INTO valsi (${columns.join(",")}) VALUES (${columns.map(
+                  (col) => `$${col}`
+                )})`,
+                dict
+              );
+            }
+            await sqlite3.exec(db, `COMMIT;`);
+          } catch (error: any) {
+            log(error?.message, "error");
+            await sqlite3.exec(db, `ROLLBACK;`);
           }
-          await sqlite3.exec(db, `COMMIT;`);
 
           completedRows += chunkSize;
           self.postMessage({
@@ -797,9 +839,6 @@ async function getCachedDefinitions({
   return result;
 }
 
-const getMergedArray = (array: string[]) =>
-  `(${array.map((i) => `'${i.replace(/'/g, "''")}'`).join(",")})`;
-
 async function getNeighbors(query: string) {
   let results = await wordEmbeddings.getNearestNeighbors(query, 100);
   results = [
@@ -880,6 +919,7 @@ async function cnano_sisku({
   } else {
     //normal search
     const queryNEmbeddings = arrayQuery.concat(embeddings.word);
+
     rows = await runQuery(
       `
 		select distinct d,n,w,r,bangu,s,t,g,b,z,v,cache
@@ -890,6 +930,7 @@ async function cnano_sisku({
     );
 
     rows = rows.filter((def: Dict) => {
+      if (!def.cache) log(def, "warn");
       const noSharedElementsInCache = arraysShareElement(
         def.cache.split(";"),
         queryNEmbeddings
@@ -955,7 +996,12 @@ async function cnano_sisku({
   if (multi)
     return { result: allMatches[0], decomposed, embeddings: embeddings.words };
   if (allMatches[0].length === 0) {
-    allMatches[0] = (await jmina_ro_cmima_be_lehivalsi({ query, bangu, lojbo: leijufra.lojbo })) || [];
+    allMatches[0] =
+      (await jmina_ro_cmima_be_lehivalsi({
+        query,
+        bangu,
+        lojbo: leijufra.lojbo,
+      })) || [];
   }
   if (allMatches[0].length === 0 || allMatches[0][0].w !== query_apos) {
     let vlazahumei = [];
@@ -1591,6 +1637,7 @@ async function sortThem({
 
 async function sisku(searching: Searching) {
   log("sisku");
+
   let { query, seskari, bangu, versio } = searching;
   query = query.trim();
   //connect and do selects
@@ -1677,6 +1724,7 @@ async function sisku(searching: Searching) {
       secupra_vreji: secupra_vreji.results,
       queryDecomposition,
     });
+
     secupra_vreji = { results: result, embeddings };
   }
   self.postMessage({
@@ -1874,6 +1922,6 @@ async function ma_rimni(
   return cupra_lo_porsi(result ?? []);
 }
 
-aQueue.enqueue({ action: initSQLDB });
+aQueue.enqueue({ action: initSQLDB.bind(null, false) });
 
 self.postMessage({ kind: "ready" });
