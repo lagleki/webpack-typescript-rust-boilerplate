@@ -25,7 +25,7 @@
         "uncll": {
           "title": "Reference Grammar",
           "url": "http://www.loglan.org/Loglan1/",
-          "picture": "/assets/pixra/loglan-refgram.png"
+          "picture": "/assets/pixra/bangu/loglan-refgram.png"
         }
       },
       {
@@ -135,7 +135,7 @@
     "Live chat for your questions": "Live chat for your questions",
     "la muplis": "la muplis - useful phrases",
     "alerts": {
-      "cnano": "Search for words similar in meaning (use word vector embeddings)",
+      "cnano": "Search for words similar in meaning (use vector embeddings)",
       "rimni": "Search for rhymes to the given query",
       "catni": "Search for words and their parts, prioritize official words",
       "fanva": "Show definitions of the word in all fetched languages",

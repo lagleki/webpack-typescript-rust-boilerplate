@@ -744,7 +744,7 @@ body {
 }
 
 #root.body-muplis {
-  background-image: url(../assets/pixra/murse.jpg) !important;
+  background-image: url(../assets/pixra/murse.webp) !important;
   background-size: 0 0;
   background-size: cover;
   background-repeat: no-repeat;
@@ -2187,4 +2187,8 @@ user-select: none; */
 
 .deitegerna {
   color: #444;
+}
+
+span.tergeha {
+  white-space: pre-wrap;
 }

@@ -1,83 +1,88 @@
 /**
  * Webpack main configuration file
  */
-const webpack = require('webpack');
+const webpack = require("webpack");
 
-const path = require('path');
-const fs = require('fs');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-const HTMLWebpackPlugin = require('html-webpack-plugin');
-const ImageMinimizerPlugin = require('image-minimizer-webpack-plugin');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const WasmPackPlugin = require('@wasm-tool/wasm-pack-plugin');
-const Dotenv = require('dotenv-webpack');
+const path = require("path");
+const fs = require("fs");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
+const HTMLWebpackPlugin = require("html-webpack-plugin");
+const ImageMinimizerPlugin = require("image-minimizer-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const { CleanWebpackPlugin } = require("clean-webpack-plugin");
+const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
+const Dotenv = require("dotenv-webpack");
 
-const { PuppeteerPrerenderPlugin } = require('puppeteer-prerender-plugin');
-const prettier = require('prettier');
+const { PuppeteerPrerenderPlugin } = require("puppeteer-prerender-plugin");
+const prettier = require("prettier");
 
-const environment = require('./configuration/environment');
+const environment = require("./configuration/environment");
 
 const templateFiles = fs
   .readdirSync(environment.paths.source)
-  .filter((file) => ['.html', '.ejs'].includes(path.extname(file).toLowerCase()))
+  .filter((file) =>
+    [".html", ".ejs"].includes(path.extname(file).toLowerCase())
+  )
   .map((filename) => ({
     input: filename,
-    output: filename.replace(/\.ejs$/, '.html'),
+    output: filename.replace(/\.ejs$/, ".html"),
   }));
 
 function htmlJson() {
   try {
     return JSON.parse(
-      fs.readFileSync(path.resolve(__dirname, 'configuration', 'html.json')),
+      fs.readFileSync(path.resolve(__dirname, "configuration", "html.json"))
     );
   } catch (error) {
     return {};
   }
 }
-const htmlPluginEntries = (env, argv) => templateFiles
-  .map((template) => [
-    new HTMLWebpackPlugin({
-      minify: argv.mode === 'production',
-      inject: true,
-      hash: false,
-      filename: template.output,
-      template: path.resolve(environment.paths.source, template.input),
-      templateParameters: htmlJson(),
-      favicon: path.resolve(
-        environment.paths.source,
-        'assets/pixra',
-        'snime-1.svg',
-      ),
-    }),
-    argv.mode !== 'production'
-      ? undefined
-      : new PuppeteerPrerenderPlugin({
-        enabled: true,
-        entryDir: path.join(__dirname, 'dist'),
-        outputDir: path.join(__dirname, 'dist'),
-        renderAfterEvent: '__RENDERED__',
-        postProcess: (result) => {
-          // result.html = result.html
-          //   .replace(/<script (.*?)>/g, "<script $1 defer>")
-          //   .replace('id="root"', 'id="root" data-server-rendered="true"');
-          if (argv.mode === 'development') {
-            result.html = prettier.format(result.html, {
-              parser: 'html',
-            });
-          }
-        },
-        routes: [
-          '/' + template.output.replace(/^index\.html$/, ''), // Renders to dist/index.html
-        ],
-        puppeteerOptions: {
-          // Needed to run inside Docker
-          headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        },
-      }),
-  ].filter(Boolean))
-  .flat();
+const htmlPluginEntries = (env, argv) =>
+  templateFiles
+    .map((template) =>
+      [
+        new HTMLWebpackPlugin({
+          minify: argv.mode === "production",
+          inject: true,
+          hash: false,
+          filename: template.output,
+          template: path.resolve(environment.paths.source, template.input),
+          templateParameters: htmlJson(),
+          favicon: path.resolve(
+            environment.paths.source,
+            "assets/pixra",
+            "snime-1.svg"
+          ),
+        }),
+        argv.mode !== "production"
+          ? undefined
+          : new PuppeteerPrerenderPlugin({
+              enabled: true,
+              entryDir: path.join(__dirname, "dist"),
+              outputDir: path.join(__dirname, "dist"),
+              renderAfterEvent: "__RENDERED__",
+              postProcess: (result) => {
+                // result.html = result.html
+                //   .replace(/<script (.*?)>/g, "<script $1 defer>")
+                //   .replace('id="root"', 'id="root" data-server-rendered="true"');
+                if (argv.mode === "development") {
+                  result.html = prettier.format(result.html, {
+                    parser: "html",
+                  });
+                }
+              },
+              routes: [
+                "/" + template.output.replace(/^index\.html$/, ""), // Renders to dist/index.html
+              ],
+              puppeteerOptions: {
+                // Needed to run inside Docker
+                headless: true,
+                args: ["--no-sandbox", "--disable-setuid-sandbox"],
+              },
+            }),
+      ].filter(Boolean)
+    )
+    .flat();
 
 module.exports = (env, argv) => ({
   mode: argv.mode,
@@ -90,68 +95,92 @@ module.exports = (env, argv) => ({
     // topLevelAwait: true,
   },
   entry: {
-    app: path.resolve(environment.paths.source, 'ts', 'index.ts'),
+    app: path.resolve(environment.paths.source, "ts", "index.ts"),
   },
   resolve: {
-    extensions: ['.tsx', '.ts', '.js', '.json'],
+    // crypto: false,
+    // fs: false,
+    // path: false,
+    extensions: [".tsx", ".ts", ".js", ".json"],
     fallback: {
-      buffer: require.resolve('buffer'),
+      buffer: require.resolve("buffer"),
     },
   },
   output: {
-    filename: 'js/[name].js',
+    filename: "js/[name].js",
     path: environment.paths.output,
   },
   module: {
     rules: [
       {
         test: /\.tsx?$/,
-        use: 'ts-loader',
+        use: "ts-loader",
         exclude: /node_modules/,
       },
       {
         test: /\.((c|sa|sc)ss)$/i,
         use: [
           MiniCssExtractPlugin.loader,
-          'css-loader',
-          'postcss-loader',
-          'sass-loader',
+          "css-loader",
+          "postcss-loader",
+          "sass-loader",
         ],
       },
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        use: ['babel-loader'],
+        use: ["babel-loader"],
       },
       {
         test: /\.(png|gif|jpe?g|svg)$/i,
-        type: 'asset',
+        type: "asset",
         parser: {
           dataUrlCondition: {
             maxSize: environment.limits.images,
           },
         },
         generator: {
-          filename: 'images/design/[name].[hash:6][ext]',
+          filename: "images/design/[name].[hash:6][ext]",
         },
       },
       {
         test: /\.(eot|ttf|woff|woff2)$/,
-        type: 'asset',
+        type: "asset",
         parser: {
           dataUrlCondition: {
             maxSize: environment.limits.images,
           },
         },
         generator: {
-          filename: 'images/design/[name].[hash:6][ext]',
+          filename: "images/design/[name].[hash:6][ext]",
         },
       },
     ],
   },
   optimization: {
+    // splitChunks: {
+    //   chunks: `async`,
+    //   minSize: 20000,
+    //   minRemainingSize: 0,
+    //   minChunks: 1,
+    //   maxAsyncRequests: 30,
+    //   maxInitialRequests: 30,
+    //   enforceSizeThreshold: 50000,
+    //   cacheGroups: {
+    //     defaultVendors: {
+    //       test: /[\\/]node_modules[\\/]/,
+    //       priority: -10,
+    //       reuseExistingChunk: true,
+    //     },
+    //     default: {
+    //       minChunks: 2,
+    //       priority: -20,
+    //       reuseExistingChunk: true,
+    //     },
+    //   },
+    // },
     minimizer: [
-      '...',
+      "...",
       new ImageMinimizerPlugin({
         minimizer: {
           implementation: ImageMinimizerPlugin.imageminMinify,
@@ -159,16 +188,16 @@ module.exports = (env, argv) => ({
             // Lossless optimization with custom option
             // Feel free to experiment with options for better result for you
             plugins: [
-              ['gifsicle', { interlaced: true }],
-              ['jpegtran', { progressive: true }],
-              ['optipng', { optimizationLevel: 5 }],
+              ["gifsicle", { interlaced: true }],
+              ["jpegtran", { progressive: true }],
+              ["optipng", { optimizationLevel: 5 }],
               // Svgo configuration here https://github.com/svg/svgo#configuration
               [
-                'svgo',
+                "svgo",
                 {
                   plugins: [
                     {
-                      name: 'removeViewBox',
+                      name: "removeViewBox",
                       active: false,
                     },
                   ],
@@ -183,47 +212,48 @@ module.exports = (env, argv) => ({
   plugins: [
     new WasmPackPlugin({
       crateDirectory: __dirname,
-      outDir: 'pkg',
+      outDir: "pkg",
       // forceWatch: true,
     }),
     new MiniCssExtractPlugin({
-      filename: 'css/[name].css',
+      filename: "css/[name].css",
     }),
     new CleanWebpackPlugin({
       verbose: true,
-      cleanOnceBeforeBuildPatterns: ['**/*', '!stats.json'],
+      cleanOnceBeforeBuildPatterns: ["**/*", "!stats.json"],
     }),
     new CopyWebpackPlugin({
       patterns: [
+        { from: "node_modules/onnxruntime-web/dist/*.wasm", to: "[name][ext]" },
         {
-          from: path.resolve(environment.paths.source, 'assets'),
-          to: path.resolve(environment.paths.output, 'assets'),
-          toType: 'dir',
+          from: path.resolve(environment.paths.source, "assets"),
+          to: path.resolve(environment.paths.output, "assets"),
+          toType: "dir",
           globOptions: {
-            ignore: ['*.DS_Store', 'Thumbs.db'],
+            ignore: ["*.DS_Store", "Thumbs.db"],
           },
         },
         {
-          from: path.resolve(environment.paths.source, 'ts', 'worker', 'data'),
-          to: path.resolve(environment.paths.output, 'data'),
-          toType: 'dir',
+          from: path.resolve(environment.paths.source, "ts", "worker", "data"),
+          to: path.resolve(environment.paths.output, "data"),
+          toType: "dir",
           globOptions: {
-            ignore: ['*.DS_Store', 'Thumbs.db'],
+            ignore: ["*.DS_Store", "Thumbs.db"],
           },
         },
       ],
     }),
     new webpack.DefinePlugin({
       production: false,
-      sql_buffer_mode: 'memory',
+      sql_buffer_mode: "memory",
     }),
     new Dotenv(),
     new webpack.ProvidePlugin({
-      Buffer: ['buffer', 'Buffer'],
+      Buffer: ["buffer", "Buffer"],
     }),
     // new webpack.ProvidePlugin({
     //   process: 'process/browser',
     // }),
   ].concat(htmlPluginEntries(env, argv)),
-  target: 'web',
+  target: "web",
 });

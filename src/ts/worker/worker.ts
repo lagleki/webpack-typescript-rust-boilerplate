@@ -13,19 +13,14 @@ import jsonTeJufra from "./template/tejufra.json";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { decompress } from "brotli-compress/js";
-import {
-  Def,
-  Dict,
-  DumpRow,
-  EmbeddingsFile,
-  Searching,
-} from "../types/index.js";
+import { Def, Dict, DumpRow, EmbeddingsFile, Searching } from "../types/index.js";
 import { blobChunkDefaultLength } from "../consts";
 import { log } from "../libs/logger";
 
-import { FeatureExtractionModel, ModelType } from "../libs/inference/text";
-import { SimpleTextModel } from "../libs/inference/text/simpleTextModel";
+import { TextEmbeddingModel } from "../libs/semsearch/inference/";
+
 import { krulermorna } from "../utils/ceha";
+import { SemSearcher } from "../libs/semsearch/";
 
 self.postMessage({ kind: "loading" });
 
@@ -127,7 +122,7 @@ async function initSQLDB(flush = false) {
 
   //todo: memory/delete mode
   //breaks opfs storage when updating an existing db:
-  // await sqlite3.exec(db, `pragma cache_size = 6000;`);
+  await sqlite3.exec(db, `pragma cache_size = 6000;`);
   await sqlite3.exec(db, `pragma page_size = 8192;`);
   await sqlite3.exec(db, `PRAGMA journal_mode=memory;`);
   // db.run(`
@@ -163,9 +158,9 @@ async function initSQLDB(flush = false) {
       bangu: "en-embeddings",
     });
     log("loading embeddings");
-    //embeddings
+    //word fasttext embeddings
     const response = await getOrFetchResource(`/data/embeddings-en.json.bin`);
-    // const response = await fetch(`/data/embeddings-en.json.bin?sisku=${new Date().getTime()}`);
+    // // const response = await fetch(`/data/embeddings-en.json.bin?sisku=${new Date().getTime()}`);
 
     wordEmbeddings = await loadModel(response as EmbeddingsFile);
     self.postMessage({
@@ -177,33 +172,26 @@ async function initSQLDB(flush = false) {
       banguRaw: "en-embeddings",
     });
     log("processed embeddings");
-    const result = await SimpleTextModel.create({
+
+    const modelMetadata = {
       id: "mini-lm-v2-quant",
       title: "Quantized mini model for sentence embeddings",
-      description: "",
-      memEstimateMB: 100,
-      type: ModelType.FeatureExtraction,
-      sizeMB: 15,
-      modelPaths: new Map<string, string>([
-        ["encoder", "/data/mini-lm-v2-quant.brotli"],
-      ]),
-      outputNames: new Map<string, string>([["encoder", "last_hidden_state"]]),
-      tokenizerPath: "/data/mini-lm-v2-quant.tokenizer.brotli",
-      tokenizerParams: {
-        bosTokenID: 0,
-        eosTokenID: 1,
-        padTokenID: 0,
-      },
-      tags: ["feature-extraction", "t5"],
-      referenceURL:
+      encoderPath: `${process.env.DUMPS_URL_ROOT}/data/dumps/mini-lm-v2-quant.brotli`,
+      outputEncoderName: "last_hidden_state",
+      tokenizerPath: `${process.env.DUMPS_URL_ROOT}/data/dumps/mini-lm-v2-quant.tokenizer.brotli`,
+      padTokenID: 0,
+      readmeUrl:
         "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
-    });
-    log(
-      await (result.model as FeatureExtractionModel).process([
-        "I eat apple",
-        "I consume fruit",
-      ])
-    );
+    };
+
+    const model = await TextEmbeddingModel.create(modelMetadata);
+
+    // let { vectors } = await model.infer(["I love apples"]);
+
+    // const vector = vectors[0];
+    // const sem = new SemSearcher();
+    // await sem.fetchData("/data/en-vektori.tsv.bin");
+    // console.log(await sem.search(vector));
   }
 }
 
@@ -462,16 +450,16 @@ const fancu = {
           }
 
           if (langsToUpdate.length > 0) {
-            // if (dbMode === "opfs") {
-            //   langsToUpdate = [
-            //     ...new Set(
-            //       (await sql(`SELECT distinct bangu FROM langs_ready`))
-            //         .map(({ bangu }) => bangu)
-            //         .concat(sufLangs)
-            //     ),
-            //   ];
-            //   await initSQLDB(true);
-            // }
+            if (dbMode === "opfs") {
+              langsToUpdate = [
+                ...new Set(
+                  (await sql(`SELECT distinct bangu FROM langs_ready`))
+                    .map(({ bangu }) => bangu)
+                    .concat(sufLangs)
+                ),
+              ];
+              await initSQLDB(true);
+            }
             for (const lang of arrSupportedLangs())
               if (langsToUpdate.includes(supportedLangs[lang].bangu))
                 langsToUpdate.push(lang);
@@ -487,6 +475,9 @@ const fancu = {
               "No. of languages updated": langsUpdated.length,
             });
           }
+        }
+        if (dbMode === "opfs") {
+          await sqlite3.exec(db, `pragma cache_size = 6000;`);
         }
 
         self.postMessage({

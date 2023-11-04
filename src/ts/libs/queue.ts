@@ -1,4 +1,6 @@
 type Item = {name?: string; action: any;resolve: (value: unknown) => void; reject: (reason?: any) => void}
+
+//TODO: join into one class
 class Queue {
   private _items:Item[] = [];
 

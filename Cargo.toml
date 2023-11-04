@@ -1,21 +1,19 @@
-# You must change these to your own details.
 [package]
-name = "rust-webpack-template"
-description = "My super awesome Rust, WebAssembly, and Webpack project!"
-version = "0.1.0"
-authors = ["You <you@example.com>"]
-categories = ["wasm"]
-readme = "README.md"
+name = "semantic-search"
+version = "0.0.1"
+authors = ["la-gleki <gleki.is.my.name@gmail.com>"]
 edition = "2018"
+description = "similarity search script in WASM for Node.js and Web"
+documentation = "https://github.com/La-Lojban/sutysisku-lojban-corpus-downloader/"
+readme = "https://github.com/La-Lojban/sutysisku-lojban-corpus-downloader/"
+homepage = "https://github.com/La-Lojban/sutysisku-lojban-corpus-downloader/"
+repository = "https://github.com/La-Lojban/sutysisku-lojban-corpus-downloader/"
+license = "MIT"
+keywords = ["lojban", "wasm", "rust", "kd-tree", "embeddings", "vector search", "similarity search"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/rust/lib.rs"
-
-[profile.release]
-# This makes the compiled code faster and smaller, but it makes compiling slower,
-# so it's only enabled in release mode.
-lto = true
 
 [features]
 # If you uncomment this line, it will enable `wee_alloc`:
@@ -23,43 +21,35 @@ lto = true
 default = ["console_error_panic_hook"]
 
 [dependencies]
-# The `wasm-bindgen` crate provides the bare minimum functionality needed
-# to interact with JavaScript.
-pest = "2.1"
-pest_meta = "2.1"
-pest_vm = "2.1"
-stdweb = "^0.4"
-console_error_panic_hook = { version = "0.1.7", optional = true }
-serde = { version = "1.0.137", features = ["derive"] }
-wasm-bindgen = { version = "0.2.80", features = ["serde-serialize"] }
-serde_derive = "1.0.137"
-serde_json="1.0.81"
-# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
-# compared to the default allocator's ~10K. However, it is slower than the default
-# allocator, so it's not enabled by default.
-wee_alloc = { version = "0.4.2", optional = true }
-regex = "1"
-unicode-xid = "0.2"
-
-# The `web-sys` crate allows you to interact with the various browser APIs,
-# like the DOM.
-[dependencies.web-sys]
-version = "0.3.22"
-features = ["console"]
+wasm-bindgen = "0.2.87"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
-# all the `std::fmt` and `std::panicking` infrastructure, so it's only enabled
-# in debug mode.
-[target."cfg(debug_assertions)".dependencies]
-console_error_panic_hook = "0.1.5"
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.7", optional = true }
 
-# These crates are used for running unit tests.
+# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
+# compared to the default allocator's ~10K. However, it is slower than the default
+# allocator, so it's not enabled by default.
+wee_alloc = { version = "0.4.5", optional = true }
+serde = { version = "1.0.190", features = ["derive"] }
+anyhow = "1.0.75"
+getrandom = { version = "0.2.10", features = ["js"] }
+serde_json = "1.0.107"
+serde-wasm-bindgen = "0.6.1"
+js-sys = "0.3.61"
+tsify = "0.4.5"
+kiddo = { version = "2.1.2", features = ["serialize"] }
+
 [dev-dependencies]
-wasm-bindgen-test = "0.2.45"
-futures = "0.1.27"
-js-sys = "0.3.22"
-wasm-bindgen-futures = "0.3.22"
+rstest = "0.18.2"
+wasm-bindgen-test = "0.3.13"
 
-[build-dependencies]
-lrpeg = "0.4"
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+# This makes the compiled code faster and smaller, but it makes compiling slower,
+# so it's only enabled in release mode.
+lto = true
+

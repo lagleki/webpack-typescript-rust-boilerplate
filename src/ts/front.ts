@@ -1003,6 +1003,7 @@ component(
                                           const audio: HTMLAudioElement | null =
                                             document.querySelector("#audio");
                                           if (audio) {
+                                            audio.pause();
                                             audio.src = `/assets/sance/lerfu/${encodeURIComponent(
                                               col.replace(
                                                 /.*<b>(.*?)<\/b>.*/g,
@@ -1312,6 +1313,8 @@ function basna({
           class: ["basna"],
           innerText: el.value,
         });
+      } else if (el.type === "simple") {
+        return h("span.tergeha", { innerText: el.value });
       } else {
         return h("span", { innerText: el.value });
       }

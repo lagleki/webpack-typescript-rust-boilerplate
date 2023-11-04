@@ -26,10 +26,26 @@
 - if lujvo decomposition doesnt work simply show "nasezvafahi" message
 
 # todo
-
+- how to cache vektori db and its wasm?
+- avoid playing more than one audio at once, use a singleton audio element
+- check .sasslintrc, postcss config
+- check all .md files
+- check travis
+- fasttext compressor - adapt sentence embeddings to other languages
+- smusisku should use index of word, not word itself
+- dumps dont seem to be sorted from gismu to fuhivla anymore
+- search too slow because page size disabled?
+- macarena search is too slow and incorrect imho
+  - spirofu cmeta simlu is slow as well
+    - especially when first loading the db
+  - try to enable cahe size again on db full load
+- https://github.com/MattiasBuelens/wasm-streams/blob/main/examples/fetch_as_stream.rs
 - embedding script - simplify it
   - for nodejs
   - for worker search
+  - kdtree must be serialized into a bin
+  - search using that kdtree rkv search within range or top 100 elements
+    - find out how to return index
 - refactor rimni search
 - delete from sance: cmevla, fuhivla with '
   - create a new aws account and regenerate from there
@@ -100,7 +116,8 @@
     - implement reload
 
 ## test
-
+- cmaxes jarnezi for some reason has jdari as a selrafsi
+- if a span text ends with a space add margin-right: 1rem; to it
 - dont send results to console in prod mode
 - if ctucku is last word then on new db load it flickers with every download step
   - disable arrows when loading?
