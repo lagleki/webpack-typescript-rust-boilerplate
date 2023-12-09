@@ -3,8 +3,8 @@ import { rows } from "./utils/pronunciation";
 import tejufra from "./worker/template/tejufra.json";
 import * as ceha from "./utils/ceha";
 import { getBoxToBoxArrow } from "./libs/arrows";
-import { RecursiveObject } from "../../../renderer/src/common/types";
 import { log } from "./libs/logger";
+import to from "await-to-js";
 
 import katex from "katex";
 
@@ -36,7 +36,20 @@ import {
   RegexFlavours,
   State,
 } from "./types";
-import { getRandomValueFromArray } from "./utils/fns";
+import { cloneObject, getRandomValueFromArray } from "./utils/fns";
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./service-worker.js")
+      .then((registration) => {
+        console.log("SW registered: ", registration);
+      })
+      .catch((registrationError) => {
+        console.log("SW registration failed: ", registrationError);
+      });
+  });
+}
 
 // //global vars:
 // let resultCount;
@@ -117,12 +130,13 @@ async function fetchAndSaveCachedListValues({ mode }: { mode: string }) {
   const cachedList = await getCachedListKeys();
   const initialCacheListLength = cachedList.length;
 
-  const response = await fetch(
-    `/data/tcini.json?sisku=${new Date().getTime()}`
+  let [, response]: [unknown, Response | undefined] = await to(
+    fetch(`/data/tcini.json?sisku=${new Date().getTime()}`)
   );
-  if (!response.ok) {
+  if (!response?.ok) {
     if (initialCacheListLength === 0)
       alert("Are you offline? We can't fetch the source.");
+    stateLoading.loading = false;
     return false;
   }
   const vreji = (await response.json()).vreji.map(
@@ -175,9 +189,6 @@ async function fetchAndSaveCachedListValues({ mode }: { mode: string }) {
   return true;
 }
 
-function cloneObject(obj: any) {
-  return JSON.parse(JSON.stringify(obj));
-}
 function dispatchCitri() {
   if (
     ["fanva", "velcusku"].includes(state.displaying.seskari) ||
@@ -467,8 +478,10 @@ async function addAudioLinks() {
     const urli = `${process.env.DUMPS_URL_ROOT}/data/sance/${encodeValsiForWeb(
       valsi
     )}.ogg`;
-    const res = await fetch(urli, { cache: "no-store" });
-    if (!res.ok) continue;
+    let [, res]: [unknown, Response | undefined] = await to(
+      fetch(urli, { cache: "no-store" })
+    );
+    if (!res?.ok) continue;
     const blob = await res.blob();
     const base64: string = await new Promise((resolve) => {
       const reader = new FileReader();
@@ -680,6 +693,10 @@ window.addEventListener("resize", () => {
   addJvoPlumbs();
   addAudioLinks();
 });
+window.addEventListener("keyup", handlerFocus);
+function handlerFocus({ key }: KeyboardEvent) {
+  if (key === "/") document.getElementById("ciska")?.focus();
+}
 
 //always show dasri thats all
 component(
@@ -727,7 +744,10 @@ component(
               autocomplete: "off",
               type: "text",
               name: "focus",
-              value: state.displaying.query,
+              value:
+                stateLoading.loading && state.displaying.query !== ""
+                  ? null
+                  : state.displaying.query,
               focus: () => {
                 stateOutsideComponents.focused = 1;
                 if (state.displaying.query !== "")
@@ -1042,7 +1062,7 @@ component(
           })
         )
       ),
-      sihesle()
+      sihesle(),
     );
   },
   {
@@ -1104,34 +1124,30 @@ function addPyro() {
   }
 }
 
+const rnds = Array.from({length: 6}, () => [rnd(100), rnd(30), rnd(3)]);
 function sihesle() {
   if (!stateLoading.ninynaha) return;
   return h(
-    "div",
-    h(
-      "div",
-      {
-        class: ["leisihesle"],
-        attributes: {
-          "aria-hidden": true,
-        },
+    "div#sihesle",
+    {
+      class: ["leisihesle"],
+      attributes: {
+        "aria-hidden": true,
       },
-      ...Array(3)
-        .fill(["❅", "❆"])
-        .flat()
-        .map((_) => {
-          const rnd40 = rnd(30);
-          const rnd3 = rnd(3);
-          return h("div", {
-            class: ["sihesle"],
-            style: {
-              left: `${rnd(100)}%`,
-              "animation-delay": `${rnd40}s, ${rnd3}s`,
-            },
-            innerText: _,
-          });
+    },
+    ...Array(3)
+      .fill(["❅", "❆"])
+      .flat()
+      .map((_, index) =>
+        h(`div`, {
+          class: ["sihesle"],
+          style: {
+            left: `${rnds[index][0]}%`,
+            "animation-delay": `${rnds[index][1]}s, ${rnds[index][2]}s`,
+          },
+          innerText: _,
         })
-    )
+      )
   );
 }
 
@@ -1263,8 +1279,8 @@ async function getCacheStore(cacheObj: Cache): Promise<Cache> {
 async function getOrFetchResource(url: string) {
   const match = await (await getCacheStore(cacheObj)).match(url);
   if (match) return true;
-  const response = await fetch(url);
-  if (!response.ok) return false;
+  let [, response]: [unknown, Response | undefined] = await to(fetch(url));
+  if (!response?.ok) return false;
   cacheObj?.put(url, response);
   return true;
 }
@@ -1888,7 +1904,7 @@ async function skicu_paledovalsi({
   let zbalermorna;
   if (
     stateLeijufra.lojbo &&
-    !(typeof def.t === "object" && def.t.k === 0) &&
+    !(typeof def.t === "object" && def.t?.k === 0) &&
     (seskari !== "fanva" || index === "0")
   ) {
     const textContent = (ceha as any)[stateOutsideComponents.morna.fancu](
@@ -2479,7 +2495,7 @@ async function skicu_roledovalsi(): Promise<(HTMLDivElement | undefined)[]> {
     stateOutsideComponents.results.slice(0, displayUpTo).reduce(
       (acc, resultEl, index) => {
         const htmlTermBlock = skicu_paledovalsi({
-          def: cloneObject(resultEl as unknown as RecursiveObject),
+          def: cloneObject(resultEl as unknown as Def),
           // length: state.results.length,
           inner: false,
           stringifiedPlaceTags: [],

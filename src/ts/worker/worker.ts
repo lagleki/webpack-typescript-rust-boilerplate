@@ -6,32 +6,197 @@ import { IDBBatchAtomicVFS as VFS } from "../libs/wa-sqlite/src/examples/IDBBatc
 import { OriginPrivateFileSystemVFS as VFS2 } from "../libs/wa-sqlite/src/examples/OriginPrivateFileSystemVFS.js";
 
 import { AutoQueue } from "../libs/queue";
-import { parse } from "./template/cmaxes.js";
-import { WordEmbeddings, loadModel } from "./template/w2v/embeddings";
+import { parse } from "../libs/cmaxes/cmaxes";
+// import { WordEmbeddings, loadModel } from "./template/w2v/embeddings";
 import jsonTeJufra from "./template/tejufra.json";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { decompress } from "brotli-compress/js";
-import { Def, Dict, DumpRow, EmbeddingsFile, Searching } from "../types/index.js";
+import {
+  Def,
+  DefResult,
+  Dict,
+  DumpRow,
+  // EmbeddingsFile,
+  Searching,
+} from "../types";
 import { blobChunkDefaultLength } from "../consts";
 import { log } from "../libs/logger";
 
-import { TextEmbeddingModel } from "../libs/semsearch/inference/";
+import { TextEmbeddingModel } from "../libs/semsearch/inference";
 
 import { krulermorna } from "../utils/ceha";
-import { SemSearcher } from "../libs/semsearch/";
+import { SemSearcher } from "../libs/semsearch/semsearcher";
+import { SearchResult, TokenizerWasm } from "@sutysisku/tokenizer/pkg/web";
+import { cloneObject, fetchTimeout } from "../utils/fns";
+import { fetchFromAppCache } from "../libs/semsearch/fns";
 
 self.postMessage({ kind: "loading" });
 
 let sql_buffer_mode: string;
 const aQueue = new AutoQueue();
 
+const fancu = {
+  sanji_letejufra: async ({ bangu }: { bangu: string }, cb: any) => {
+    aQueue.enqueue({
+      action: async () => {
+        let tef1 = {},
+          tef2 = {};
+        if (bangu && bangu !== "en") {
+          const result = await runQuery(
+            `SELECT jufra FROM tejufra where bangu=$bangu`,
+            {
+              $bangu: bangu,
+            }
+          );
+          try {
+            tef1 = JSON.parse(result[0].jufra);
+          } catch (error) {}
+        }
+        const result = await runQuery(
+          `SELECT jufra FROM tejufra where bangu='en'`
+        );
+        try {
+          tef2 = JSON.parse(result[0].jufra);
+        } catch (error) {}
+        cb({ ...tef2, ...tef1 });
+      },
+    });
+  },
+  cnino_bangu: ({ bangu }: { bangu: string }) => {
+    sesisku_bangu = bangu;
+  },
+  // runQuery: (
+  //   { query, params = {} }: { query: string; params: any },
+  //   cb: any
+  // ) => {
+  //   runQuery(query, params).then((rows) => cb(rows));
+  // },
+  // getNeighbors: ({ query }: { query: string }, cb: any) => {
+  //   getNeighbors(query).then((rows) => cb(rows));
+  // },
+  ningau_lesorcu: async (searching: Searching, cb: any, forceAll: boolean) => {
+    aQueue.enqueue({
+      action: async () => {
+        await jufra({ bapli: true });
+        let langsToUpdate = [];
+        let response;
+        try {
+          response = await fetchTimeout(
+            `${
+              process.env.DUMPS_URL_ROOT
+            }/data/versio.json?sisku=${new Date().getTime()}`,
+            5000,
+            { cache: "no-cache" }
+          );
+        } catch (error) {
+          log(
+            {
+              event: "can't fetch new version, skipping database updates",
+            },
+            "error"
+          );
+          return;
+        }
+
+        let jsonVersio: Dict = {};
+        if (response?.ok) {
+          jsonVersio = await response.json();
+          const sufLangs = sufficientLangs(searching);
+          for (const lang of sufLangs) {
+            const langHash = jsonVersio[lang];
+            if (!langHash) continue;
+            let count = 0;
+            if (!forceAll) {
+              count =
+                (
+                  await sql(
+                    `SELECT count(*) as klani FROM langs_ready where bangu=? and timestamp=?`,
+                    [lang, langHash]
+                  )
+                )?.[0]?.klani ?? 0;
+            }
+            if (count === 0) langsToUpdate.push(lang);
+          }
+
+          if (langsToUpdate.length > 0) {
+            if (dbMode === "opfs") {
+              langsToUpdate = [
+                ...new Set(
+                  (await sql(`SELECT distinct bangu FROM langs_ready`))
+                    .map(({ bangu }) => bangu)
+                    .concat(sufLangs)
+                ),
+              ];
+              await initSQLDB(true);
+            }
+            for (const lang of arrSupportedLangs())
+              if (langsToUpdate.includes(supportedLangs[lang].bangu))
+                langsToUpdate.push(lang);
+
+            const langsUpdated = await cnino_sorcu(
+              cb,
+              langsToUpdate,
+              searching,
+              jsonVersio
+            );
+            log({
+              event: "Database updated",
+              "No. of languages updated": langsUpdated.length,
+            });
+          }
+        }
+        if (dbMode === "opfs") {
+          await sqlite3.exec(db, `pragma cache_size = 6000;`);
+        }
+
+        self.postMessage({
+          kind: "loader",
+          cmene: "loaded",
+        });
+      },
+    });
+  },
+  ningau_lepasorcu: async (searching: Searching, cb: any) => {
+    aQueue.enqueue({
+      action: async () => {
+        const lang = searching.bangu || "en";
+        let json: Dict = {};
+        const response = await fetchTimeout(
+          `${
+            process.env.DUMPS_URL_ROOT
+          }/data/versio.json?sisku=${new Date().getTime()}`,
+          5000,
+          { cache: "no-cache" }
+        );
+        if (response?.ok) {
+          json = await response.json();
+        }
+        const count =
+          (
+            await sql(
+              `SELECT count(*) as klani FROM langs_ready where bangu=$bangu and timestamp=$timestamp`,
+              { $bangu: lang, $timestamp: json[lang] }
+            )
+          )?.[0]?.klani ?? 0;
+
+        if (count > 0) return;
+        await cnino_sorcu(cb, [lang], searching, json);
+        self.postMessage({
+          kind: "loader",
+          cmene: "loaded",
+        });
+      },
+    });
+  },
+};
+
 self.onmessage = function (ev) {
   if (ev.data.kind == "newSearch") {
     aQueue.enqueue({
       action: async () => {
-        await sisku(ev.data);
+        await ralsisku(ev.data);
       },
       name: "vlaste",
     });
@@ -61,8 +226,130 @@ self.onmessage = function (ev) {
 
 let db: number,
   sqlite3: SQLiteAPI,
+  lastSearching: Searching | undefined,
   sql: (sql: string | string[], ...values: any[]) => Promise<Dict[]>,
-  wordEmbeddings: WordEmbeddings;
+  // wordEmbeddings: WordEmbeddings,
+  semSearcher = new SemSearcher(),
+  sentenceModel:
+    | TextEmbeddingModel
+    | {
+        infer: (
+          queries: string[],
+          meta?: Dict
+        ) => Promise<{ countTokens: number; vectors: number[][] }>;
+        tokenizer: TokenizerWasm | undefined;
+      } = {
+    infer: (_, meta) => {
+      if (meta) lastSearching = meta as Searching;
+      return Promise.resolve({ countTokens: 0, vectors: [] });
+    },
+    tokenizer: undefined,
+  };
+
+async function writeFile({ content, path }: { content: string; path: string }) {
+  const opfsRoot = await self.navigator.storage.getDirectory();
+  if (opfsRoot) {
+    // const root = await navigator.storage.getDirectory();
+    // const fileHandle = await root.getFileHandle(path, { create: true });
+    // const accessHandle = await fileHandle.createSyncAccessHandle();
+
+    // // Write text to the file.
+    // const writeBuffer = new TextEncoder().encode(content);
+    // accessHandle.write(writeBuffer, { at: 0 });
+
+    // // Persist changes to disk.
+    // accessHandle.flush();
+
+    // // Always close FileSystemSyncAccessHandle if done, so others can open the file again.
+    // accessHandle.close();
+
+    //alternative:
+    const fileHandle = await opfsRoot.getFileHandle(path, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(content);
+    await writable.close();
+  } else {
+    await new Promise((resolve, reject) => {
+      const dbReq = self.indexedDB.open("files");
+      dbReq.onupgradeneeded = function () {
+        // Create object store if doesn't exist
+        const db = dbReq.result;
+        if (!db.objectStoreNames.contains("files")) {
+          db.createObjectStore("files");
+        }
+      };
+      dbReq.onerror = (event) => {
+        log({ "IndexedDB error": event?.target }, "error");
+        reject(event?.target);
+      };
+      dbReq.onsuccess = (event) => {
+        const db = dbReq.result;
+        const tx = db.transaction("files", "readwrite");
+        const store = tx.objectStore("files");
+        store.put(content, path);
+        resolve(null);
+      };
+    });
+  }
+}
+
+async function readFile(path: string) {
+  const opfsRoot = await self.navigator.storage.getDirectory();
+
+  if (opfsRoot) {
+    // Use OPFS
+    const fileHandle = await opfsRoot.getFileHandle(path);
+    const file = await fileHandle.getFile();
+    const content = await file.text();
+    return content;
+  } else {
+    // Use IndexedDB
+    return await new Promise((resolve, reject) => {
+      const dbReq = self.indexedDB.open("files");
+      dbReq.onerror = (event) => {
+        log({ "IndexedDB error": event?.target }, "error");
+        reject(event?.target);
+      };
+      dbReq.onsuccess = function () {
+        const db = dbReq.result;
+        const tx = db.transaction("files", "readonly");
+        const store = tx.objectStore("files");
+        const request = store.get(path);
+        request.onsuccess = function () {
+          const content = request.result;
+          resolve(content);
+        };
+      };
+    });
+  }
+}
+
+async function bootupSemSearcher({ noCache }: { noCache: boolean }) {
+  aQueue.enqueue({
+    action: async () => {
+      sentenceModel = await TextEmbeddingModel.create(modelMetadata, {
+        noCache,
+      });
+      const resp = await fetchFromAppCache({
+        cacheName: "sutysisku",
+        url: modelMetadata.modelPath,
+        noCache,
+      });
+      await semSearcher.fetchData(resp);
+      if (lastSearching) {
+        const reSearch = cloneObject(lastSearching);
+        lastSearching = undefined;
+        aQueue.enqueue({
+          action: async () => {
+            await ralsisku(reSearch);
+          },
+          name: "vlaste",
+        });
+      }
+    },
+    priority: 0,
+  });
+}
 
 /* TODO:
   check on clean startup fix all errors
@@ -70,8 +357,18 @@ let db: number,
 */
 let dbMode: string | null = null;
 
+const modelMetadata = {
+  id: "mini-lm-v2-quant",
+  title: "Quantized mini model for sentence embeddings",
+  encoderPath: `${process.env.DUMPS_URL_ROOT}/data/dumps/mini-lm-v2-quant.brotli`,
+  outputEncoderName: "last_hidden_state",
+  tokenizerPath: `${process.env.DUMPS_URL_ROOT}/data/dumps/mini-lm-v2-quant.tokenizer.brotli`,
+  padTokenID: 0,
+  readmeUrl: "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
+  modelPath: "/data/en-vektori.tsv.bin",
+};
+
 async function initSQLDB(flush = false) {
-  console.log("init", flush);
   const module = await SQLiteAsyncESMFactory();
   sqlite3 = SQLite.Factory(module);
 
@@ -159,39 +456,29 @@ async function initSQLDB(flush = false) {
     });
     log("loading embeddings");
     //word fasttext embeddings
-    const response = await getOrFetchResource(`/data/embeddings-en.json.bin`);
+    // const response = await getOrFetchResource(`/data/embeddings-en.json.bin`);
     // // const response = await fetch(`/data/embeddings-en.json.bin?sisku=${new Date().getTime()}`);
 
-    wordEmbeddings = await loadModel(response as EmbeddingsFile);
+    // wordEmbeddings = await loadModel(response as EmbeddingsFile);
+    // log("processed embeddings");
+
+    //sentence emb
+
+    if (
+      (await isInCache(modelMetadata.encoderPath)) &&
+      (await isInCache(modelMetadata.tokenizerPath)) &&
+      (await isInCache(modelMetadata.modelPath))
+    ) {
+      await bootupSemSearcher({ noCache: false });
+    }
     self.postMessage({
       kind: "loader",
-      cmene: "startLanguageDirectionUpdate",
+      cmene: "completeLanguageDirectionUpdate",
       completedRows: 3,
       totalRows: 3,
       bangu: "en-embeddings",
       banguRaw: "en-embeddings",
     });
-    log("processed embeddings");
-
-    const modelMetadata = {
-      id: "mini-lm-v2-quant",
-      title: "Quantized mini model for sentence embeddings",
-      encoderPath: `${process.env.DUMPS_URL_ROOT}/data/dumps/mini-lm-v2-quant.brotli`,
-      outputEncoderName: "last_hidden_state",
-      tokenizerPath: `${process.env.DUMPS_URL_ROOT}/data/dumps/mini-lm-v2-quant.tokenizer.brotli`,
-      padTokenID: 0,
-      readmeUrl:
-        "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
-    };
-
-    const model = await TextEmbeddingModel.create(modelMetadata);
-
-    // let { vectors } = await model.infer(["I love apples"]);
-
-    // const vector = vectors[0];
-    // const sem = new SemSearcher();
-    // await sem.fetchData("/data/en-vektori.tsv.bin");
-    // console.log(await sem.search(vector));
   }
 }
 
@@ -201,25 +488,6 @@ async function getCacheStore(): Promise<Cache> {
   if (!cacheObj) cacheObj = await caches.open("sutysisku");
 
   return cacheObj;
-}
-
-async function getOrFetchResource(url: string) {
-  const match = await (await getCacheStore()).match(url);
-  if (match) return match.json();
-  const response = await fetch(url);
-  if (response.ok) {
-    const blob = await response.arrayBuffer();
-    log("loaded embeddings");
-
-    const decompressedData = new TextDecoder().decode(
-      await decompress(Buffer.from(blob))
-    );
-    log("decompressed embeddings");
-    const newResponse = new Response(decompressedData);
-    cacheObj.put(url, newResponse);
-    return JSON.parse(decompressedData);
-  }
-  return {};
 }
 
 async function runMigrations() {
@@ -359,165 +627,12 @@ const sufficientLangs = (searching: Dict) =>
     "en-ll",
     "en-pixra",
     "muplis",
+    "en-vektori",
     "jbo",
     "sutysisku",
   ].filter(Boolean);
 
 let sesisku_bangu: string | null;
-
-const fancu = {
-  sanji_letejufra: async ({ bangu }: { bangu: string }, cb: any) => {
-    aQueue.enqueue({
-      action: async () => {
-        let tef1 = {},
-          tef2 = {};
-        if (bangu && bangu !== "en") {
-          const result = await runQuery(
-            `SELECT jufra FROM tejufra where bangu=$bangu`,
-            {
-              $bangu: bangu,
-            }
-          );
-          try {
-            tef1 = JSON.parse(result[0].jufra);
-          } catch (error) {}
-        }
-        const result = await runQuery(
-          `SELECT jufra FROM tejufra where bangu='en'`
-        );
-        try {
-          tef2 = JSON.parse(result[0].jufra);
-        } catch (error) {}
-        cb({ ...tef2, ...tef1 });
-      },
-    });
-  },
-  cnino_bangu: ({ bangu }: { bangu: string }) => {
-    sesisku_bangu = bangu;
-  },
-  // runQuery: (
-  //   { query, params = {} }: { query: string; params: any },
-  //   cb: any
-  // ) => {
-  //   runQuery(query, params).then((rows) => cb(rows));
-  // },
-  getNeighbors: ({ query }: { query: string }, cb: any) => {
-    getNeighbors(query).then((rows) => cb(rows));
-  },
-  ningau_lerosorcu: async (searching: Searching, cb: any) => {
-    fancu.ningau_lesorcu(searching, cb, true);
-  },
-  ningau_lesorcu: async (searching: Searching, cb: any, forceAll: boolean) => {
-    aQueue.enqueue({
-      action: async () => {
-        await jufra({ bapli: true });
-        let langsToUpdate = [];
-        let response;
-        try {
-          response = await fetch(
-            `${
-              process.env.DUMPS_URL_ROOT
-            }/data/versio.json?sisku=${new Date().getTime()}`
-          );
-        } catch (error) {
-          log(
-            {
-              event: "can't fetch new version, skipping database updates",
-            },
-            "error"
-          );
-          return;
-        }
-
-        let jsonVersio: Dict = {};
-        if (response?.ok) {
-          jsonVersio = await response.json();
-          const sufLangs = sufficientLangs(searching);
-          for (const lang of sufLangs) {
-            const langHash = jsonVersio[lang];
-            if (!langHash) continue;
-            let count = 0;
-            if (!forceAll) {
-              count =
-                (
-                  await sql(
-                    `SELECT count(*) as klani FROM langs_ready where bangu=? and timestamp=?`,
-                    [lang, langHash]
-                  )
-                )?.[0]?.klani ?? 0;
-            }
-            if (count === 0) langsToUpdate.push(lang);
-          }
-
-          if (langsToUpdate.length > 0) {
-            if (dbMode === "opfs") {
-              langsToUpdate = [
-                ...new Set(
-                  (await sql(`SELECT distinct bangu FROM langs_ready`))
-                    .map(({ bangu }) => bangu)
-                    .concat(sufLangs)
-                ),
-              ];
-              await initSQLDB(true);
-            }
-            for (const lang of arrSupportedLangs())
-              if (langsToUpdate.includes(supportedLangs[lang].bangu))
-                langsToUpdate.push(lang);
-
-            const langsUpdated = await cnino_sorcu(
-              cb,
-              langsToUpdate,
-              searching,
-              jsonVersio
-            );
-            log({
-              event: "Database updated",
-              "No. of languages updated": langsUpdated.length,
-            });
-          }
-        }
-        if (dbMode === "opfs") {
-          await sqlite3.exec(db, `pragma cache_size = 6000;`);
-        }
-
-        self.postMessage({
-          kind: "loader",
-          cmene: "loaded",
-        });
-      },
-    });
-  },
-  ningau_lepasorcu: async (searching: Searching, cb: any) => {
-    aQueue.enqueue({
-      action: async () => {
-        const lang = searching.bangu || "en";
-        let json: Dict = {};
-        const response = await fetch(
-          `${
-            process.env.DUMPS_URL_ROOT
-          }/data/versio.json?sisku=${new Date().getTime()}`
-        );
-        if (response.ok) {
-          json = await response.json();
-        }
-        const count =
-          (
-            await sql(
-              `SELECT count(*) as klani FROM langs_ready where bangu=$bangu and timestamp=$timestamp`,
-              { $bangu: lang, $timestamp: json[lang] }
-            )
-          )?.[0]?.klani ?? 0;
-
-        if (count > 0) return;
-        await cnino_sorcu(cb, [lang], searching, json);
-        self.postMessage({
-          kind: "loader",
-          cmene: "loaded",
-        });
-      },
-    });
-  },
-};
 
 async function jufra({ bapli }: { bapli: boolean }) {
   aQueue.enqueue({
@@ -583,14 +698,11 @@ function addCache(
   );
   const def = arrayToObject(_def, columns);
 
+  if (def.r) def.r = def.r.split(";");
   if (def.g) {
-    if (!Array.isArray(def.g)) {
-      def.g = [def.g];
-    }
     def.g = def.g
-      .map((i: string) =>
-        i.replace(cacheSeparator, " ").trim().replace(/ {2,}/g, " ")
-      )
+      .split(";")
+      .map((i: string) => i.replace(cacheSeparator, " ").trim().replace(/ {2,}/g, " "))
       .join(";");
   }
 
@@ -646,6 +758,22 @@ function prepareFields(rec: Dict) {
   return { dict, columns };
 }
 
+function convertStringToNumArray(str: string) {
+  let unicodeArray = [];
+  for (let i = 0; i < str.length; i++) {
+    unicodeArray.push(str.charCodeAt(i));
+  }
+  return unicodeArray;
+}
+
+function parseTsvDump(dump: string) {
+  const all = dump.split("\n");
+  const rowCount = parseInt(all[0].split("\t")[1]);
+  const columns = all[1].split("\t");
+  const rows = all.slice(2).map((row) => row.split("\t"));
+  return { rowCount, rows, columns };
+}
+
 async function cnino_sorcu(
   cb: any,
   langsToUpdate: string[],
@@ -697,28 +825,44 @@ async function cnino_sorcu(
       bangu: lang,
     });
     const langHash = jsonVersio[lang];
+
+    if (lang === "en-vektori") {
+      await bootupSemSearcher({ noCache: true });
+      await markLanguageAsUpdated({ completedRows: 100, lang, langHash, cb });
+      continue;
+    }
+
     if (!langHash) continue;
     const lenLangChunks = langHash.split("-")[1] ?? blobChunkDefaultLength;
 
+    const sentenceEmbeddings: Dict = {};
+
+    if (["en", "muplis"].includes(lang)) {
+      sentenceEmbeddings[lang] = {};
+    }
     for (let i = 0; i < lenLangChunks; i++) {
       cb(`downloading ${lang}-${i}.bin dump`);
 
       const url = `${
         process.env.DUMPS_URL_ROOT
       }/data/parsed/parsed-${lang}-${i}.bin?sisku=${new Date().getTime()}`;
-      const response = await fetch(url);
+      const response = await fetchTimeout(url, 5000, { cache: "no-cache" });
       let json;
-      if (response.ok) {
+      if (response?.ok) {
         const blob = await response.arrayBuffer();
 
         const decompressedData = new TextDecoder().decode(
           await decompress(Buffer.from(blob))
         );
-        json = JSON.parse(decompressedData);
+        const {
+          columns: columns_,
+          rowCount,
+          rows: rows_,
+        } = parseTsvDump(decompressedData);
 
-        let rows: DumpRow[] = json.rows;
-        const totalRows = json.rowCount * lenLangChunks;
-        const columns = [...new Set((json.keys as string[]).concat(["cache"]))];
+        let rows = rows_ as DumpRow[];
+        const totalRows = rowCount * lenLangChunks;
+        const columns = [...new Set(columns_.concat(["cache"]))];
 
         const chunkSize = 1000;
         const all_rows = rows.length;
@@ -732,21 +876,34 @@ async function cnino_sorcu(
             $bangu: lang,
           });
         }
+
         for (const toAdd of groupedRows) {
           try {
             await sqlite3.exec(db, `BEGIN;`);
             for (let rec of toAdd) {
               const { columns, dict } = rec;
+              const vIndex = columns.findIndex((el) => el === "v");
+              const amendedColumns =
+                vIndex >= 0
+                  ? columns.slice(0, vIndex).concat(columns.slice(vIndex + 1))
+                  : columns;
+              if (vIndex >= 0) {
+                dict.$v = convertStringToNumArray(dict.$v).map(
+                  (num) => (num - 32) * 94 * 2 - 1
+                );
+                sentenceEmbeddings[lang][dict.w] = dict.$v;
+              }
+              const { $v, ...restDict } = dict;
               await sql(
-                `INSERT INTO valsi (${columns.join(",")}) VALUES (${columns.map(
-                  (col) => `$${col}`
-                )})`,
-                dict
+                `INSERT INTO valsi (${amendedColumns.join(
+                  ","
+                )}) VALUES (${amendedColumns.map((col) => `$${col}`)})`,
+                restDict
               );
             }
             await sqlite3.exec(db, `COMMIT;`);
-          } catch (error: any) {
-            log(error?.message, "error");
+          } catch (error) {
+            log((error as Error).message, "error");
             await sqlite3.exec(db, `ROLLBACK;`);
           }
 
@@ -760,7 +917,7 @@ async function cnino_sorcu(
             banguRaw: lang,
           });
           if (lang === searching.bangu) {
-            await sisku(searching);
+            await ralsisku(searching);
           }
         }
 
@@ -773,10 +930,39 @@ async function cnino_sorcu(
           ).toFixed(2),
         });
       } else {
-        log({ event: "HTTP error", status: response.status, url }, "error");
+        log({ event: "HTTP error", status: response?.status, url }, "error");
         break;
       }
     }
+
+    if (["en", "muplis"].includes(lang)) {
+      await writeFile({
+        path: `/sentenceEmbeddings/${lang}`,
+        content: JSON.stringify(sentenceEmbeddings[lang]),
+      });
+    }
+    await markLanguageAsUpdated({ completedRows, lang, langHash, cb });
+  }
+  // TODO:
+  // db.run(`pragma optimize;`)
+  return langsToUpdate;
+}
+
+//sisku
+
+async function markLanguageAsUpdated({
+  lang,
+  langHash,
+  completedRows,
+  cb,
+}: {
+  lang: string;
+  langHash: string;
+  completedRows: number;
+  cb: any;
+}) {
+  try {
+    await sqlite3.exec(db, `BEGIN;`);
     const savedLang = (
       await sql(
         `SELECT count(*) as klani FROM langs_ready where bangu=? and timestamp=?`,
@@ -790,22 +976,20 @@ async function cnino_sorcu(
         langHash,
       ]);
     }
+    await sqlite3.exec(db, `COMMIT;`);
     cb(`imported ${lang}-*.bin files at ${new Date().toISOString()}`);
-    self.postMessage({
-      kind: "loader",
-      cmene: "completeLanguageDirectionUpdate",
-      completedRows,
-      totalRows: completedRows,
-      bangu: lang,
-      banguRaw: lang,
-    });
+  } catch (error) {
+    await sqlite3.exec(db, `ROLLBACK;`);
   }
-  // db.run(`pragma optimize;`)
-  return langsToUpdate;
+  self.postMessage({
+    kind: "loader",
+    cmene: "completeLanguageDirectionUpdate",
+    completedRows,
+    totalRows: completedRows,
+    bangu: lang,
+    banguRaw: lang,
+  });
 }
-
-//sisku
-
 async function getCachedDefinitions({
   query,
   bangu,
@@ -830,236 +1014,237 @@ async function getCachedDefinitions({
   return result;
 }
 
-async function getNeighbors(query: string) {
-  let results = await wordEmbeddings.getNearestNeighbors(query, 100);
-  results = [
-    ...new Set(
-      results
-        .filter(
-          (i) =>
-            RegExp(/^[a-z- ]+$/).test(i.word) &&
-            i.distance !== 1 &&
-            i.distance >= 0.4
-        )
-        .concat([{ distance: 1, word: query }])
-    ),
-  ];
-  return { words: results.map((i) => i.word), results };
-}
+// async function getNeighbors(query: string) {
+//   let results = await wordEmbeddings.getNearestNeighbors(query, 100);
+//   results = [
+//     ...new Set(
+//       results
+//         .filter(
+//           (i) =>
+//             RegExp(/^[a-z- ]+$/).test(i.word) &&
+//             i.distance !== 1 &&
+//             i.distance >= 0.4
+//         )
+//         .concat([{ distance: 1, word: query }])
+//     ),
+//   ];
+//   return { words: results.map((i) => i.word), results };
+// }
 
 function arraysShareElement(array1: string[], array2: string[]) {
   return array1.filter((item) => array2.includes(item)).length;
   // return array1.some((i) => array2.includes(i));
 }
 
-async function cnano_sisku({
-  query_apos,
-  query,
-  bangu,
-  versio,
-  mapti_vreji,
-  multi,
-  seskari,
-  secupra_vreji,
-  queryDecomposition,
-  leijufra,
-}: any) {
-  const splitQuery_apos = query_apos.split(" ").filter(Boolean);
-  const arrayQuery = [
-    ...new Set([...queryDecomposition, query_apos, ...splitQuery_apos]),
-  ];
+// async function nahorsisku({
+//   query_apos,
+//   query,
+//   bangu,
+//   versio,
+//   mapti_vreji,
+//   multi,
+//   seskari,
+//   secupra_vreji,
+//   queryDecomposition,
+//   leijufra,
+// }: any) {
+//   const splitQuery_apos = query_apos.split(" ").filter(Boolean);
+//   const arrayQuery = [
+//     ...new Set([...queryDecomposition, query_apos, ...splitQuery_apos]),
+//   ];
 
-  let embeddings: Dict = {};
-  const embeddingsMode = bangu === "en" && seskari === "cnano"; // semantic search
-  if (embeddingsMode) {
-    embeddings = await getNeighbors(query);
-  }
+//   let embeddings: Dict = {};
+//   const embeddingsMode = false;
+//   bangu === "en" && seskari === "cnano"; // semantic search
+//   // if (embeddingsMode) {
+//   //   embeddings = await getNeighbors(query);
+//   // }
 
-  let rows: Dict[];
-  if (versio === "selmaho") {
-    if (bangu === "muplis") {
-      rows = await runQuery(
-        `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where s=$query and bangu=$bangu`,
-        {
-          $query: query,
-          $bangu: bangu,
-        }
-      );
-    } else {
-      rows = (
-        await runQuery(
-          `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where s like $query and bangu=$bangu`,
-          {
-            $query: query + "%",
-            $bangu: bangu,
-          }
-        )
-      ).filter(
-        (valsi: Dict) =>
-          typeof valsi.s === "string" &&
-          new RegExp(`^${query}[0-9]*[a-z]*`).test(valsi.s)
-      );
-    }
-  } else if (seskari === "fanva") {
-    rows = await runQuery(
-      `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where w=$valsi`,
-      {
-        $valsi: query_apos,
-      }
-    );
-  } else {
-    //normal search
-    const queryNEmbeddings = arrayQuery.concat(embeddings.word);
+//   let rows: Dict[];
+//   if (versio === "selmaho") {
+//     if (bangu === "muplis") {
+//       rows = await runQuery(
+//         `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where s=$query and bangu=$bangu`,
+//         {
+//           $query: query,
+//           $bangu: bangu,
+//         }
+//       );
+//     } else {
+//       rows = (
+//         await runQuery(
+//           `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where s like $query and bangu=$bangu`,
+//           {
+//             $query: query + "%",
+//             $bangu: bangu,
+//           }
+//         )
+//       ).filter(
+//         (valsi: Dict) =>
+//           typeof valsi.s === "string" &&
+//           new RegExp(`^${query}[0-9]*[a-z]*`).test(valsi.s)
+//       );
+//     }
+//   } else if (seskari === "fanva") {
+//     rows = await runQuery(
+//       `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where w=$valsi`,
+//       {
+//         $valsi: query_apos,
+//       }
+//     );
+//   } else {
+//     //normal search
+//     const queryNEmbeddings = arrayQuery.concat(embeddings.word);
 
-    rows = await runQuery(
-      `
-		select distinct d,n,w,r,bangu,s,t,g,b,z,v,cache
-		from valsi
-		where ${Array(arrayQuery.length).fill(`(cache like ?)`).join(" or ")}
-    `,
-      arrayQuery.map((el) => `%${el}%`)
-    );
+//     rows = await runQuery(
+//       `
+// 		select distinct d,n,w,r,bangu,s,t,g,b,z,v,cache
+// 		from valsi
+// 		where ${Array(arrayQuery.length).fill(`(cache like ?)`).join(" or ")}
+//     `,
+//       arrayQuery.map((el) => `%${el}%`)
+//     );
 
-    rows = rows.filter((def: Dict) => {
-      if (!def.cache) log(def, "warn");
-      const noSharedElementsInCache = arraysShareElement(
-        def.cache.split(";"),
-        queryNEmbeddings
-      );
-      if (bangu === "muplis") {
-        def.noSharedElementsInCache =
-          (2 * noSharedElementsInCache) / arrayQuery.length;
-      } else {
-        def.noSharedElementsInCache =
-          noSharedElementsInCache / splitQuery_apos.length;
-      }
-      if (def.w === query_apos && def.bangu === "jbo") return true;
-      if (def.bangu === bangu && noSharedElementsInCache) return true;
-      if (
-        ((def.w.includes(query_apos) || def.cache.includes(query_apos)) &&
-          def.bangu === bangu) ||
-        def.bangu.includes(`${bangu}-`) ||
-        def.bangu === "en-pixra"
-      )
-        return true;
-      return false;
-    });
-  }
+//     rows = rows.filter((def: Dict) => {
+//       if (!def.cache) log(def, "warn");
+//       const noSharedElementsInCache = arraysShareElement(
+//         def.cache.split(";"),
+//         queryNEmbeddings
+//       );
+//       if (bangu === "muplis") {
+//         def.noSharedElementsInCache =
+//           (2 * noSharedElementsInCache) / arrayQuery.length;
+//       } else {
+//         def.noSharedElementsInCache =
+//           noSharedElementsInCache / splitQuery_apos.length;
+//       }
+//       if (def.w === query_apos && def.bangu === "jbo") return true;
+//       if (def.bangu === bangu && noSharedElementsInCache) return true;
+//       if (
+//         ((def.w.includes(query_apos) || def.cache.includes(query_apos)) &&
+//           def.bangu === bangu) ||
+//         def.bangu.includes(`${bangu}-`) ||
+//         def.bangu === "en-pixra"
+//       )
+//         return true;
+//       return false;
+//     });
+//   }
 
-  if (queryDecomposition.length > 1 || bangu === "muplis")
-    rows = rows.filter((def: Dict) => def.noSharedElementsInCache >= 1);
-  rows = rows
-    .map((el: Dict) => {
-      const { cache, ...rest } = el;
-      return rest;
-    })
-    .sort((def1: Dict, def2: Dict) => {
-      if (def1.bangu === bangu) return -1;
-      if (def2.bangu === bangu) return 1;
-      if (
-        supportedLangs?.[def2.bangu]?.searchPriority !==
-        supportedLangs?.[def1.bangu]?.searchPriority
-      )
-        return (
-          supportedLangs?.[def2.bangu]?.searchPriority -
-          supportedLangs?.[def1.bangu]?.searchPriority
-        );
-      if (queryDecomposition.length > 1 || bangu === "muplis")
-        return def2.noSharedElementsInCache - def1.noSharedElementsInCache;
-      return 0;
-    });
-  mapti_vreji = mapti_vreji.slice().concat(rows);
-  if (seskari === "fanva" || bangu === "muplis") {
-    return { result: mapti_vreji, decomposed: false };
-  }
-  const { result, decomposed } = await sortThem({
-    query_apos,
-    query,
-    bangu,
-    mapti_vreji,
-    seskari,
-    secupra_vreji,
-    embeddings: embeddings.results,
-    lojbo: leijufra.lojbo,
-  });
+//   if (queryDecomposition.length > 1 || bangu === "muplis")
+//     rows = rows.filter((def: Dict) => def.noSharedElementsInCache >= 1);
+//   rows = rows
+//     .map((el: Dict) => {
+//       const { cache, ...rest } = el;
+//       return rest;
+//     })
+//     .sort((def1: Dict, def2: Dict) => {
+//       if (def1.bangu === bangu) return -1;
+//       if (def2.bangu === bangu) return 1;
+//       if (
+//         supportedLangs?.[def2.bangu]?.searchPriority !==
+//         supportedLangs?.[def1.bangu]?.searchPriority
+//       )
+//         return (
+//           supportedLangs?.[def2.bangu]?.searchPriority -
+//           supportedLangs?.[def1.bangu]?.searchPriority
+//         );
+//       if (queryDecomposition.length > 1 || bangu === "muplis")
+//         return def2.noSharedElementsInCache - def1.noSharedElementsInCache;
+//       return 0;
+//     });
+//   mapti_vreji = mapti_vreji.slice().concat(rows);
+//   if (seskari === "fanva" || bangu === "muplis") {
+//     return { result: mapti_vreji, decomposed: false };
+//   }
+//   const { result, decomposed } = await sortThem({
+//     query_apos,
+//     query,
+//     bangu,
+//     mapti_vreji,
+//     seskari,
+//     secupra_vreji,
+//     embeddings: embeddings.results,
+//     lojbo: leijufra.lojbo,
+//   });
 
-  const allMatches = result;
-  if (multi)
-    return { result: allMatches[0], decomposed, embeddings: embeddings.words };
-  if (allMatches[0].length === 0) {
-    allMatches[0] =
-      (await jmina_ro_cmima_be_lehivalsi({
-        query,
-        bangu,
-        lojbo: leijufra.lojbo,
-      })) || [];
-  }
-  if (allMatches[0].length === 0 || allMatches[0][0].w !== query_apos) {
-    let vlazahumei = [];
+//   const allMatches = result;
+//   if (multi)
+//     return { result: allMatches[0], decomposed, embeddings: embeddings.words };
+//   if (allMatches[0].length === 0) {
+//     allMatches[0] =
+//       (await jmina_ro_cmima_be_lehivalsi({
+//         query,
+//         bangu,
+//         lojbo: leijufra.lojbo,
+//       })) || [];
+//   }
+//   if (allMatches[0].length === 0 || allMatches[0][0].w !== query_apos) {
+//     let vlazahumei = [];
 
-    if (!/^[A-Zh]+[0-9\*]+$/.test(query)) {
-      const cachedDefinitions = await getCachedDefinitions({
-        query: query_apos,
-        bangu,
-        mapti_vreji,
-      });
-      vlazahumei = julne_setca_lotcila(
-        await shortget({
-          valsi: query_apos,
-          secupra: [],
-          bangu,
-          cachedDefinitions,
-          lojbo: leijufra.lojbo,
-        }),
-        leijufra.lojbo
-      );
-    }
-    if (bangu === "muplis" || !leijufra.lojbo) {
-      vlazahumei = vlazahumei.filter(
-        ({ d, nasezvafahi }: Def) => !d || !nasezvafahi
-      );
-    }
-    if (vlazahumei.length <= 1)
-      return {
-        result: vlazahumei.concat(allMatches[0]),
-        decomposed,
-        embeddings: embeddings.words,
-      };
-    return {
-      result: allMatches[1].concat(
-        [
-          {
-            t: leijufra.bangudecomp,
-            ot: "vlaza'umei",
-            w: query,
-            rfs: vlazahumei,
-            bangu,
-          },
-        ],
-        allMatches[2]
-      ),
-      decomposed,
-      embeddings: embeddings.words,
-    };
-  }
-  if (allMatches[0][0].w === query_apos) {
-    //full match
-    const [type, parsedWord] = maklesi_levalsi(
-      allMatches[0][0].w,
-      leijufra.lojbo
-    );
-    if (type.indexOf("fu'ivla") >= 0 && parsedWord.indexOf("-") >= 0) {
-      const rafsi = parsedWord.split("-")[0];
-      const selrafsi = await runQuery(
-        `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=$rafsi and valsi.bangu=$bangu limit 1`,
-        { $rafsi: rafsi, $bangu: bangu }
-      );
-      allMatches[0][0].rfs = selrafsi as Def[];
-    }
-  }
+//     if (!/^[A-Zh]+[0-9\*]+$/.test(query)) {
+//       const cachedDefinitions = await getCachedDefinitions({
+//         query: query_apos,
+//         bangu,
+//         mapti_vreji,
+//       });
+//       vlazahumei = julne_setca_lotcila(
+//         await shortget({
+//           valsi: query_apos,
+//           secupra: [],
+//           bangu,
+//           cachedDefinitions,
+//           lojbo: leijufra.lojbo,
+//         }),
+//         leijufra.lojbo
+//       );
+//     }
+//     if (bangu === "muplis" || !leijufra.lojbo) {
+//       vlazahumei = vlazahumei.filter(
+//         ({ d, nasezvafahi }: Def) => !d || !nasezvafahi
+//       );
+//     }
+//     if (vlazahumei.length <= 1)
+//       return {
+//         result: vlazahumei.concat(allMatches[0]),
+//         decomposed,
+//         embeddings: embeddings.words,
+//       };
+//     return {
+//       result: allMatches[1].concat(
+//         [
+//           {
+//             t: leijufra.bangudecomp,
+//             ot: "vlaza'umei",
+//             w: query,
+//             rfs: vlazahumei,
+//             bangu,
+//           },
+//         ],
+//         allMatches[2]
+//       ),
+//       decomposed,
+//       embeddings: embeddings.words,
+//     };
+//   }
+//   if (allMatches[0][0].w === query_apos) {
+//     //full match
+//     const [type, parsedWord] = maklesi_levalsi(
+//       allMatches[0][0].w,
+//       leijufra.lojbo
+//     );
+//     if (type.indexOf("fu'ivla") >= 0 && parsedWord.indexOf("-") >= 0) {
+//       const rafsi = parsedWord.split("-")[0];
+//       const selrafsi = await runQuery(
+//         `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=$rafsi and valsi.bangu=$bangu limit 1`,
+//         { $rafsi: rafsi, $bangu: bangu }
+//       );
+//       allMatches[0][0].rfs = selrafsi as Def[];
+//     }
+//   }
 
-  return { result: allMatches[0], decomposed, embeddings: embeddings.words };
-}
+//   return { result: allMatches[0], decomposed, embeddings: embeddings.words };
+// }
 
 function sortMultiDimensional(a: Def, b: Def) {
   if (!a.d) a.d = "";
@@ -1341,7 +1526,7 @@ function defaultPriorityGroups() {
     defInsideMatch: [],
     notesInsideMatch: [],
     otherMatch: [],
-  } as { [key: string]: Def[] };
+  } as { [key: string]: DefResult[] };
 }
 
 function includes<T extends string | string[], Y extends string | string[]>(
@@ -1362,87 +1547,338 @@ function semFilter(arrEmbeddingsObject: any[], arrGloss: string | any[]) {
 const nonLetter =
   '[ \u2000-\u206F\u2E00-\u2E7F\\!"#$%&()*+,\\-.\\/:<=>?@\\[\\]^`{|}~：？。，《》「」『』；_－／（）々仝ヽヾゝゞ〃〱〲〳〵〴〵「」『』（）〔〕［］｛｝｟｠〈〉《》【】〖〗〘〙〚〛。、・゠＝〜…‥•◦﹅﹆※＊〽〓♪♫♬♩〇〒〶〠〄再⃝ⓍⓁⓎ]';
 
-async function sortThem({
-  mapti_vreji,
-  query,
-  bangu,
-  query_apos,
-  seskari,
-  secupra_vreji,
-  embeddings,
-  lojbo,
-}: {
-  mapti_vreji: Def[];
-  query: string;
-  bangu: string;
-  query_apos: string;
-  seskari?: string;
-  secupra_vreji: Def[];
-  embeddings?: any[];
-  lojbo: boolean;
-}) {
-  let decomposed = false;
-  let searchPriorityGroups = defaultPriorityGroups();
-  const arrCombinedQuery = [...new Set([query, query_apos])];
-  for (let el of mapti_vreji) {
-    const def = setca_lotcila(el, lojbo); // TODO: optimize for phrases
-    if (!def) continue;
-    const semMatch = !def.z || !embeddings ? [] : semFilter(embeddings, def.z);
-    const semMatchGlosses =
-      !def.g || !embeddings ? [] : semFilter(embeddings, def.g.split(";"));
-    if (arrCombinedQuery.flat().includes(def.w)) {
-      if (!supportedLangs[def.bangu].noRafsi) {
-        def.rfs = JSON.parse(
-          JSON.stringify(
-            julne_setca_lotcila(
-              await sohivalsi({
-                lojbo,
-                decomposed: decompose(def.w, lojbo),
-                bangu,
-                mapti_vreji,
-              }),
-              lojbo
-            )
-          )
-        ).filter(({ w }: { w: string }) => w !== def.w);
-        decomposed = true;
-        if (def.rfs?.length === 0) {
-          def.rfs = (
-            await jmina_ro_cmima_be_lehivalsi({
-              query: def.w,
-              def: def,
-              bangu,
-              lojbo,
-            })
-          )[0].rfs;
-        }
+async function isInCache(url: string) {
+  return !!(await (await getCacheStore()).match(url));
+}
+async function sortThem({}) {
+  return { result: [], decomposed: [] };
+}
+
+// async function sortThem({
+//   mapti_vreji,
+//   query,
+//   bangu,
+//   query_apos,
+//   seskari,
+//   secupra_vreji,
+//   embeddings,
+//   lojbo,
+// }: {
+//   mapti_vreji: Def[];
+//   query: string;
+//   bangu: string;
+//   query_apos: string;
+//   seskari?: string;
+//   secupra_vreji: Def[];
+//   embeddings?: any[];
+//   lojbo: boolean;
+// }) {
+//   let decomposed = false;
+//   let searchPriorityGroups = defaultPriorityGroups();
+//   const arrCombinedQuery = [...new Set([query, query_apos])];
+//   for (let el of mapti_vreji) {
+//     const def = setca_lotcila(el, lojbo); // TODO: optimize for phrases
+//     if (!def) continue;
+//     const semMatch = !def.z || !embeddings ? [] : semFilter(embeddings, def.z);
+//     const semMatchGlosses =
+//       !def.g || !embeddings ? [] : semFilter(embeddings, def.g.split(";"));
+//     if (arrCombinedQuery.flat().includes(def.w)) {
+//       if (!supportedLangs[def.bangu].noRafsi) {
+//         def.rfs = JSON.parse(
+//           JSON.stringify(
+//             julne_setca_lotcila(
+//               await sohivalsi({
+//                 lojbo,
+//                 decomposed: decompose(def.w, lojbo),
+//                 bangu,
+//                 mapti_vreji,
+//               }),
+//               lojbo
+//             )
+//           )
+//         ).filter(({ w }: { w: string }) => w !== def.w);
+//         decomposed = true;
+//         if (def.rfs?.length === 0) {
+//           def.rfs = (
+//             await jmina_ro_cmima_be_lehivalsi({
+//               query: def.w,
+//               def: def,
+//               bangu,
+//               lojbo,
+//             })
+//           )[0].rfs;
+//         }
+//       }
+//       if (def.bangu == bangu) searchPriorityGroups.wordFullMatch.push(def);
+//       else if (def.bangu === "jbo")
+//         searchPriorityGroups.wordFullMatchJbo.push(def);
+//       else searchPriorityGroups.wordFullMatchAdditional.push(def);
+//     } else if (semMatch.length > 0) {
+//       const match = {
+//         ...def,
+//         // sem: semMatch.map((i) => i.word),
+//         semMaxDistance: semMatch.sort(
+//           (left, right) => right.distance - left.distance
+//         )[0].distance,
+//       };
+//       searchPriorityGroups[
+//         match.semMaxDistance === 1 ? "zMatch" : "zSemMatch"
+//       ].push(match);
+//     } else if (semMatchGlosses.length > 0) {
+//       const match = {
+//         ...def,
+//         // sem: semMatchGlosses.map((i) => i.word),
+//         semMaxDistance: semMatchGlosses.sort(
+//           (left, right) => right.distance - left.distance
+//         )[0].distance,
+//       };
+//       searchPriorityGroups[
+//         match.semMaxDistance === 1 ? "glossMatch" : "glossSemMatch"
+//       ].push(match);
+//     } else if (def.g && includes(def.g.split(";"), query)) {
+//       searchPriorityGroups.glossMatch.push(def);
+//     } else if (def.r && includes(def.r, query)) {
+//       searchPriorityGroups.rafsiMatch.push(def);
+//     } else if (
+//       includes(
+//         arrCombinedQuery,
+//         def.w,
+//         (q_word: string, def_w: string) =>
+//           def_w.search(`(^| )(${q_word})( |$)`) >= 0
+//       )
+//     ) {
+//       searchPriorityGroups.wordSemiMatch.push(def);
+//     } else if (typeof def.s === "string" && includes(def.s.split(" "), query)) {
+//       searchPriorityGroups.selmahoFullMatch.push(def);
+//     } else if (
+//       typeof def.s === "string" &&
+//       includes(
+//         query,
+//         def.s,
+//         (q_el: string, def_s: string) => def_s.indexOf(q_el) === 0
+//       )
+//     ) {
+//       searchPriorityGroups.selmahoSemiMatch.push(def);
+//     } else if (Array.isArray(def.s) && includes(def.s, query)) {
+//       searchPriorityGroups.oneOfSelmahosFullMatch.push(def);
+//     } else if (
+//       Array.isArray(def.s) &&
+//       includes(query, def.s, (q_el: string, defs_s: string[]) =>
+//         defs_s.some((i) => i.indexOf(q_el) === 0)
+//       )
+//     ) {
+//       searchPriorityGroups.oneOfSelmahosSemiMatch.push(def);
+//     } else if (
+//       includes(
+//         arrCombinedQuery,
+//         [def.g, def.w].filter(Boolean).flat() as string[],
+//         (q_el: string, defs: string[]) =>
+//           defs.some(
+//             (i) => i.search(RegExp(`(${nonLetter}(${q_el})${nonLetter})`)) >= 0
+//           )
+//       )
+//     ) {
+//       searchPriorityGroups.querySemiMatch.push(def);
+//       //TODO: add semantic search glosses
+//     } else if (
+//       typeof def.d === "string" &&
+//       includes(
+//         query,
+//         def.d,
+//         (q_el: string, def_d: string) =>
+//           def_d.toLowerCase().search(RegExp(`^${q_el}${nonLetter}`)) >= 0
+//       )
+//     ) {
+//       searchPriorityGroups.defGoodMatch.push(def);
+//     } else if (
+//       typeof def.d === "string" &&
+//       includes(
+//         query,
+//         def.d,
+//         (q_el: string, def_d: string) =>
+//           def_d
+//             .toLowerCase()
+//             .search(RegExp(`${nonLetter}${q_el}${nonLetter}`)) >= 0
+//       )
+//     ) {
+//       searchPriorityGroups.defInsideMatch.push(def);
+//     } else if (
+//       def.n &&
+//       includes(
+//         query,
+//         def.n,
+//         (q_el: string, def_n: string) =>
+//           def_n
+//             .toLowerCase()
+//             .search(RegExp(`${nonLetter}${q_el}${nonLetter}`)) >= 0
+//       )
+//     ) {
+//       searchPriorityGroups.notesInsideMatch.push(def);
+//     } else {
+//       searchPriorityGroups.otherMatch.push(def);
+//     }
+//   }
+//   /*
+// 	  now sort by semantic props distance
+// 	  */
+//   searchPriorityGroups.zSemMatch.sort(
+//     (left, right) => (right.semMaxDistance || 0) - (left.semMaxDistance || 0)
+//   );
+//   searchPriorityGroups.glossSemMatch.sort(
+//     (left, right) => (right.semMaxDistance || 0) - (left.semMaxDistance || 0)
+//   );
+
+//   let firstMatches;
+//   let secondMatches: Def[];
+//   if (seskari === "catni") {
+//     const searchPriorityGroups_unofficial_words = defaultPriorityGroups();
+//     const searchPriorityGroups_official_words = defaultPriorityGroups();
+//     Object.keys(searchPriorityGroups).forEach((group) => {
+//       searchPriorityGroups[group].forEach((def) => {
+//         if (isCoreWord(def))
+//           searchPriorityGroups_official_words[group].push(def);
+//         else searchPriorityGroups_unofficial_words[group].push(def);
+//       });
+//     });
+//     firstMatches = secupra_vreji.concat(
+//       searchPriorityGroups.wordFullMatch,
+//       searchPriorityGroups.wordFullMatchJbo,
+//       searchPriorityGroups.wordFullMatchAdditional
+//     );
+//     secondMatches = ([] as Def[]).concat(
+//       searchPriorityGroups_official_words.zMatch,
+//       searchPriorityGroups_official_words.glossMatch,
+//       searchPriorityGroups_official_words.selmahoFullMatch,
+//       searchPriorityGroups.oneOfSelmahosFullMatch,
+//       searchPriorityGroups.rafsiMatch,
+//       searchPriorityGroups_official_words.querySemiMatch,
+//       searchPriorityGroups_official_words.wordSemiMatch,
+//       searchPriorityGroups_official_words.zSemMatch,
+//       searchPriorityGroups_official_words.glossSemMatch,
+//       searchPriorityGroups_official_words.defGoodMatch,
+//       searchPriorityGroups_official_words.defInsideMatch,
+//       searchPriorityGroups_official_words.notesInsideMatch,
+//       searchPriorityGroups_unofficial_words.zMatch,
+//       searchPriorityGroups_unofficial_words.glossMatch,
+//       searchPriorityGroups_unofficial_words.selmahoFullMatch,
+//       searchPriorityGroups_unofficial_words.querySemiMatch,
+//       searchPriorityGroups_unofficial_words.wordSemiMatch,
+//       searchPriorityGroups_unofficial_words.zSemMatch,
+//       searchPriorityGroups_unofficial_words.glossSemMatch,
+//       searchPriorityGroups_unofficial_words.defGoodMatch,
+//       searchPriorityGroups_unofficial_words.defInsideMatch,
+//       searchPriorityGroups_unofficial_words.notesInsideMatch,
+//       searchPriorityGroups_official_words.otherMatch,
+//       searchPriorityGroups_unofficial_words.otherMatch
+//     );
+//   } else if (seskari === "cnano") {
+//     firstMatches = secupra_vreji.concat(
+//       searchPriorityGroups.wordFullMatch,
+//       searchPriorityGroups.wordFullMatchJbo,
+//       searchPriorityGroups.zMatch,
+//       searchPriorityGroups.glossMatch,
+//       searchPriorityGroups.wordFullMatchAdditional
+//     );
+//     secondMatches = ([] as Def[]).concat(
+//       searchPriorityGroups.selmahoFullMatch,
+//       searchPriorityGroups.oneOfSelmahosFullMatch,
+//       searchPriorityGroups.rafsiMatch,
+//       searchPriorityGroups.querySemiMatch,
+//       searchPriorityGroups.wordSemiMatch,
+//       searchPriorityGroups.zSemMatch,
+//       searchPriorityGroups.glossSemMatch,
+//       searchPriorityGroups.defGoodMatch,
+//       searchPriorityGroups.defInsideMatch,
+//       searchPriorityGroups.notesInsideMatch,
+//       searchPriorityGroups.otherMatch
+//     );
+//   } else {
+//     firstMatches = secupra_vreji.concat(
+//       searchPriorityGroups.wordFullMatch,
+//       searchPriorityGroups.wordFullMatchJbo,
+//       searchPriorityGroups.zMatch,
+//       searchPriorityGroups.glossMatch,
+//       searchPriorityGroups.wordFullMatchAdditional
+//     );
+//     secondMatches = ([] as Def[]).concat(
+//       searchPriorityGroups.selmahoFullMatch,
+//       searchPriorityGroups.oneOfSelmahosFullMatch,
+//       searchPriorityGroups.rafsiMatch,
+//       searchPriorityGroups.defGoodMatch,
+//       searchPriorityGroups.defInsideMatch,
+//       searchPriorityGroups.notesInsideMatch,
+//       searchPriorityGroups.wordSemiMatch,
+//       searchPriorityGroups.querySemiMatch,
+//       searchPriorityGroups.otherMatch
+//     );
+//   }
+//   return {
+//     result: [firstMatches.concat(secondMatches), firstMatches, secondMatches],
+//     decomposed,
+//   };
+// }
+
+function ma_vlakle(selsku: string, lojbo = true): [string, string][] {
+  let reconcatenated = selsku;
+  if (!lojbo || selsku.search(/[^aeiouyAEIOY]'/) > -1) return [["", selsku]];
+  try {
+    let parsed = parse(selsku.toLowerCase());
+    parsed = parsed.filter((el: string[]) => el[0] !== "drata");
+
+    const rebuilt: [string, string][] = [];
+
+    for (let i = 0; i < parsed.length; i++) {
+      const el = parsed[i];
+      if (el[0] !== "zei" || i === 0 || i === parsed.length - 1) {
+        rebuilt.push(el);
+      } else {
+        rebuilt.push([
+          "zei-lujvo",
+          `${parsed[i - 1][0]} ${el[0]} ${parsed[i + 1][0]}`,
+        ]);
       }
+    }
+    return rebuilt;
+  } catch (e) {
+    return [["", reconcatenated]];
+  }
+}
+
+function xu_lujvo(klesi: [string, string]): boolean {
+  return klesi[0] === "lujvo";
+}
+
+function xu_jbotergeha(klesi: [string, string][]): number {
+  return klesi.filter((i) => i[0] !== "drata").length / klesi.length;
+}
+
+function ma_liste_lehi_veljvorafsi(lujvo: string) {
+  return lujvo.split("-");
+}
+
+async function sortSearchResults(
+  similarDict: {
+    [key: string]: number;
+  },
+  searching: Searching,
+  results: DefResult[],
+  opts: { query_apos: string }
+) {
+  let { query, seskari, bangu, versio } = searching;
+  let searchPriorityGroups = defaultPriorityGroups();
+
+  const arrCombinedQuery = [...new Set([query, opts.query_apos])];
+  for (let def of results) {
+    if (arrCombinedQuery.flat().includes(def.w)) {
       if (def.bangu == bangu) searchPriorityGroups.wordFullMatch.push(def);
       else if (def.bangu === "jbo")
         searchPriorityGroups.wordFullMatchJbo.push(def);
       else searchPriorityGroups.wordFullMatchAdditional.push(def);
-    } else if (semMatch.length > 0) {
-      const match = {
+    } else if (similarDict[def.w]) {
+      searchPriorityGroups.zSemMatch.push({
         ...def,
-        // sem: semMatch.map((i) => i.word),
-        semMaxDistance: semMatch.sort(
-          (left, right) => right.distance - left.distance
-        )[0].distance,
-      };
-      searchPriorityGroups[
-        match.semMaxDistance === 1 ? "zMatch" : "zSemMatch"
-      ].push(match);
-    } else if (semMatchGlosses.length > 0) {
-      const match = {
-        ...def,
-        // sem: semMatchGlosses.map((i) => i.word),
-        semMaxDistance: semMatchGlosses.sort(
-          (left, right) => right.distance - left.distance
-        )[0].distance,
-      };
-      searchPriorityGroups[
-        match.semMaxDistance === 1 ? "glossMatch" : "glossSemMatch"
-      ].push(match);
+        semMaxDistance: similarDict[def.w],
+      });
     } else if (def.g && includes(def.g.split(";"), query)) {
       searchPriorityGroups.glossMatch.push(def);
     } else if (def.r && includes(def.r, query)) {
@@ -1526,18 +1962,11 @@ async function sortThem({
       searchPriorityGroups.otherMatch.push(def);
     }
   }
-  /*
-	  now sort by semantic props distance
-	  */
   searchPriorityGroups.zSemMatch.sort(
     (left, right) => (right.semMaxDistance || 0) - (left.semMaxDistance || 0)
   );
-  searchPriorityGroups.glossSemMatch.sort(
-    (left, right) => (right.semMaxDistance || 0) - (left.semMaxDistance || 0)
-  );
 
-  let firstMatches;
-  let secondMatches: Def[];
+  let secondMatches: DefResult[];
   if (seskari === "catni") {
     const searchPriorityGroups_unofficial_words = defaultPriorityGroups();
     const searchPriorityGroups_official_words = defaultPriorityGroups();
@@ -1548,67 +1977,66 @@ async function sortThem({
         else searchPriorityGroups_unofficial_words[group].push(def);
       });
     });
-    firstMatches = secupra_vreji.concat(
-      searchPriorityGroups.wordFullMatch,
-      searchPriorityGroups.wordFullMatchJbo,
-      searchPriorityGroups.wordFullMatchAdditional
-    );
-    secondMatches = ([] as Def[]).concat(
-      searchPriorityGroups_official_words.zMatch,
-      searchPriorityGroups_official_words.glossMatch,
-      searchPriorityGroups_official_words.selmahoFullMatch,
-      searchPriorityGroups.oneOfSelmahosFullMatch,
-      searchPriorityGroups.rafsiMatch,
-      searchPriorityGroups_official_words.querySemiMatch,
-      searchPriorityGroups_official_words.wordSemiMatch,
-      searchPriorityGroups_official_words.zSemMatch,
-      searchPriorityGroups_official_words.glossSemMatch,
-      searchPriorityGroups_official_words.defGoodMatch,
-      searchPriorityGroups_official_words.defInsideMatch,
-      searchPriorityGroups_official_words.notesInsideMatch,
-      searchPriorityGroups_unofficial_words.zMatch,
-      searchPriorityGroups_unofficial_words.glossMatch,
-      searchPriorityGroups_unofficial_words.selmahoFullMatch,
-      searchPriorityGroups_unofficial_words.querySemiMatch,
-      searchPriorityGroups_unofficial_words.wordSemiMatch,
-      searchPriorityGroups_unofficial_words.zSemMatch,
-      searchPriorityGroups_unofficial_words.glossSemMatch,
-      searchPriorityGroups_unofficial_words.defGoodMatch,
-      searchPriorityGroups_unofficial_words.defInsideMatch,
-      searchPriorityGroups_unofficial_words.notesInsideMatch,
-      searchPriorityGroups_official_words.otherMatch,
-      searchPriorityGroups_unofficial_words.otherMatch
-    );
+
+    secondMatches = ([] as DefResult[])
+      .concat(
+        searchPriorityGroups.wordFullMatch,
+        searchPriorityGroups.wordFullMatchJbo,
+        searchPriorityGroups.wordFullMatchAdditional,
+        searchPriorityGroups_official_words.zMatch,
+        searchPriorityGroups_official_words.glossMatch,
+        searchPriorityGroups_official_words.selmahoFullMatch,
+        searchPriorityGroups.oneOfSelmahosFullMatch,
+        searchPriorityGroups.rafsiMatch,
+        searchPriorityGroups_official_words.querySemiMatch,
+        searchPriorityGroups_official_words.wordSemiMatch,
+        searchPriorityGroups_official_words.zSemMatch,
+        searchPriorityGroups_official_words.glossSemMatch,
+        searchPriorityGroups_official_words.defGoodMatch,
+        searchPriorityGroups_official_words.defInsideMatch,
+        searchPriorityGroups_official_words.notesInsideMatch,
+        searchPriorityGroups_unofficial_words.zMatch,
+        searchPriorityGroups_unofficial_words.glossMatch,
+        searchPriorityGroups_unofficial_words.selmahoFullMatch,
+        searchPriorityGroups_unofficial_words.querySemiMatch,
+        searchPriorityGroups_unofficial_words.wordSemiMatch,
+        searchPriorityGroups_unofficial_words.zSemMatch,
+        searchPriorityGroups_unofficial_words.glossSemMatch,
+        searchPriorityGroups_unofficial_words.defGoodMatch,
+        searchPriorityGroups_unofficial_words.defInsideMatch,
+        searchPriorityGroups_unofficial_words.notesInsideMatch,
+        searchPriorityGroups_official_words.otherMatch,
+        searchPriorityGroups_unofficial_words.otherMatch
+      )
+      .flat();
   } else if (seskari === "cnano") {
-    firstMatches = secupra_vreji.concat(
-      searchPriorityGroups.wordFullMatch,
-      searchPriorityGroups.wordFullMatchJbo,
-      searchPriorityGroups.zMatch,
-      searchPriorityGroups.glossMatch,
-      searchPriorityGroups.wordFullMatchAdditional
-    );
-    secondMatches = ([] as Def[]).concat(
-      searchPriorityGroups.selmahoFullMatch,
-      searchPriorityGroups.oneOfSelmahosFullMatch,
-      searchPriorityGroups.rafsiMatch,
-      searchPriorityGroups.querySemiMatch,
-      searchPriorityGroups.wordSemiMatch,
-      searchPriorityGroups.zSemMatch,
-      searchPriorityGroups.glossSemMatch,
-      searchPriorityGroups.defGoodMatch,
-      searchPriorityGroups.defInsideMatch,
-      searchPriorityGroups.notesInsideMatch,
-      searchPriorityGroups.otherMatch
-    );
+    secondMatches = ([] as DefResult[])
+      .concat(
+        searchPriorityGroups.wordFullMatch,
+        searchPriorityGroups.wordFullMatchJbo,
+        searchPriorityGroups.zMatch,
+        searchPriorityGroups.glossMatch,
+        searchPriorityGroups.wordFullMatchAdditional,
+        searchPriorityGroups.selmahoFullMatch,
+        searchPriorityGroups.oneOfSelmahosFullMatch,
+        searchPriorityGroups.rafsiMatch,
+        searchPriorityGroups.querySemiMatch,
+        searchPriorityGroups.wordSemiMatch,
+        searchPriorityGroups.zSemMatch,
+        searchPriorityGroups.glossSemMatch,
+        searchPriorityGroups.defGoodMatch,
+        searchPriorityGroups.defInsideMatch,
+        searchPriorityGroups.notesInsideMatch,
+        searchPriorityGroups.otherMatch
+      )
+      .flat();
   } else {
-    firstMatches = secupra_vreji.concat(
+    secondMatches = ([] as DefResult[]).concat(
       searchPriorityGroups.wordFullMatch,
       searchPriorityGroups.wordFullMatchJbo,
       searchPriorityGroups.zMatch,
       searchPriorityGroups.glossMatch,
-      searchPriorityGroups.wordFullMatchAdditional
-    );
-    secondMatches = ([] as Def[]).concat(
+      searchPriorityGroups.wordFullMatchAdditional,
       searchPriorityGroups.selmahoFullMatch,
       searchPriorityGroups.oneOfSelmahosFullMatch,
       searchPriorityGroups.rafsiMatch,
@@ -1621,18 +2049,268 @@ async function sortThem({
     );
   }
   return {
-    result: [firstMatches.concat(secondMatches), firstMatches, secondMatches],
-    decomposed,
+    results: secondMatches,
   };
 }
 
-async function sisku(searching: Searching) {
-  log("sisku");
+function dot(a: number[], b: number[]) {
+  return a.reduce((sum, value, index) => sum + value * b[index], 0);
+}
 
+function cosine(a: number[], b: number[]) {
+  const magA = Math.sqrt(dot(a, a));
+  const magB = Math.sqrt(dot(b, b));
+  return dot(a, b) / (magA * magB);
+}
+
+const preprocessDefinitionForVectors = (def: string): string => {
+  return def
+    .replace(/\$.*?\$/g, "[UNK]")
+    .replace(/\{.*?\}/g, "[UNK]")
+    .replace(/".*?"/g, "[UNK]")
+    .replace(/See also\b */g, "")
+    .replace(/See\b */g, "")
+    .replace(/ {2,}/g, " ")
+    .replace(/[\.,] ?[\.,]/g, ".")
+    .replace(/[,\. ]+$/, "")
+    .replace(/^[,\. ]+/, "");
+};
+
+function transformArrayToDict(searchResults: SearchResult[]): {
+  [key: string]: number;
+} {
+  return Object.fromEntries(
+    searchResults.map((item) => [item.item, item.distance])
+  );
+}
+
+async function ninsisku(searching: Searching) {
+  let { query, seskari, bangu, versio } = searching;
+  query = query.trim();
+
+  if (query.length === 0) return;
+  const query_apos =
+    bangu === "loglan"
+      ? query.replace(/[‘]/g, "'").toLowerCase()
+      : query.replace(/[h‘]/g, "'").toLowerCase();
+
+  //if rimni search just normal rimni method, clean it up
+  //if regex search normally, clean it up
+  //if search+ integrate top100 results
+  const vlakle = query_apos
+    .split(" ")
+    .map((part) => ma_vlakle(part))
+    .flat(1);
+  const xujbotergeha = xu_jbotergeha(vlakle);
+  console.log(vlakle, xujbotergeha);
+
+  let rows: DefResult[] = [];
+  if (vlakle.length === 1) {
+    //todo: if single word then normal search, which is:
+    //search for the lojban word
+    //search for substring of the english word
+    //find embedding of the english word and search
+    const from = new Date().getTime();
+    let { vectors } = await sentenceModel.infer([query], searching);
+    const vector = vectors[0];
+    const similar = (await semSearcher.search(vector)) || [];
+
+    const similarDict = transformArrayToDict(similar);
+    console.log({
+      similarDict,
+      passed: (new Date().getTime() - from) / 1000,
+      // tokens: sentenceModel.tokenizer?.encode(query, true).tokens,
+    });
+
+    // const queries = [
+    //   "cmavrlu'u",
+    //   "lunra",
+    //   "plise",
+    //   "apple",
+    //   "[SEP] [UNK] [SEP] apple",
+    //   "jycybyb",
+    //   "$x_{1}$ is an apple [fruit] of species/strain $x_{2}$. See also {grute}. apple",
+    //   "$x_1$ is the selma'o [UNK].",
+    // ].map((i) => preprocessDefinitionForVectors(i));
+    // const vs = (await sentenceModel.infer(queries)).vectors;
+    // console.warn({
+    //   queries,
+    //   distances: queries
+    //     .map((q1, ind1) => {
+    //       return queries.map((q2, ind2) => {
+    //         return [q1, q2, cosine(vs[ind1], vs[ind2])];
+    //       });
+    //     })
+    //     .flat(1)
+    //     .sort((a, b) => {
+    //       return a[2] >= b[2] ? -1 : 1;
+    //     }),
+    //   tokens: queries.map(
+    //     (q) => sentenceModel.tokenizer?.encode(q, true).tokens
+    //   ),
+    // });
+
+    const parts = vlakle.map((v) => v[1].split("-")).flat();
+    const enrichedParts = [
+      ...new Set(
+        parts.concat([
+          parts.join(" "), //for "lo nu" being both a phrase and a single word
+          query, // for non-lojban words
+        ])
+      ),
+    ];
+    const similarDefs = similar.reduce((acc, el) => {
+      if (el.distance >= 0.2) return acc.concat([el.item]);
+      return acc;
+    }, [] as string[]);
+
+    rows = (await runQuery(
+      `
+		select distinct d,n,w,r,bangu,s,t,g,b,z,v,cache
+		from valsi
+		where ${Array(enrichedParts.length)
+      .fill(`(cache like ?)`)
+      .concat(Array(similarDefs.length).fill(`(w = ?)`))
+      .join(" or ")}
+    `,
+      enrichedParts.map((el) => `%${el}%`).concat(similarDefs)
+    )) as DefResult[];
+
+    rows = rows.reduce(
+      (acc: DefResult[], def: DefResult, index: number, rows: DefResult[]) => {
+        if (!def.cache) log(def, "warn");
+        if (def.w === query && xu_lujvo(vlakle[0])) {
+          const subDefs = ma_liste_lehi_veljvorafsi(vlakle[0][1]).reduce(
+            (defs: Def[], rafsi: string) =>
+              defs.concat([
+                rows
+                  .filter((def) => def.r?.includes(rafsi))
+                  .sort((a, b) => {
+                    if (a.bangu === searching.bangu) {
+                      return -1;
+                    } else {
+                      return 0;
+                    }
+                  })[0],
+              ]),
+            [] as Def[]
+          );
+          def.rfs = subDefs;
+        }
+        if (similarDefs.includes(def.w)) return acc.concat(def);
+        const noSharedElementsInCache = arraysShareElement(
+          def.cache.split(";"),
+          parts
+        );
+        if (bangu === "muplis") {
+          def.noSharedElementsInCache =
+            (2 * noSharedElementsInCache) / parts.length;
+        } else {
+          def.noSharedElementsInCache = noSharedElementsInCache / parts.length;
+        }
+        if (def.w === query_apos && def.bangu === "jbo") return acc.concat(def);
+        if (def.bangu === bangu && noSharedElementsInCache)
+          return acc.concat(def);
+        if (
+          ((def.w.includes(query_apos) || def.cache.includes(query_apos)) &&
+            def.bangu === bangu) ||
+          def.bangu.includes(`${bangu}-`) ||
+          def.bangu === "en-pixra"
+        )
+          return acc.concat(def);
+        return acc;
+      },
+      [] as DefResult[]
+    );
+
+    rows = (
+      await sortSearchResults(similarDict, searching, rows as DefResult[], {
+        query_apos,
+      })
+    ).results;
+    //just sort the result similar to the previous sort
+    console.warn(rows);
+    //the difference is that we retain more items from the cache, even not precise matches
+    //todo: now add embedding results for non-lojban queries
+  } else if (xujbotergeha > 0.8) {
+    //if >=80% lojban phrase decompose everything with two levels, include fuhivla prefixes
+    //try to find exact match
+    const parts = vlakle.map((v) => v[1].split("-")).flat();
+    const enrichedParts = parts.concat([parts.join(" ")]); //for "lo nu" being both a phrase and a single word
+    //search for parts
+    //cache returned, use this cache to sort words, only take data from this cache!
+    let rows = await runQuery(
+      `
+		select distinct d,n,w,r,bangu,s,t,g,b,z,v,cache
+		from valsi
+		where ${Array(enrichedParts.length).fill(`(cache like ?)`).join(" or ")}
+    `,
+      enrichedParts.map((el) => `%${el}%`)
+    );
+
+    rows = rows.filter((def: Dict) => {
+      if (!def.cache) log(def, "warn");
+      const noSharedElementsInCache = arraysShareElement(
+        def.cache.split(";"),
+        parts
+      );
+      if (bangu === "muplis") {
+        def.noSharedElementsInCache =
+          (2 * noSharedElementsInCache) / parts.length;
+      } else {
+        def.noSharedElementsInCache = noSharedElementsInCache / parts.length;
+      }
+      if (def.w === query_apos && def.bangu === "jbo") return true;
+      if (def.bangu === bangu && noSharedElementsInCache) return true;
+      if (
+        ((def.w.includes(query_apos) || def.cache.includes(query_apos)) &&
+          def.bangu === bangu) ||
+        def.bangu.includes(`${bangu}-`) ||
+        def.bangu === "en-pixra"
+      )
+        return true;
+      return false;
+    });
+    console.log(rows);
+    //dont sort, instead return result in order + combinatorically if found
+    //if nothing found and it s a zeilujvo or a single !=='' word then show nasezvafahi, add word class
+  } else {
+    //if <90% then search by current non-jbo language
+    //try to find exact match
+    //show top10 muplis
+    //show top10 semantic dictionary
+    //if nothing found and it s a zeilujvo or a single !=='' word then show nasezvafahi, add word class
+  }
+  // if (xu_lujvo(vlakle)) {
+  //   //check if query_apos is a lujvo
+  //   //decompose lujvo
+  //   const liste_lehi_rafsi = ma_liste_lehi_veljvorafsi(vlakle[1]);
+  //   //fetchLujvoDefinition With veljvo
+  //   //now search for lujvo
+  // }
+
+  return { results: rows, embeddings: [query, query_apos] };
+}
+
+async function ralsisku(searching: Searching) {
   let { query, seskari, bangu, versio } = searching;
   query = query.trim();
   //connect and do selects
   if (query.length === 0) return;
+
+  const ninselcupra = await ninsisku(searching);
+  self.postMessage({
+    kind: "searchResults",
+    ...ninselcupra,
+    req: {
+      bangu,
+      seskari,
+      versio,
+      query,
+    },
+  });
+  return;
+
   let secupra_vreji: { results: Def[]; embeddings: any[] } = {
     results: [],
     embeddings: [],
@@ -1674,49 +2352,48 @@ async function sisku(searching: Searching) {
     );
   } else if (bangu !== "muplis" && queryDecomposition.length > 1) {
     //normal search
-    const { result, decomposed, embeddings } = await cnano_sisku({
-      mapti_vreji: [],
-      multi: true,
-      query,
-      bangu,
-      query_apos,
-      seskari,
-      secupra_vreji: secupra_vreji.results,
-      queryDecomposition,
-      leijufra: searching.leijufra,
-    });
-    secupra_vreji = { results: result, embeddings };
-    if (!decomposed) {
-      secupra_vreji.results.unshift({
-        t: "bangudecomp",
-        ot: "vlaza'umei",
-        bangu,
-        w: query,
-        rfs: julne_setca_lotcila(
-          await sohivalsi({
-            decomposed: queryDecomposition,
-            bangu,
-            lojbo: searching?.leijufra?.lojbo,
-          }),
-          searching?.leijufra?.lojbo
-        ),
-      });
-    }
+    // const { result, decomposed, embeddings } = await nahorsisku({
+    //   mapti_vreji: [],
+    //   multi: true,
+    //   query,
+    //   bangu,
+    //   query_apos,
+    //   seskari,
+    //   secupra_vreji: secupra_vreji.results,
+    //   queryDecomposition,
+    //   leijufra: searching.leijufra,
+    // });
+    // secupra_vreji = { results: result, embeddings };
+    // if (!decomposed) {
+    //   secupra_vreji.results.unshift({
+    //     t: "bangudecomp",
+    //     ot: "vlaza'umei",
+    //     bangu,
+    //     w: query,
+    //     rfs: julne_setca_lotcila(
+    //       await sohivalsi({
+    //         decomposed: queryDecomposition,
+    //         bangu,
+    //         lojbo: searching?.leijufra?.lojbo,
+    //       }),
+    //       searching?.leijufra?.lojbo
+    //     ),
+    //   });
+    // }
   } else {
-    const { result, embeddings } = await cnano_sisku({
-      leijufra: searching.leijufra,
-      mapti_vreji: [],
-      multi: false,
-      query,
-      bangu,
-      versio,
-      query_apos,
-      seskari,
-      secupra_vreji: secupra_vreji.results,
-      queryDecomposition,
-    });
-
-    secupra_vreji = { results: result, embeddings };
+    // const { result, embeddings } = await nahorsisku({
+    //   leijufra: searching.leijufra,
+    //   mapti_vreji: [],
+    //   multi: false,
+    //   query,
+    //   bangu,
+    //   versio,
+    //   query_apos,
+    //   seskari,
+    //   secupra_vreji: secupra_vreji.results,
+    //   queryDecomposition,
+    // });
+    // secupra_vreji = { results: result, embeddings };
   }
   self.postMessage({
     kind: "searchResults",

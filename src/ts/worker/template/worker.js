@@ -6,7 +6,7 @@ import { IDBBatchAtomicVFS } from '../../libs/wa-sqlite/src/examples/IDBBatchAto
 
 import { AutoQueue } from '../../libs/queue.js'
 import { parse } from './cmaxes.js'
-import { loadModel } from './w2v/embeddings.js'
+// import { loadModel } from './w2v/embeddings.js'
 import jsonTeJufra from './tejufra.json'
 
 const decompress = require('brotli/decompress')
@@ -123,8 +123,8 @@ async function initSQLDB() {
   const response = await fetch('/sutysisku/data/embeddings-en.json.bin')
   const blob = await response.arrayBuffer()
 
-  const decompressedData = Buffer.from(decompress(Buffer.from(blob)))
-  wordEmbeddings = await loadModel(JSON.parse(decompressedData))
+  // const decompressedData = Buffer.from(decompress(Buffer.from(blob)))
+  // wordEmbeddings = await loadModel(JSON.parse(decompressedData))
 }
 
 const log = (output, level) => console[level ?? 'log'](output)

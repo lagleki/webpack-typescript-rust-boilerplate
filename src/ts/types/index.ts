@@ -1,9 +1,14 @@
 export type Dict = { [x: string]: any };
 
-export type DumpRow = (string | string[])[];
+export type DumpRow = string[];
 
 export type Morna = { valsi: string; fancu: string };
+export interface DefResult extends Def {
+  cache: string;
+  noSharedElementsInCache?: number;
+}
 export type Def = {
+  cache?: string;
   semMaxDistance?: number;
   n?: string;
   s?: string | string[];

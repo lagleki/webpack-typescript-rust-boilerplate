@@ -1,35 +1,26 @@
-type Item = {name?: string; action: any;resolve: (value: unknown) => void; reject: (reason?: any) => void}
+type Item = {
+  name?: string;
+  priority?: number;
+  action: any;
+  resolve: (value: unknown) => void;
+  reject: (reason?: any) => void;
+};
 
-//TODO: join into one class
-class Queue {
-  private _items:Item[] = [];
-
-  enqueue(item: Item) {
-    this._items.push(item);
+export class AutoQueue {
+  private _items: Item[] = [];
+  
+  _pendingPromise: boolean;
+  constructor() {
+    this._pendingPromise = false;
   }
-
-  async dequeue() {
-    const withVlaste = this._items.filter((i) => i.name === "vlaste").slice(-1);
-    const notWithVlaste = this._items.filter((i) => i.name !== "vlaste");
-    this._items = [...withVlaste, ...notWithVlaste];
-    return this._items.shift();
-  }
-
+  
   get size() {
     return this._items.length;
   }
-}
 
-export class AutoQueue extends Queue {
-  _pendingPromise: boolean;
-  constructor() {
-    super();
-    this._pendingPromise = false;
-  }
-
-  enqueue({ action,name }: { action: unknown; name?: string }) {
+  enqueue({ action, name, priority }: { action: unknown; priority?: number; name?: string }) {
     return new Promise((resolve, reject) => {
-      super.enqueue({ action, name, resolve, reject });
+      this._items.push({ action, name, priority, resolve, reject });
       this.dequeue();
     });
   }
@@ -37,7 +28,13 @@ export class AutoQueue extends Queue {
   async dequeue() {
     if (this._pendingPromise) return;
 
-    const item = await super.dequeue();
+    const withVlaste = this._items.filter((i) => i.name === "vlaste").slice(-1);
+    const notWithVlaste = this._items
+      .filter((i) => i.name !== "vlaste")
+      .sort((a, b) => (b.priority ?? 0.5) - (a.priority ?? 0.5));
+    this._items = [...withVlaste, ...notWithVlaste];
+
+    const item = this._items.shift();
 
     if (!item) return;
 
