@@ -2,6 +2,9 @@ import * as ort from "onnxruntime-common";
 import * as ortWeb from "onnxruntime-web";
 import initSem, {
   TokenizerWasm,
+  SearchResult,
+  Sisku,
+  Resource,
 } from "@sutysisku/tokenizer/pkg/web/sutysisku_tokenizer.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -9,6 +12,23 @@ import initSem, {
 import { decompress } from "brotli-compress/js";
 import { fetchFromAppCache } from "./fns";
 import { Dict } from "../../types";
+
+import { typedArrayToBuffer } from "../../utils/fns";
+// await initSem();
+
+export class SemSearcher {
+  private tutci: Sisku | undefined;
+
+  fetchData = async (data: Resource["embeddings"]): Promise<any> => {
+    this.tutci = new Sisku({ embeddings: data });
+  };
+
+  search = async (vector: number[], topK = 10) => {
+    if (!this.tutci) return [] as SearchResult[];
+    const result = this.tutci?.search(new Float32Array(vector), topK);
+    return result?.neighbors;
+  };
+}
 
 type InferenceResult = {
   countTokens: number;
@@ -53,7 +73,7 @@ export class TextEmbeddingModel {
     const resp = await fetchFromAppCache({
       cacheName: "sutysisku",
       url: path,
-      noCache
+      noCache,
     });
     blob = await resp.arrayBuffer();
 
@@ -170,7 +190,7 @@ export class TextEmbeddingModel {
     return this.ortTensor.data[index] as number;
   }
 
-  async infer(sentences: string[], meta?: Dict): Promise<InferenceResult> {
+  async infer(sentences: string[]): Promise<InferenceResult> {
     const textTensors = await this.prepareTextTensors(
       sentences,
       true,

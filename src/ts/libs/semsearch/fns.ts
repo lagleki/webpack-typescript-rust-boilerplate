@@ -14,7 +14,7 @@ export async function fetchFromAppCache({
   if (response) {
     return response;
   } else {
-    const response = await fetch(url);
+    const response = await fetchTimeout(url,5000, {cache: 'no-cache'});
     cache.put(url, response.clone());
     return response;
   }

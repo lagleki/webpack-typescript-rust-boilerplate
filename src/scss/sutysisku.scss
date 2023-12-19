@@ -1472,11 +1472,12 @@ user-select: none; */
 
 .valsi.utco,
 .valsi.zbalermorna {
-  max-width: 50%;
+  // max-width: 50%;
   margin-left: 7px;
   color: #888;
   font-weight: 100;
   word-wrap: break-word;
+  white-space: pre-wrap;
   display: inline-block;
 }
 

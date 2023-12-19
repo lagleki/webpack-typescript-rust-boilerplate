@@ -23,13 +23,19 @@
 - if lujvo decomposition doesnt work simply show "nasezvafahi" message
 
 # todo
-- dumps must be in tsv format
-- semdict should be inside main ones
-  - on cnino_sorcu load it into semsearch by chunks
-  - each dict has a separate appcache file
+- kiddo
+  - dont range to -1:+1
+  - sentenceEmbeddings contain encoded strings
+  - we return found vectors and search for those vectors in sentenceEmbeddings object
+    - .filter | embeddings === 
+    - array1.every((value, index) => value === array2[index])
+- `Cache.add() encountered a network error` can happen
+- veljvo search
+  - we decompose, search for with same .v
+- jbo dump shouldnt have vectors
+- jbo dump should avoid caching $...$
+- dump import speed too low. embedding interference?
 - makintoc incorrectly uttered
-- add fetchtimeout to semsearch
-- merge semsearch and iinference dirs
 - semsearch is within results. no separate "semsearch" button
 - does coi.js reload to coop?
   - coi.js, Cache: files to cache
@@ -45,14 +51,12 @@
 - add DwE and cll dicts
 - add lojban.pw corpus of texts
 - gei doesnt show cll links
-- pack vektori dump better
 - add jvozba
 - avoid playing more than one audio at once, use a singleton audio element
 - check .sasslintrc, postcss config
 - check all .md files
 - check travis
 - fasttext compressor - adapt sentence embeddings to other languages
-- smusisku should use index of word, not word itself
 - dumps dont seem to be sorted from gismu to fuhivla anymore
 - macarena search is too slow and incorrect imho
   - spirofu cmeta simlu is slow as well
@@ -132,6 +136,7 @@
   - for js files import from json
 
 ## test
+- replace fetch with fetchtimeout
 - snowflakes flicker on rerender - disable flickering of them
 - embed dict must have versio.json key filled  
 - on load .bin and .brotli are downloaded or some reason (front.ts??). avoid that. update only when absent or after loading

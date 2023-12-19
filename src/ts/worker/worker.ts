@@ -10,6 +10,7 @@ import { parse } from "../libs/cmaxes/cmaxes";
 // import { WordEmbeddings, loadModel } from "./template/w2v/embeddings";
 import jsonTeJufra from "./template/tejufra.json";
 
+import { supportedLangsWorker as supportedLangs } from "../consts";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { decompress } from "brotli-compress/js";
@@ -24,11 +25,14 @@ import {
 import { blobChunkDefaultLength } from "../consts";
 import { log } from "../libs/logger";
 
-import { TextEmbeddingModel } from "../libs/semsearch/inference";
+import { TextEmbeddingModel, SemSearcher } from "../libs/semsearch/inference";
 
 import { krulermorna } from "../utils/ceha";
-import { SemSearcher } from "../libs/semsearch/semsearcher";
-import { SearchResult, TokenizerWasm } from "@sutysisku/tokenizer/pkg/web";
+import {
+  Resource,
+  SearchResult,
+  TokenizerWasm,
+} from "@sutysisku/tokenizer/pkg/web";
 import { cloneObject, fetchTimeout } from "../utils/fns";
 import { fetchFromAppCache } from "../libs/semsearch/fns";
 
@@ -230,6 +234,9 @@ let db: number,
   sql: (sql: string | string[], ...values: any[]) => Promise<Dict[]>,
   // wordEmbeddings: WordEmbeddings,
   semSearcher = new SemSearcher(),
+  sentenceEmbeddings: Record<string, Resource["embeddings"]> = {},
+  sentenceDicts: Record<string, string[]> = {},
+  sentenceKeys: Record<string, string[]> = {},
   sentenceModel:
     | TextEmbeddingModel
     | {
@@ -246,7 +253,18 @@ let db: number,
     tokenizer: undefined,
   };
 
-async function writeFile({ content, path }: { content: string; path: string }) {
+async function writeEmbeddings({
+  content,
+  path,
+}: {
+  content: Dict;
+  path: string;
+}) {
+  Object.keys(content).forEach((key) => {
+    sentenceDicts[key] = Object.values(content[key]) as string[];
+    sentenceKeys[key] = Object.keys(content[key]) as string[];
+    delete sentenceEmbeddings[key];
+  });
   const opfsRoot = await self.navigator.storage.getDirectory();
   if (opfsRoot) {
     // const root = await navigator.storage.getDirectory();
@@ -266,7 +284,12 @@ async function writeFile({ content, path }: { content: string; path: string }) {
     //alternative:
     const fileHandle = await opfsRoot.getFileHandle(path, { create: true });
     const writable = await fileHandle.createWritable();
-    await writable.write(content);
+
+    await writable.write(
+      new Blob([JSON.stringify({ keys: sentenceKeys, dict: sentenceDicts })], {
+        type: "application/json",
+      })
+    );
     await writable.close();
   } else {
     await new Promise((resolve, reject) => {
@@ -286,7 +309,7 @@ async function writeFile({ content, path }: { content: string; path: string }) {
         const db = dbReq.result;
         const tx = db.transaction("files", "readwrite");
         const store = tx.objectStore("files");
-        store.put(content, path);
+        store.put({ keys: sentenceKeys, dict: sentenceDicts }, path);
         resolve(null);
       };
     });
@@ -301,10 +324,12 @@ async function readFile(path: string) {
     const fileHandle = await opfsRoot.getFileHandle(path);
     const file = await fileHandle.getFile();
     const content = await file.text();
-    return content;
+    const res = JSON.parse(content);
+    sentenceKeys = res.keys;
+    sentenceDicts = res.dict;
   } else {
     // Use IndexedDB
-    return await new Promise((resolve, reject) => {
+    return await new Promise<void>((resolve, reject) => {
       const dbReq = self.indexedDB.open("files");
       dbReq.onerror = (event) => {
         log({ "IndexedDB error": event?.target }, "error");
@@ -317,7 +342,10 @@ async function readFile(path: string) {
         const request = store.get(path);
         request.onsuccess = function () {
           const content = request.result;
-          resolve(content);
+          const res = JSON.parse(content);
+          sentenceKeys = res.keys;
+          sentenceDicts = res.dict;
+          resolve();
         };
       };
     });
@@ -327,24 +355,39 @@ async function readFile(path: string) {
 async function bootupSemSearcher({ noCache }: { noCache: boolean }) {
   aQueue.enqueue({
     action: async () => {
-      sentenceModel = await TextEmbeddingModel.create(modelMetadata, {
-        noCache,
-      });
-      const resp = await fetchFromAppCache({
-        cacheName: "sutysisku",
-        url: modelMetadata.modelPath,
-        noCache,
-      });
-      await semSearcher.fetchData(resp);
-      if (lastSearching) {
-        const reSearch = cloneObject(lastSearching);
-        lastSearching = undefined;
-        aQueue.enqueue({
-          action: async () => {
-            await ralsisku(reSearch);
-          },
-          name: "vlaste",
+      try {
+        sentenceModel = await TextEmbeddingModel.create(modelMetadata, {
+          noCache,
         });
+        if (sentenceDicts["en"] === undefined) {
+          try {
+            await readFile("sentenceEmbeddings");
+          } catch (error) {
+            return;
+          }
+        }
+        await semSearcher.fetchData(
+          sentenceDicts["en"].map((i) => convertStringToNumArray(i))
+        );
+        delete sentenceDicts["en"];
+        if (lastSearching) {
+          const reSearch = cloneObject(lastSearching);
+          lastSearching = undefined;
+          aQueue.enqueue({
+            action: async () => {
+              await ralsisku(reSearch);
+            },
+            name: "vlaste",
+          });
+        }
+      } catch (error) {
+        log(
+          {
+            event:
+              "sentence model failed to get launched, semantic search won't be available",
+          },
+          "error"
+        );
       }
     },
     priority: 0,
@@ -493,7 +536,7 @@ async function getCacheStore(): Promise<Cache> {
 async function runMigrations() {
   log("sql migrations");
   await sql(
-    `CREATE TABLE IF NOT EXISTS valsi (d text,n text,w text,r text,bangu text,s text,t text,g text,cache text,b text,v text,z text);`
+    `CREATE TABLE IF NOT EXISTS valsi (d text,n text,w text,r text,bangu text,s text,t text,g text,cache text,b text text,z text, v text);`
   );
   await sql(
     `CREATE TABLE IF NOT EXISTS langs_ready (bangu TEXT, timestamp TEXT)`
@@ -570,10 +613,9 @@ async function runQuery(sqlQuery: string, params = {}) {
     });
 
   return rows.map((row) => {
-    if (row.r) row.r = JSON.parse(row.r);
     if ((row.t || "").indexOf("{") === 0) row.t = JSON.parse(row.t);
-    for (let i of ["s", "b", "z", "cache", "v"]) {
-      if ((row[i] || "").indexOf("[") === 0) row[i] = JSON.parse(row[i]);
+    for (let i of ["r", "s", "b", "z", "cache"]) {
+      if (![null, undefined].includes(row[i])) row[i] = row[i].split(";");
     }
     if (row.d) {
       try {
@@ -585,37 +627,10 @@ async function runQuery(sqlQuery: string, params = {}) {
   });
 }
 
-const supportedLangs: { [key: string]: any } = {
-  en: { p: "selsku_lanci_eng" },
-  muplis: {},
-  sutysisku: { bangu: "en", priority: 11 },
-  "en-pixra": {
-    p: "cukta",
-    noRafsi: true,
-    searchPriority: 10,
-    priority: 10,
-    simpleCache: true,
-  },
-  "en-ll": {
-    p: "cukta",
-    noRafsi: true,
-    searchPriority: 9,
-    priority: 9,
-  },
-  "en-cll": { p: "cukta", noRafsi: true, searchPriority: 8, priority: 8 },
-  jbo: { p: "lanci_jbo", searchPriority: 7 },
-  ru: { p: "selsku_lanci_rus" },
-  eo: { p: "lanci_epo" },
-  es: { p: "selsku_lanci_spa" },
-  "fr-facile": { p: "selsku_lanci_fra" },
-  ja: { p: "selsku_lanci_jpn" },
-  zh: { p: "selsku_lanci_zho" },
-  loglan: { p: "loglan" },
-};
-
 function arrSupportedLangs() {
   return Object.keys(supportedLangs).sort(
-    (a, b) => supportedLangs[b].priority - supportedLangs[a].priority
+    (first, last) =>
+      supportedLangs[last].priority - supportedLangs[first].priority
   );
 }
 
@@ -627,7 +642,7 @@ const sufficientLangs = (searching: Dict) =>
     "en-ll",
     "en-pixra",
     "muplis",
-    "en-vektori",
+    // "en-vektori",
     "jbo",
     "sutysisku",
   ].filter(Boolean);
@@ -698,11 +713,13 @@ function addCache(
   );
   const def = arrayToObject(_def, columns);
 
-  if (def.r) def.r = def.r.split(";");
+  // if (def.r) def.r = def.r.split(";");
   if (def.g) {
     def.g = def.g
       .split(";")
-      .map((i: string) => i.replace(cacheSeparator, " ").trim().replace(/ {2,}/g, " "))
+      .map((i: string) =>
+        i.replace(cacheSeparator, " ").trim().replace(/ {2,}/g, " ")
+      )
       .join(";");
   }
 
@@ -710,7 +727,7 @@ function addCache(
     def.bangu = tegerna;
   } else if (def.cache) {
     if (def.w) {
-      def.cache = def.cache.join(";");
+      if (Array.isArray(def.cache)) def.cache = def.cache.join(";");
     }
     def.bangu = tegerna;
     def.cache = def.cache;
@@ -746,24 +763,20 @@ function prepareFields(rec: Dict) {
   Object.keys(rec).map((key, index) => {
     columns.push(key);
     const val = rec[key];
-    if (key === "z" && !val) {
-      rec[key] = JSON.stringify([""]);
-    } else if (typeof val == "object") {
-      rec[key] = JSON.stringify(val || "");
-    } else {
-      rec[key] = val || "";
-    }
+    // if (key === "z" && !val) {
+    //   rec[key] = JSON.stringify([""]);
+    // } else if (typeof val == "object") {
+    //   rec[key] = JSON.stringify(val || "");
+    // } else {
+    rec[key] = val || "";
+    // }
     dict[`$${key}`] = rec[key];
   });
   return { dict, columns };
 }
 
 function convertStringToNumArray(str: string) {
-  let unicodeArray = [];
-  for (let i = 0; i < str.length; i++) {
-    unicodeArray.push(str.charCodeAt(i));
-  }
-  return unicodeArray;
+  return str.split("").map((char) => ((char.charCodeAt(0) - 32) / 94) * 2 - 1);
 }
 
 function parseTsvDump(dump: string) {
@@ -826,19 +839,18 @@ async function cnino_sorcu(
     });
     const langHash = jsonVersio[lang];
 
-    if (lang === "en-vektori") {
-      await bootupSemSearcher({ noCache: true });
-      await markLanguageAsUpdated({ completedRows: 100, lang, langHash, cb });
-      continue;
-    }
+    // if (lang === "en-vektori") {
+    //   await bootupSemSearcher({ noCache: true });
+    //   await markLanguageAsUpdated({ completedRows: 100, lang, langHash, cb });
+    //   continue;
+    // }
 
     if (!langHash) continue;
     const lenLangChunks = langHash.split("-")[1] ?? blobChunkDefaultLength;
 
-    const sentenceEmbeddings: Dict = {};
-
     if (["en", "muplis"].includes(lang)) {
-      sentenceEmbeddings[lang] = {};
+      const coreLang = supportedLangs[lang].b ?? lang;
+      sentenceEmbeddings[coreLang] = sentenceEmbeddings[coreLang] ?? {};
     }
     for (let i = 0; i < lenLangChunks; i++) {
       cb(`downloading ${lang}-${i}.bin dump`);
@@ -847,7 +859,6 @@ async function cnino_sorcu(
         process.env.DUMPS_URL_ROOT
       }/data/parsed/parsed-${lang}-${i}.bin?sisku=${new Date().getTime()}`;
       const response = await fetchTimeout(url, 5000, { cache: "no-cache" });
-      let json;
       if (response?.ok) {
         const blob = await response.arrayBuffer();
 
@@ -882,18 +893,16 @@ async function cnino_sorcu(
             await sqlite3.exec(db, `BEGIN;`);
             for (let rec of toAdd) {
               const { columns, dict } = rec;
-              const vIndex = columns.findIndex((el) => el === "v");
+              const qIndex = columns.findIndex((el) => el === "q");
               const amendedColumns =
-                vIndex >= 0
-                  ? columns.slice(0, vIndex).concat(columns.slice(vIndex + 1))
+                qIndex >= 0
+                  ? columns.slice(0, qIndex).concat(columns.slice(qIndex + 1))
                   : columns;
-              if (vIndex >= 0) {
-                dict.$v = convertStringToNumArray(dict.$v).map(
-                  (num) => (num - 32) * 94 * 2 - 1
-                );
-                sentenceEmbeddings[lang][dict.w] = dict.$v;
+              if (qIndex >= 0) {
+                sentenceEmbeddings[supportedLangs[lang].b ?? lang][dict.$w] =
+                  dict.$q;
               }
-              const { $v, ...restDict } = dict;
+              const { $q, ...restDict } = dict;
               await sql(
                 `INSERT INTO valsi (${amendedColumns.join(
                   ","
@@ -936,10 +945,11 @@ async function cnino_sorcu(
     }
 
     if (["en", "muplis"].includes(lang)) {
-      await writeFile({
-        path: `/sentenceEmbeddings/${lang}`,
-        content: JSON.stringify(sentenceEmbeddings[lang]),
+      await writeEmbeddings({
+        path: `sentenceEmbeddings`,
+        content: sentenceEmbeddings,
       });
+      await bootupSemSearcher({ noCache: true });
     }
     await markLanguageAsUpdated({ completedRows, lang, langHash, cb });
   }
@@ -1008,7 +1018,7 @@ async function getCachedDefinitions({
     );
   if (result.length === 0)
     result = await runQuery(
-      `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where (w=$query COLLATE NOCASE or d=$query COLLATE NOCASE) and bangu=$bangu`,
+      `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi where (w=$query COLLATE NOCASE or d=$query COLLATE NOCASE) and bangu=$bangu`,
       { $bangu: bangu, $query: query.toLowerCase() }
     );
   return result;
@@ -1064,7 +1074,7 @@ function arraysShareElement(array1: string[], array2: string[]) {
 //   if (versio === "selmaho") {
 //     if (bangu === "muplis") {
 //       rows = await runQuery(
-//         `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where s=$query and bangu=$bangu`,
+//         `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi where s=$query and bangu=$bangu`,
 //         {
 //           $query: query,
 //           $bangu: bangu,
@@ -1073,7 +1083,7 @@ function arraysShareElement(array1: string[], array2: string[]) {
 //     } else {
 //       rows = (
 //         await runQuery(
-//           `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where s like $query and bangu=$bangu`,
+//           `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi where s like $query and bangu=$bangu`,
 //           {
 //             $query: query + "%",
 //             $bangu: bangu,
@@ -1087,7 +1097,7 @@ function arraysShareElement(array1: string[], array2: string[]) {
 //     }
 //   } else if (seskari === "fanva") {
 //     rows = await runQuery(
-//       `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where w=$valsi`,
+//       `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi where w=$valsi`,
 //       {
 //         $valsi: query_apos,
 //       }
@@ -1098,7 +1108,7 @@ function arraysShareElement(array1: string[], array2: string[]) {
 
 //     rows = await runQuery(
 //       `
-// 		select distinct d,n,w,r,bangu,s,t,g,b,z,v,cache
+// 		select distinct d,n,w,r,bangu,s,t,g,b,z,cache
 // 		from valsi
 // 		where ${Array(arrayQuery.length).fill(`(cache like ?)`).join(" or ")}
 //     `,
@@ -1236,7 +1246,7 @@ function arraysShareElement(array1: string[], array2: string[]) {
 //     if (type.indexOf("fu'ivla") >= 0 && parsedWord.indexOf("-") >= 0) {
 //       const rafsi = parsedWord.split("-")[0];
 //       const selrafsi = await runQuery(
-//         `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=$rafsi and valsi.bangu=$bangu limit 1`,
+//         `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=$rafsi and valsi.bangu=$bangu limit 1`,
 //         { $rafsi: rafsi, $bangu: bangu }
 //       );
 //       allMatches[0][0].rfs = selrafsi as Def[];
@@ -1379,7 +1389,7 @@ async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu, lojbo }: any) {
     for (const veljvocmi of def.v) {
       const se_skicu_le_veljvocmi = (
         await runQuery(
-          `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where w=$veljvocmi and bangu=$bangu limit 1`,
+          `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi where w=$veljvocmi and bangu=$bangu limit 1`,
           { $bangu: bangu, $veljvocmi: veljvocmi }
         )
       )[0];
@@ -1394,7 +1404,7 @@ async function jmina_ro_cmima_be_lehivalsi({ query, def, bangu, lojbo }: any) {
     for (const veljvocmi of porsi_le_veljvocmi) {
       const se_skicu_le_veljvocmi = (
         await runQuery(
-          `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=? and valsi.bangu=? limit 1`,
+          `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi, json_each(valsi.r) where json_valid(valsi.r) and json_each.value=? and valsi.bangu=? limit 1`,
           [veljvocmi, bangu]
         )
       )[0];
@@ -1471,7 +1481,7 @@ async function shortget({
           const valsi = vuhilevelujvo[j];
           const le_se_skicu_valsi = (
             await runQuery(
-              `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where w=$valsi and bangu=$bangu limit 1`,
+              `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi where w=$valsi and bangu=$bangu limit 1`,
               { $valsi: valsi, $bangu: bangu }
             )
           )[0];
@@ -1857,9 +1867,7 @@ function ma_liste_lehi_veljvorafsi(lujvo: string) {
 }
 
 async function sortSearchResults(
-  similarDict: {
-    [key: string]: number;
-  },
+  similarDefs: string[],
   searching: Searching,
   results: DefResult[],
   opts: { query_apos: string }
@@ -1874,10 +1882,10 @@ async function sortSearchResults(
       else if (def.bangu === "jbo")
         searchPriorityGroups.wordFullMatchJbo.push(def);
       else searchPriorityGroups.wordFullMatchAdditional.push(def);
-    } else if (similarDict[def.w]) {
+    } else if (similarDefs.includes(def.w)) {
       searchPriorityGroups.zSemMatch.push({
         ...def,
-        semMaxDistance: similarDict[def.w],
+        semMaxDistance: 0,
       });
     } else if (def.g && includes(def.g.split(";"), query)) {
       searchPriorityGroups.glossMatch.push(def);
@@ -2053,35 +2061,12 @@ async function sortSearchResults(
   };
 }
 
-function dot(a: number[], b: number[]) {
-  return a.reduce((sum, value, index) => sum + value * b[index], 0);
-}
-
-function cosine(a: number[], b: number[]) {
-  const magA = Math.sqrt(dot(a, a));
-  const magB = Math.sqrt(dot(b, b));
-  return dot(a, b) / (magA * magB);
-}
-
-const preprocessDefinitionForVectors = (def: string): string => {
-  return def
-    .replace(/\$.*?\$/g, "[UNK]")
-    .replace(/\{.*?\}/g, "[UNK]")
-    .replace(/".*?"/g, "[UNK]")
-    .replace(/See also\b */g, "")
-    .replace(/See\b */g, "")
-    .replace(/ {2,}/g, " ")
-    .replace(/[\.,] ?[\.,]/g, ".")
-    .replace(/[,\. ]+$/, "")
-    .replace(/^[,\. ]+/, "");
-};
-
-function transformArrayToDict(searchResults: SearchResult[]): {
-  [key: string]: number;
-} {
-  return Object.fromEntries(
-    searchResults.map((item) => [item.item, item.distance])
-  );
+function transformArrayToDict(
+  searchResults: SearchResult[],
+  lang: string
+): string[] {
+  const coreLang = supportedLangs[lang].b ?? lang;
+  return searchResults.map((item) => sentenceKeys[coreLang][item.item]);
 }
 
 async function ninsisku(searching: Searching) {
@@ -2115,7 +2100,7 @@ async function ninsisku(searching: Searching) {
     const vector = vectors[0];
     const similar = (await semSearcher.search(vector)) || [];
 
-    const similarDict = transformArrayToDict(similar);
+    const similarDict = transformArrayToDict(similar, bangu);
     console.log({
       similarDict,
       passed: (new Date().getTime() - from) / 1000,
@@ -2150,7 +2135,7 @@ async function ninsisku(searching: Searching) {
     //   ),
     // });
 
-    const parts = vlakle.map((v) => v[1].split("-")).flat();
+    const parts = vlakle.map((valsi) => valsi[1].split("-")).flat();
     const enrichedParts = [
       ...new Set(
         parts.concat([
@@ -2159,14 +2144,15 @@ async function ninsisku(searching: Searching) {
         ])
       ),
     ];
-    const similarDefs = similar.reduce((acc, el) => {
-      if (el.distance >= 0.2) return acc.concat([el.item]);
-      return acc;
-    }, [] as string[]);
+    const similarDefs = similarDict;
+    // const similarDefs = similar.reduce((acc, el) => {
+    //   if (el.distance >= 0.2) return acc.concat([el.item]);
+    //   return acc;
+    // }, [] as string[]);
 
     rows = (await runQuery(
       `
-		select distinct d,n,w,r,bangu,s,t,g,b,z,v,cache
+		select distinct d,n,w,r,bangu,s,t,g,b,z,cache
 		from valsi
 		where ${Array(enrichedParts.length)
       .fill(`(cache like ?)`)
@@ -2198,10 +2184,7 @@ async function ninsisku(searching: Searching) {
           def.rfs = subDefs;
         }
         if (similarDefs.includes(def.w)) return acc.concat(def);
-        const noSharedElementsInCache = arraysShareElement(
-          def.cache.split(";"),
-          parts
-        );
+        const noSharedElementsInCache = arraysShareElement(def.cache, parts);
         if (bangu === "muplis") {
           def.noSharedElementsInCache =
             (2 * noSharedElementsInCache) / parts.length;
@@ -2224,7 +2207,7 @@ async function ninsisku(searching: Searching) {
     );
 
     rows = (
-      await sortSearchResults(similarDict, searching, rows as DefResult[], {
+      await sortSearchResults(similarDefs, searching, rows as DefResult[], {
         query_apos,
       })
     ).results;
@@ -2235,13 +2218,13 @@ async function ninsisku(searching: Searching) {
   } else if (xujbotergeha > 0.8) {
     //if >=80% lojban phrase decompose everything with two levels, include fuhivla prefixes
     //try to find exact match
-    const parts = vlakle.map((v) => v[1].split("-")).flat();
+    const parts = vlakle.map((valsi) => valsi[1].split("-")).flat();
     const enrichedParts = parts.concat([parts.join(" ")]); //for "lo nu" being both a phrase and a single word
     //search for parts
     //cache returned, use this cache to sort words, only take data from this cache!
     let rows = await runQuery(
       `
-		select distinct d,n,w,r,bangu,s,t,g,b,z,v,cache
+		select distinct d,n,w,r,bangu,s,t,g,b,z,cache
 		from valsi
 		where ${Array(enrichedParts.length).fill(`(cache like ?)`).join(" or ")}
     `,
@@ -2250,10 +2233,7 @@ async function ninsisku(searching: Searching) {
 
     rows = rows.filter((def: Dict) => {
       if (!def.cache) log(def, "warn");
-      const noSharedElementsInCache = arraysShareElement(
-        def.cache.split(";"),
-        parts
-      );
+      const noSharedElementsInCache = arraysShareElement(def.cache, parts);
       if (bangu === "muplis") {
         def.noSharedElementsInCache =
           (2 * noSharedElementsInCache) / parts.length;
@@ -2326,7 +2306,7 @@ async function ralsisku(searching: Searching) {
     const regexpedQuery = query.toLowerCase().replace(/'/g, "''");
     // const regexpedQueryPrecise = regexpedQuery.replace(/\^/g, '').replace(/\$/g, '').replace(/^(.*)$/g, '\\b$1\\b')
     let first1000 = await runQuery(
-      `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where regexp('${regexpedQuery}',w) and bangu=$bangu limit 1000`,
+      `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi where regexp('${regexpedQuery}',w) and bangu=$bangu limit 1000`,
       { $bangu: bangu }
     );
 
@@ -2554,7 +2534,7 @@ async function ma_rimni(
   if (queryR.length === 2) {
     result = (
       await runQuery(
-        `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where bangu=$bangu`,
+        `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi where bangu=$bangu`,
         {
           $bangu: bangu,
         }
@@ -2577,7 +2557,7 @@ async function ma_rimni(
     query_apos = regexify((queryR || []).join(""));
     result = (
       await runQuery(
-        `SELECT d,n,w,r,bangu,s,t,g,b,z,v FROM valsi where bangu = $bangu`,
+        `SELECT d,n,w,r,bangu,s,t,g,b,z FROM valsi where bangu = $bangu`,
         {
           $bangu: bangu,
         }

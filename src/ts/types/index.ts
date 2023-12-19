@@ -4,11 +4,11 @@ export type DumpRow = string[];
 
 export type Morna = { valsi: string; fancu: string };
 export interface DefResult extends Def {
-  cache: string;
+  cache: string[];
   noSharedElementsInCache?: number;
 }
 export type Def = {
-  cache?: string;
+  cache?: string[];
   semMaxDistance?: number;
   n?: string;
   s?: string | string[];

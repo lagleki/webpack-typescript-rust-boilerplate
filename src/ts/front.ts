@@ -36,7 +36,11 @@ import {
   RegexFlavours,
   State,
 } from "./types";
-import { cloneObject, getRandomValueFromArray } from "./utils/fns";
+import {
+  cloneObject,
+  fetchTimeout,
+  getRandomValueFromArray,
+} from "./utils/fns";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -131,7 +135,7 @@ async function fetchAndSaveCachedListValues({ mode }: { mode: string }) {
   const initialCacheListLength = cachedList.length;
 
   let [, response]: [unknown, Response | undefined] = await to(
-    fetch(`/data/tcini.json?sisku=${new Date().getTime()}`)
+    fetchTimeout(`/data/tcini.json?sisku=${new Date().getTime()}`)
   );
   if (!response?.ok) {
     if (initialCacheListLength === 0)
@@ -150,7 +154,9 @@ async function fetchAndSaveCachedListValues({ mode }: { mode: string }) {
     if (mode === "co'a" && !/((\.(js|wasm|html|css))|\/)$/.test(url)) continue;
     const isInCache = await objCache.match(url);
     if (!isInCache) {
-      await objCache.add(url);
+      try {
+        await objCache.add(url);
+      } catch (error) {}
       cacheUpdated = true;
       if (mode === "co'a") {
         stateLoading.completedRows = i;
@@ -479,7 +485,7 @@ async function addAudioLinks() {
       valsi
     )}.ogg`;
     let [, res]: [unknown, Response | undefined] = await to(
-      fetch(urli, { cache: "no-store" })
+      fetchTimeout(urli, 5000, { cache: "no-store" })
     );
     if (!res?.ok) continue;
     const blob = await res.blob();
@@ -1062,7 +1068,7 @@ component(
           })
         )
       ),
-      sihesle(),
+      sihesle()
     );
   },
   {
@@ -1124,7 +1130,7 @@ function addPyro() {
   }
 }
 
-const rnds = Array.from({length: 6}, () => [rnd(100), rnd(30), rnd(3)]);
+const rnds = Array.from({ length: 6 }, () => [rnd(100), rnd(30), rnd(3)]);
 function sihesle() {
   if (!stateLoading.ninynaha) return;
   return h(

@@ -4,9 +4,9 @@ import { getRandomValueFromArray } from "./utils/fns";
 
 export const modes = ["velcusku", "arxivo", "cnano", "rimni", "catni", "fanva"];
 export const supportedLangs = {
-  "en-embeddings": { n: "English word embeddings" },
-  en: { n: "English", zbalermorna_defined: true },
-  muplis: { n: "la muplis" },
+  "en-embeddings": { n: "Similarity search", b: "en" },
+  en: { n: "English", zbalermorna_defined: true, b: "en" },
+  muplis: { n: "la muplis", b: "en" },
   "en-cll": { n: "The Book" },
   "en-pixra": { n: "🎨🖼️📸", pictureDictionary: true },
   "en-ll": { n: "Learn Lojban" },
@@ -18,7 +18,35 @@ export const supportedLangs = {
   ja: { n: "日本語" },
   zh: { n: "中文" },
   loglan: { n: "Loglan" },
-  'art-toki': { n: "toki pona" },
+  "art-toki": { n: "toki pona" },
+};
+
+export const supportedLangsWorker: { [key: string]: any } = {
+  en: { p: "selsku_lanci_eng", b: "en" },
+  muplis: { b: "en" },
+  sutysisku: { bangu: "en", priority: 11 },
+  "en-pixra": {
+    p: "cukta",
+    noRafsi: true,
+    searchPriority: 10,
+    priority: 10,
+    simpleCache: true,
+  },
+  "en-ll": {
+    p: "cukta",
+    noRafsi: true,
+    searchPriority: 9,
+    priority: 9,
+  },
+  "en-cll": { p: "cukta", noRafsi: true, searchPriority: 8, priority: 8 },
+  jbo: { p: "lanci_jbo", searchPriority: 7 },
+  ru: { p: "selsku_lanci_rus" },
+  eo: { p: "lanci_epo" },
+  es: { p: "selsku_lanci_spa" },
+  "fr-facile": { p: "selsku_lanci_fra" },
+  ja: { p: "selsku_lanci_jpn" },
+  zh: { p: "selsku_lanci_zho" },
+  loglan: { p: "loglan" },
 };
 
 export const tiles = [
@@ -71,7 +99,12 @@ export const tiles = [
     },
   },
   { loglan: { title: "Loglan", picture: "/assets/pixra/bangu/loglan.svg" } },
-  { "art-toki": { title: "toki pona", picture: "/assets/pixra/bangu/toki_pona.svg" } },
+  {
+    "art-toki": {
+      title: "toki pona",
+      picture: "/assets/pixra/bangu/toki_pona.svg",
+    },
+  },
 ];
 
 export const listFamymaho = {
@@ -217,4 +250,3 @@ export const blobChunkDefaultLength = 5;
 export const cisn_default = 100;
 
 export const secondarySeskari = ["fanva", "selmaho"];
-
